@@ -1,0 +1,87 @@
+(() => {
+  const setPressed = (buttons, active, key) => {
+    buttons.forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset[key] === active ? "true" : "false");
+    });
+  };
+
+  const fieldStates = {
+    label: ["Label · 20 bit", "È il valore consultato nel forwarding MPLS. Ha significato locale fra nodi adiacenti e può essere sostituito a ogni hop."],
+    tc: ["Traffic Class · 3 bit", "Trasporta informazioni utilizzabili per Quality of Service ed Explicit Congestion Notification secondo il modello configurato."],
+    s: ["Bottom of Stack · 1 bit", "Vale 1 sull'ultima entry della pila. Se vale 0, sotto è presente almeno un'altra label MPLS."],
+    ttl: ["Time To Live · 8 bit", "Limita la durata del pacchetto labeled e impedisce che un loop MPLS continui indefinitamente."]
+  };
+  const fieldButtons = [...document.querySelectorAll("[data-label-field]")];
+  const fieldTitle = document.getElementById("fieldTitle");
+  const fieldText = document.getElementById("fieldText");
+  const showField = (key) => {
+    fieldButtons.forEach((field) => field.classList.toggle("active", field.dataset.labelField === key));
+    fieldTitle.textContent = fieldStates[key][0];
+    fieldText.textContent = fieldStates[key][1];
+  };
+  fieldButtons.forEach((field) => field.addEventListener("click", () => showField(field.dataset.labelField)));
+  showField("label");
+
+  const journeyStates = {
+    ingress: { nodes: ["pea"], links: ["a1"], label: "18", title: "PE-A classifica il datagramma nella FEC e impone la label 18.", text: "Il Provider Edge di ingresso usa informazioni già programmate dal control plane. Costruisce anche il nuovo involucro Layer 2 per il collegamento verso P1.", action: "PUSH 18", labeled: true },
+    transit1: { nodes: ["p1"], links: ["a1", "12"], label: "27", title: "P1 consulta la LFIB e sostituisce 18 con 27.", text: "Il router Provider usa la label superiore come chiave di inoltro. Non deve eseguire un longest-prefix match sull'indirizzo IP cliente per questa decisione.", action: "SWAP 18 → 27", labeled: true },
+    transit2: { nodes: ["p2"], links: ["12", "2b"], label: "POP", title: "P2 esegue penultimate-hop popping.", text: "La label di trasporto viene rimossa un hop prima dell'uscita quando il comportamento annunciato dal PE-B lo richiede.", action: "POP 27", labeled: false },
+    egress: { nodes: ["peb"], links: ["2b"], label: "IPv4", title: "PE-B riceve il payload e continua l'inoltro appropriato.", text: "Nel caso semplice a una label esegue il lookup IP; con una label di servizio residua, quella label può selezionare il contesto di consegna.", action: "LOOKUP / CONSEGNA", labeled: false }
+  };
+  const journeyButtons = [...document.querySelectorAll("[data-journey]")];
+  const journeyNodes = [...document.querySelectorAll("[data-mpls-node]")];
+  const journeyLinks = [...document.querySelectorAll("[data-mpls-link]")];
+  const journeyLabel = document.getElementById("journeyLabel");
+  const journeyAction = document.getElementById("journeyAction");
+  const journeyTitle = document.getElementById("journeyTitle");
+  const journeyText = document.getElementById("journeyText");
+  const showJourney = (key) => {
+    const state = journeyStates[key];
+    setPressed(journeyButtons, key, "journey");
+    journeyNodes.forEach((node) => node.classList.toggle("active", state.nodes.includes(node.dataset.mplsNode)));
+    journeyLinks.forEach((link) => link.classList.toggle("active", state.links.includes(link.dataset.mplsLink)));
+    journeyLabel.textContent = state.label;
+    journeyLabel.parentElement.classList.toggle("hidden", !state.labeled);
+    journeyAction.textContent = state.action;
+    journeyTitle.textContent = state.title;
+    journeyText.textContent = state.text;
+  };
+  journeyButtons.forEach((button) => button.addEventListener("click", () => showJourney(button.dataset.journey)));
+  showJourney("ingress");
+
+  const lfibStates = {
+    "16": ["Label 16 → swap 22 → Gi0/1", "Il pacchetto appartiene alla FEC diretta verso PE-B. L'adiacenza determina la riscrittura Layer 2 verso P2."],
+    "17": ["Label 17 → swap 31 → Gi0/2", "Una FEC differente può usare lo stesso next hop fisico ma un valore di label differente."],
+    "18": ["Label 18 → pop → Gi0/1", "L'azione pop rimuove la label superiore. Il contenuto successivo sarà interpretato dal nodo seguente in base al contesto predisposto dal control plane."]
+  };
+  const lfibButtons = [...document.querySelectorAll("[data-lfib]")];
+  const lfibTitle = document.getElementById("lfibTitle");
+  const lfibText = document.getElementById("lfibText");
+  const showLfib = (key) => {
+    setPressed(lfibButtons, key, "lfib");
+    lfibTitle.textContent = lfibStates[key][0];
+    lfibText.textContent = lfibStates[key][1];
+  };
+  lfibButtons.forEach((button) => button.addEventListener("click", () => showLfib(button.dataset.lfib)));
+  showLfib("16");
+
+  const stackStates = {
+    transport: ["Una sola label di trasporto", "La label superiore conduce il pacchetto lungo l'LSP verso il router di uscita. Il bit S vale 1 perché questa è l'ultima entry della pila."],
+    service: ["Label di trasporto + label di servizio", "La label esterna guida il core; la label interna resta sotto e può identificare il trattamento di servizio al bordo. S vale 0 sull'esterna e 1 sull'interna."]
+  };
+  const stackButtons = [...document.querySelectorAll("[data-stack-mode]")];
+  const serviceLabel = document.getElementById("serviceLabel");
+  const outerS = document.getElementById("outerS");
+  const stackTitle = document.getElementById("stackTitle");
+  const stackText = document.getElementById("stackText");
+  const showStack = (key) => {
+    setPressed(stackButtons, key, "stackMode");
+    const two = key === "service";
+    serviceLabel.classList.toggle("inactive", !two);
+    outerS.textContent = two ? "S=0" : "S=1";
+    stackTitle.textContent = stackStates[key][0];
+    stackText.textContent = stackStates[key][1];
+  };
+  stackButtons.forEach((button) => button.addEventListener("click", () => showStack(button.dataset.stackMode)));
+  showStack("transport");
+})();

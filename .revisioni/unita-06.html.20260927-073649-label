@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="$lang$">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="$description$">
+  <title>Unità 6 — $title$</title>
+  <link rel="stylesheet" href="assets/unita-06.css?v=3">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">$unit_mark$</span> NETWORKING ACADEMY</div>
+      <div class="progress">$unit_label$</div>
+    </header>
+
+    <div class="hero">
+      <div>
+        <p class="kicker">Unità 6 · prima stesura <span class="draft">$status$</span></p>
+        <h1>Inoltrare mediante <span>label.</span></h1>
+        <p class="hero-lead"><strong>Domanda guida:</strong> $question$</p>
+      </div>
+      <div class="hero-mpls" aria-label="Un datagramma IP attraversa un backbone MPLS">
+        <div class="hero-caption">Dal lookup IP al label switching</div>
+        <div class="hero-route">
+          <div class="hero-router edge"><b>PE-A</b><small>PUSH 18</small></div>
+          <i></i>
+          <div class="hero-router core"><b>P1</b><small>18 → 27</small></div>
+          <i></i>
+          <div class="hero-router core"><b>P2</b><small>27 → POP</small></div>
+          <i></i>
+          <div class="hero-router edge"><b>PE-B</b><small>IPv4</small></div>
+        </div>
+        <div class="hero-packet"><span>ETHERNET</span><b>LABEL</b><strong>IPv4</strong><em>TCP + DATI</em></div>
+        <div class="hero-note">La label cambia hop-by-hop; il datagramma cliente continua il proprio viaggio.</div>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell'unità">
+      <a href="#problema">Problema</a>
+      <a href="#collocazione">Collocazione</a>
+      <a href="#header">Header</a>
+      <a href="#ruoli">Ruoli</a>
+      <a href="#lfib">LFIB</a>
+      <a href="#operazioni">Push–swap–pop</a>
+      <a href="#stack">Stack</a>
+      <a href="#cooperazione">Cooperazione</a>
+      <a href="#operativita">Verifica</a>
+      <a href="#limiti">Limiti</a>
+      <a href="#glossario">Glossario</a>
+      <a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+$body$
+    </main>
+
+    <footer>
+      <span>NETWORKING ACADEMY · UNITÀ 6 · $status$</span>
+      <span>Dal dato del cliente al backbone del Service Provider</span>
+    </footer>
+  </div>
+  <script src="assets/unita-06.js?v=1"></script>
+</body>
+</html>

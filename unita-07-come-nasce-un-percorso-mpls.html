@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Come il control plane costruisce percorsi Multiprotocol Label Switching (MPLS): dipendenza di Label Distribution Protocol (LDP) dall'Interior Gateway Protocol (IGP), Traffic Engineering con Resource Reservation Protocol (RSVP) e Segment Routing.">
+  <title>Unità 7 — Come nasce un percorso Multiprotocol Label Switching</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/corso.css">
+  <link rel="stylesheet" href="assets/unita-07.css?v=7">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">M7</span> NETWORKING ACADEMY</div>
+      <div class="topbar-tools">
+      <div class="progress">UNITÀ 7 · CONTROL PLANE</div>
+        <label class="theme-switch" for="themeToggle">
+          <span class="theme-icon" aria-hidden="true">☼</span>
+          <span class="theme-label">Tema</span>
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span></span></span>
+          <span class="theme-current" id="themeCurrent">Scuro</span>
+        </label>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="hero-heading">
+        <p class="kicker">Unità 7 · control plane <span class="draft">PERCORSO PRINCIPALE</span></p>
+        <h1>Come nasce un <span>percorso Multiprotocol Label Switching (MPLS).</span></h1>
+      </div>
+      <div class="hero-control" aria-label="Sequenza di preparazione di un percorso di label switching">
+        <div class="hero-caption">Prima si calcola, poi si programma</div>
+        <div class="control-chain">
+          <div class="control-node igp"><b>Interior Gateway Protocol (IGP)</b><small>topologia e next hop</small></div><i></i>
+          <div class="control-node protocol"><b>Protocolli Multiprotocol Label Switching (MPLS)</b><small>Label Distribution Protocol (LDP)<br>Resource Reservation Protocol - Traffic Engineering (RSVP-TE)<br>Segment Routing (SR)</small></div><i></i>
+          <div class="control-node control-lfib"><b>Label Forwarding Information Base (LFIB)</b><small>azioni di inoltro</small></div>
+        </div>
+        <div class="hero-rule"><strong>Data plane:</strong> applica le voci già installate. <strong>Control plane:</strong> le calcola e le distribuisce.</div>
+      </div>
+      <div class="hero-summary">
+        <p class="hero-lead"><strong>Domanda guida:</strong> chi assegna le label e come fa ogni router a conoscere quella da usare?</p>
+        <div class="learning-strip">
+          <span><b>Prerequisiti</b> Unità 4–6</span>
+          <span><b>Obiettivo</b> Separare percorso, segnalazione e inoltro</span>
+          <span><b>Tempo indicativo</b> 35 minuti</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell'unità">
+      <a href="#problema">Problema</a><a href="#scenario">Scenario</a><a href="#ldp">LDP</a>
+      <a href="#distribuzione">Label hop-by-hop</a><a href="#rsvp">RSVP-TE</a><a href="#segment-routing">SR-MPLS</a>
+      <a href="#confronto">Confronto</a><a href="#operativita">Verifica</a><a href="#limiti">Limiti</a>
+      <a href="#glossario">Glossario</a><a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+      <section id="problema" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>01</p></div><div class="section-copy">
+          <h5 class="section-kicker">Il problema originario</h5>
+          <h2>La Label Forwarding Information Base (LFIB) non si riempie da sola</h2>
+          <div class="section-intro"><p>L’Unità 6 ha mostrato come un router inoltra un pacchetto labeled: consulta la Label Forwarding Information Base (LFIB) e applica push, swap o pop. Resta da capire chi decide il percorso, chi assegna i valori locali e come le decisioni arrivano a tutti i router coinvolti.</p></div>
+        </div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">PRIMA · CONNETTIVITÀ</h5><h3>L’Interior Gateway Protocol (IGP) conosce la topologia</h3><p>L’IGP calcola rotte e next hop nel dominio del provider. Da solo, però, non distribuisce le label Multiprotocol Label Switching (MPLS) da usare per inoltrare i pacchetti.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">POI · CONTROL PLANE MPLS</h5><h3>Un meccanismo prepara i percorsi labeled</h3><p>Label Distribution Protocol (LDP), Resource Reservation Protocol - Traffic Engineering (RSVP-TE) o Segment Routing with the MPLS Data Plane (SR-MPLS) forniscono metodi diversi per programmare il forwarding.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">INFINE · DATA PLANE</h5><h3>La Label Forwarding Information Base (LFIB) esegue le decisioni installate</h3><p>Il router che inoltra non negozia una label per ogni pacchetto. Cerca una voce locale già predisposta e manda il pacchetto al prossimo hop.</p></article>
+        </div>
+        <div class="insight"><p><strong>Il percorso e la label sono concetti distinti.</strong><br>Un protocollo può scegliere o segnalare un percorso; la label identifica il trattamento da applicare su un tratto. La label non contiene l’intero percorso e non è un identificatore globale.</p></div>
+        <div class="callout"><p><strong>Che cosa non risolve MPLS?</strong> La label non sceglie da sola la rotta, non crea capacità fisica e non cifra il traffico. Topologia, risorse e policy restano responsabilità di altri meccanismi.</p></div>
+      </section>
+
+      <section id="scenario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>02</p></div><div class="section-copy">
+          <h5 class="section-kicker">Il laboratorio mentale</h5><h2>Stessa destinazione, due percorsi possibili</h2>
+          <div class="section-intro"><p>Riprendiamo i router di bordo Provider Edge (PE-A e PE-B) e aggiungiamo i router interni Provider (P1, P2 e P3). L’IGP preferisce il percorso a costo minore tramite P1 e P2; una policy di Traffic Engineering potrebbe invece chiedere il passaggio per P3.</p></div>
+        </div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>Topologia del provider</strong><span>frecce da sinistra a destra · i numeri indicano costi IGP illustrativi</span></div>
+          <div class="topology-wrap" tabindex="0" aria-label="Schema scorrevole della topologia">
+            <div class="topology" role="img" aria-label="PE-A raggiunge PE-B via P1 e P2 con costo 10, oppure via P1 e P3 con costo 16">
+              <div class="topology-route igp-route"><div class="topo-node edge"><b>PE-A</b><small>Provider Edge · ingresso</small></div><div class="topo-link"><span>2</span></div><div class="topo-node p1"><b>P1</b><small>Provider · transito</small></div><div class="topo-link"><span>3</span></div><div class="topo-node p2"><b>P2</b><small>Provider · via breve</small></div><div class="topo-link"><span>5</span></div><div class="topo-node edge"><b>PE-B</b><small>Provider Edge · uscita</small></div></div>
+              <div class="topology-route te-route"><div class="topo-node edge"><b>PE-A</b><small>Provider Edge · ingresso</small></div><div class="topo-link"><span>2</span></div><div class="topo-node p1"><b>P1</b><small>Provider · transito</small></div><div class="topo-link"><span>8</span></div><div class="topo-node p3"><b>P3</b><small>Provider · via alternativa</small></div><div class="topo-link"><span>6</span></div><div class="topo-node edge"><b>PE-B</b><small>Provider Edge · uscita</small></div></div>
+            </div>
+          </div>
+          <div class="route-key"><span class="key-igp">━━ Percorso IGP: costo 10</span><span class="key-te">┄ ┄ Percorso alternativo: costo 16</span></div>
+          <p class="figure-note"><strong>Legenda:</strong> PE = Provider Edge; P = Provider; IGP = Interior Gateway Protocol; TE = Traffic Engineering. Schema didattico, non una topologia né una numerazione di router da configurare. Il percorso reale dipende dai costi, dai vincoli e dalle policy del dominio.</p>
+        </div>
+        <div class="cards cards-2">
+          <article class="mini-card"><strong>DATAGRAMMA CLIENTE</strong><p>Conserva gli indirizzi Internet Protocol (IP) sorgente e destinazione end-to-end, salvo i normali comportamenti di rete.</p></article>
+          <article class="mini-card"><strong>LABEL MPLS</strong><p>È un’informazione del data plane, aggiunta al pacchetto per applicare l’inoltro predisposto nel dominio.</p></article>
+        </div>
+        <div class="data-vocabulary">
+          <h3>Sei nomi, sei ruoli nel viaggio</h3>
+          <div class="data-vocab-grid">
+            <div><b>Dato applicativo</b><span>Contenuto prodotto dall’applicazione prima dell’incapsulamento.</span></div>
+            <div><b>Segmento TCP</b><span>Unità del Transmission Control Protocol (TCP), che aggiunge porte e informazioni di trasporto.</span></div>
+            <div><b>Datagramma IP</b><span>Unità di Internet Protocol (IP), con indirizzi di rete sorgente e destinazione.</span></div>
+            <div><b>Pacchetto MPLS</b><span>Datagramma o altra unità di livello superiore trasportata con una o più label MPLS.</span></div>
+            <div><b>Label</b><span>Valore di forwarding nel dominio MPLS; non sostituisce l’indirizzo IP del datagramma.</span></div>
+            <div><b>Trama Ethernet</b><span>Involucro Layer 2 valido sul singolo collegamento, sostituito al successivo hop instradato.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="ldp" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>03</p></div><div class="section-copy">
+          <h5 class="section-kicker">Label Distribution Protocol (LDP)</h5><h2>Label Distribution Protocol (LDP) segue il next hop scelto dall’Interior Gateway Protocol (IGP)</h2>
+          <div class="section-intro"><p>Label Distribution Protocol (LDP) permette ai router adiacenti di scambiarsi associazioni fra Forwarding Equivalence Class (FEC) e label. Nel caso classico di trasporto, la FEC rappresenta spesso un prefisso di destinazione. Il next hop verso quel prefisso è determinato dal protocollo di routing.</p></div>
+        </div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>La catena di dipendenze</strong><span>ogni livello ha un compito diverso</span></div>
+          <div class="dependency-flow">
+          <div class="dependency-box igp-box"><b>OSPF · Open Shortest Path First<br>IS-IS · Intermediate System to Intermediate System</b><span>calcolano la raggiungibilità e il next hop per PE-B</span></div><div class="dependency-arrow">↓</div>
+            <div class="dependency-box ldp-box"><b>LDP · Label Distribution Protocol</b><span>scambia le label associate alla FEC PE-B fra router LDP peer</span></div><div class="dependency-arrow">↓</div>
+            <div class="dependency-box lib-box"><b>LIB · Label Information Base<br>LFIB · Label Forwarding Information Base</b><span>conserva le associazioni apprese; installa le azioni utilizzabili per il forwarding</span></div><div class="dependency-arrow">↓</div>
+          <div class="dependency-box data-box"><b>Pacchetto Multiprotocol Label Switching (MPLS)</b><span>usa la label ricevuta dal next hop corrente</span></div>
+          </div>
+          <p class="figure-note"><strong>Legenda:</strong> OSPF = Open Shortest Path First; IS-IS = Intermediate System to Intermediate System; PE = Provider Edge; LDP = Label Distribution Protocol; FEC = Forwarding Equivalence Class; LIB = Label Information Base; LFIB = Label Forwarding Information Base; MPLS = Multiprotocol Label Switching.</p>
+        </div>
+        <div class="callout"><p><strong>Conseguenza pratica:</strong> nell’LDP hop-by-hop, il percorso labeled normalmente coincide con il percorso verso il next hop scelto dall’IGP per la FEC. Se cambia la rotta IGP, LDP deve usare la label del nuovo next hop. LDP non impone, da solo, una deviazione per banda, ritardo o percorso esplicito.</p></div>
+        <div class="figure interactive">
+          <div class="figure-title"><strong>Che cosa cambia quando cambia il next hop?</strong><span>seleziona una condizione</span></div>
+          <div class="button-row" role="group" aria-label="Condizione del next hop">
+            <button type="button" data-ldp-state="stable" aria-pressed="true">Rotta stabile</button>
+            <button type="button" data-ldp-state="changed" aria-pressed="false">Next hop cambiato</button>
+            <button type="button" data-ldp-state="missing" aria-pressed="false">Label non disponibile</button>
+          </div>
+          <div class="status-copy"><strong id="ldpStateTitle">Rotta e label coerenti</strong><span id="ldpStateText">La Forwarding Information Base (FIB) sceglie P1 come next hop per PE-B; la LFIB usa la label appresa da P1 per inoltrare il pacchetto labeled.</span></div>
+        </div>
+      </section>
+
+      <section id="distribuzione" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>04</p></div><div class="section-copy">
+          <h5 class="section-kicker">Distribuzione hop-by-hop</h5><h2>La label d’uscita arriva dal router a valle</h2>
+          <div class="section-intro"><p>Per una stessa FEC, ogni router assegna una label locale e la comunica ai peer. Il router a monte installa una voce che associa la label d’ingresso all’azione e alla label d’uscita appresa dal prossimo hop. La propagazione procede all’indietro rispetto al flusso dei pacchetti.</p></div>
+        </div></div>
+        <div class="figure interactive">
+          <div class="figure-title"><strong>Dal PE di uscita verso l’ingresso</strong><span>seleziona una fase della preparazione</span></div>
+          <div class="button-row" role="group" aria-label="Fase di distribuzione delle label">
+            <button type="button" data-ldp-step="egress" aria-pressed="false">1 · PE-B annuncia</button>
+            <button type="button" data-ldp-step="p2" aria-pressed="false">2 · P2 annuncia</button>
+            <button type="button" data-ldp-step="p1" aria-pressed="true">3 · P1 propaga</button>
+            <button type="button" data-ldp-step="ingress" aria-pressed="false">4 · PE-A inoltra</button>
+          </div>
+          <div class="label-chain" aria-label="Label locali simboliche per la FEC diretta a PE-B">
+            <div class="label-router" data-ldp-node="ingress"><b>PE-A</b><small>LFIB</small><strong>classifica → PUSH L-A</strong></div><i data-ldp-link="a1"></i>
+            <div class="label-router" data-ldp-node="p1"><b>P1</b><small>LFIB</small><strong>L-A → L-B</strong></div><i data-ldp-link="12"></i>
+            <div class="label-router" data-ldp-node="p2"><b>P2</b><small>LFIB</small><strong>L-B → POP</strong></div><i data-ldp-link="2b"></i>
+            <div class="label-router" data-ldp-node="egress"><b>PE-B</b><small>uscita</small><strong>FEC locale</strong></div>
+          </div>
+          <div class="status-copy"><strong id="distributionTitle">P1 annuncia la propria associazione a monte</strong><span id="distributionText">P1 conosce la label che P2 ha annunciato per la FEC e installa la corrispondente azione di uscita. I valori L-A, L-B e L-C sono simbolici: le label sono locali, non numeri da mantenere uguali lungo il percorso.</span></div>
+          <p class="figure-note"><strong>Legenda:</strong> FEC = Forwarding Equivalence Class; PE = Provider Edge; P = Provider; LFIB = Label Forwarding Information Base; PHP = Penultimate Hop Popping. Per una FEC che termina su PE-B, il router può annunciare Implicit Null: P2 rimuove la label prima dell’uscita. I valori L-A e L-B sono solo simbolici.</p>
+        </div>
+        <div class="insight"><p><strong>L’ordine delle decisioni e quello dei pacchetti sono opposti.</strong><br>Le label si propagano dal lato di uscita verso monte; i pacchetti utente viaggiano dall’ingresso verso l’uscita.</p></div>
+      </section>
+
+      <section id="rsvp" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>05</p></div><div class="section-copy">
+          <h5 class="section-kicker">Resource Reservation Protocol - Traffic Engineering (RSVP-TE)</h5><h2>Resource Reservation Protocol - Traffic Engineering (RSVP-TE) può segnalare un tunnel con vincoli</h2>
+          <div class="section-intro"><p>Resource Reservation Protocol - Traffic Engineering (RSVP-TE) estende RSVP per stabilire Label Switched Path (LSP) con caratteristiche esplicite. Un percorso può rispettare una sequenza di nodi o vincoli di ammissione configurati, invece di limitarsi al cammino IGP di costo minimo.</p></div>
+        </div></div>
+        <div class="figure interactive">
+          <div class="figure-title"><strong>Il percorso IGP e il tunnel Traffic Engineering</strong><span>cambia la visualizzazione</span></div>
+          <div class="button-row" role="group" aria-label="Percorso visualizzato">
+            <button type="button" data-path="igp" aria-pressed="true">Percorso IGP</button>
+            <button type="button" data-path="te" aria-pressed="false">Tunnel RSVP-TE</button>
+          </div>
+          <div class="path-map" data-active-path="igp">
+            <div class="path-row igp-branch"><div class="path-node edge">PE-A</div><div class="path-segment"><span>2</span></div><div class="path-node">P1</div><div class="path-segment"><span>3</span></div><div class="path-node">P2</div><div class="path-segment"><span>5</span></div><div class="path-node edge">PE-B</div></div>
+            <div class="path-row te-branch"><div class="path-node edge">PE-A</div><div class="path-segment"><span>2</span></div><div class="path-node">P1</div><div class="path-segment"><span>8</span></div><div class="path-node">P3</div><div class="path-segment"><span>6</span></div><div class="path-node edge">PE-B</div></div>
+          </div>
+          <div class="status-copy"><strong id="pathTitle">L’IGP seleziona PE-A → P1 → P2 → PE-B</strong><span id="pathText">È il percorso a costo illustrativo minore. Un LSP LDP basato sulla FEC verso PE-B segue normalmente i next hop IGP.</span></div>
+          <p class="figure-note"><strong>Legenda:</strong> IGP = Interior Gateway Protocol; RSVP-TE = Resource Reservation Protocol - Traffic Engineering; PE = Provider Edge; P = Provider; LSP = Label Switched Path. La figura confronta una rotta IGP e un possibile tunnel esplicito. RSVP-TE non rende automaticamente più efficiente il percorso: la scelta dipende dai vincoli e dal disegno operativo.</p>
+        </div>
+        <div class="message-flow">
+          <div><b>PATH · verso PE-B</b><span>Messaggio PATH di Resource Reservation Protocol (RSVP): il mittente segnala il percorso e gli attributi richiesti lungo la rotta selezionata.</span></div>
+          <div class="message-arrow">→</div>
+          <div><b>RESV · verso PE-A</b><span>Messaggio RESV di RSVP: le risorse vengono ammesse hop-by-hop e si completa l’installazione delle label, se il percorso è accettato.</span></div>
+        </div>
+        <div class="callout"><p><strong>“Riservare” non significa creare banda fisica né garantire da solo la qualità percepita.</strong> Il controllo di ammissione dipende dai dati e dalle policy configurati sui router; code, scheduling, capacità e gestione dei guasti restano necessari. Il tunnel TE può seguire un percorso diverso dalla rotta IGP, ma il traffico deve comunque poter essere trasportato e reinstradato secondo il progetto.</p></div>
+      </section>
+
+      <section id="segment-routing" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>06</p></div><div class="section-copy">
+          <h5 class="section-kicker">Segment Routing con data plane Multiprotocol Label Switching (MPLS)</h5><h2>Segment Routing with the MPLS Data Plane (SR-MPLS) porta la lista di istruzioni nello stack</h2>
+          <div class="section-intro"><p>Segment Routing (SR) descrive un percorso come una sequenza ordinata di segmenti. In SR-MPLS, i Segment Identifier (SID) sono rappresentati da label nello stack MPLS. Il router d’ingresso può quindi applicare una lista compatta di istruzioni che guida il pacchetto attraverso il dominio.</p></div>
+        </div></div>
+        <div class="figure interactive">
+          <div class="figure-title"><strong>Che cosa esprime una lista di segmenti?</strong><span>seleziona il livello di controllo</span></div>
+          <div class="button-row" role="group" aria-label="Lista di segmenti SR-MPLS">
+            <button type="button" data-sr-mode="nodes" aria-pressed="true">Segmenti nodo</button>
+            <button type="button" data-sr-mode="links" aria-pressed="false">Segmenti di adiacenza</button>
+          </div>
+          <div class="sr-stack" id="srStack">
+            <div class="stack-title">STACK MPLS · dall’alto verso il basso</div>
+        <div class="sr-label active"><b>Node Segment Identifier (Node SID) · PE-B</b><span>Identificatore del nodo: raggiungilo secondo l’algoritmo IGP</span></div>
+            <div class="sr-label extra inactive"><b>Adjacency Segment Identifier (Adjacency SID) · P1 → P3</b><span>Identificatore dell’adiacenza: usa lo specifico collegamento per guidare il traffico</span></div>
+            <div class="sr-packet"><b>Pacchetto del cliente</b><span>header Internet Protocol (IP) + trasporto + dati</span></div>
+          </div>
+          <div class="status-copy"><strong id="srTitle">Un Node SID indica una destinazione nel dominio SR</strong><span id="srText">Il forwarding segue normalmente il percorso calcolato dall’IGP verso il nodo identificato. Un Node SID da solo non forza ogni collegamento intermedio.</span></div>
+          <p class="figure-note"><strong>Legenda:</strong> SR-MPLS = Segment Routing with the MPLS Data Plane; SID = Segment Identifier; PE = Provider Edge; P = Provider; IGP = Interior Gateway Protocol; MPLS = Multiprotocol Label Switching; IP = Internet Protocol. I segmenti illustrati sono simbolici. Un SID può essere globale nel dominio o avere significato locale; valori, blocchi e comportamento dipendono dal piano di controllo e dalla configurazione.</p>
+        </div>
+        <div class="cards cards-2">
+          <article class="card accent-green"><h5 class="card-tag">MENO STATO DI SEGNALE NEL CORE</h5><h3>La lista è applicata all’ingresso</h3><p>SR può mantenere lo stato della policy ai nodi di ingresso, evitando di stabilire una sessione di segnalazione per ogni tunnel lungo tutti i router del percorso. I router di transito devono comunque conoscere la topologia e saper trattare i SID.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">EVOLUZIONE, NON AUTOMATISMO</h5><h3>Il data plane MPLS rimane quello noto</h3><p>Le label restano nel pacchetto e il forwarding usa le normali operazioni MPLS. Segment Routing cambia il modo di descrivere e distribuire i percorsi; non elimina la necessità di progettare policy e resilienza.</p></article>
+        </div>
+      </section>
+
+      <section id="confronto" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>07</p></div><div class="section-copy">
+          <h5 class="section-kicker">Scelta del meccanismo</h5><h2>Tre metodi, responsabilità diverse</h2>
+          <div class="section-intro"><p>LDP è adatto a distribuire label lungo percorsi coerenti con l’IGP; RSVP-TE segnala LSP con percorso e vincoli espliciti; SR-MPLS codifica segmenti nello stack e lascia al punto d’ingresso la scelta della lista da applicare.</p></div>
+        </div></div>
+        <div class="table-scroll">
+          <table class="compare-table">
+            <thead><tr><th>Domanda</th><th>LDP</th><th>RSVP-TE</th><th>SR-MPLS</th></tr></thead>
+            <tbody>
+              <tr><th>Percorso di base</th><td>Normalmente i next hop calcolati dall’IGP per la FEC.</td><td>LSP segnalato con percorso esplicito e/o vincoli.</td><td>Lista ordinata di SID applicata dal nodo sorgente del percorso.</td></tr>
+              <tr><th>Come sono distribuite le label</th><td>Binding FEC-label scambiati fra peer LDP.</td><td>Label installate durante la segnalazione RSVP-TE dell’LSP.</td><td>I SID sono annunciati dal control plane; il pacchetto porta lo stack richiesto.</td></tr>
+              <tr><th>Stato per ogni percorso nel core</th><td>Associazioni LDP e forwarding per le FEC.</td><td>Stato RSVP-TE per i tunnel e i loro hop.</td><td>In genere nessuna sessione di segnalazione per tunnel nei nodi intermedi; restano le tabelle di topologia e forwarding.</td></tr>
+              <tr><th>Vincoli e Traffic Engineering</th><td>Non sceglie autonomamente un percorso diverso dall’IGP.</td><td>Può usare vincoli e ammissione risorse configurati.</td><td>La policy può codificare il percorso tramite SID e interagire con controller o strumenti di calcolo.</td></tr>
+              <tr><th>Cosa non fa</th><td>Non è l’IGP e non calcola la topologia.</td><td>Non crea capacità né garantisce da solo qualità e resilienza.</td><td>Non sostituisce IGP, policy, capacità o monitoraggio.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="insight"><p><strong>Scelta del percorso ≠ distribuzione della label ≠ applicazione del pacchetto.</strong><br>L’IGP e le policy determinano la raggiungibilità; il metodo MPLS programma o codifica il percorso; la LFIB applica le operazioni per ogni pacchetto.</p></div>
+      </section>
+
+      <section id="operativita" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>08</p></div><div class="section-copy">
+          <h5 class="section-kicker">Dove guardare durante l’analisi</h5><h2>Verificare la catena, non soltanto il pacchetto</h2>
+          <div class="section-intro"><p>Se un pacchetto MPLS non arriva a destinazione, si può risalire dalle azioni del data plane alle informazioni che le hanno prodotte. Il comando e la sintassi esatti variano fra piattaforme e release; le verifiche concettuali sono comuni.</p></div>
+        </div></div>
+        <div class="check-chain">
+          <div class="check-step"><span>1</span><div><b>Raggiungibilità IGP</b><p>Il prefisso o il router di uscita è raggiungibile? Qual è il next hop scelto e il percorso corrisponde all’atteso?</p></div></div>
+          <div class="check-step"><span>2</span><div><b>Stato del metodo MPLS</b><p>LDP ha peer e binding coerenti con la FEC? Il tunnel RSVP-TE è operativo? I SID SR sono annunciati e risolvibili?</p></div></div>
+          <div class="check-step"><span>3</span><div><b>LFIB sul router di transito</b><p>La label in ingresso esiste? Quale operazione, label in uscita, next hop e interfaccia sono installati?</p></div></div>
+          <div class="check-step"><span>4</span><div><b>Involucro sul collegamento</b><p>Il pacchetto esce con la label attesa e la trama Layer 2 è corretta? Sono coerenti Maximum Transmission Unit (MTU), Time To Live (TTL) e comportamento di pop?</p></div></div>
+        </div>
+        <div class="callout"><p><strong>Non confondere “rotta presente” con “LSP pronto”.</strong> Una rotta IP può esistere senza la corrispondente entry MPLS desiderata; viceversa una label vista in tabella deve essere verificata rispetto alla FEC, al next hop e al percorso previsti.</p></div>
+      </section>
+
+      <section id="limiti" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>09</p></div><div class="section-copy">
+          <h5 class="section-kicker">Limiti e problemi non risolti</h5><h2>Un percorso programmato deve essere governato</h2>
+          <div class="section-intro"><p>Ogni approccio introduce proprie informazioni di stato e propri modi di fallire. La scelta richiede coerenza tra IGP, control plane MPLS, capacità della rete, operazioni e visibilità.</p></div>
+        </div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h3>Label Distribution Protocol (LDP) dipende dalla convergenza Interior Gateway Protocol (IGP)</h3><p>Una modifica topologica può cambiare i next hop e richiedere l’aggiornamento delle associazioni operative. LDP non costituisce da solo una policy di Traffic Engineering.</p></article>
+          <article class="card accent-amber"><h3>Resource Reservation Protocol - Traffic Engineering (RSVP-TE) richiede gestione dello stato</h3><p>Tunnel, risorse, vincoli, protezione e riottimizzazione devono essere dimensionati e monitorati. Una prenotazione logica non risolve congestione o guasti al di fuori del modello.</p></article>
+          <article class="card accent-purple"><h3>Segment Routing with the MPLS Data Plane (SR-MPLS) richiede pianificazione dei Segment Identifier (SID)</h3><p>La rete deve annunciare e interpretare in modo coerente i segmenti. Uno stack più lungo aumenta l’overhead e deve rispettare limiti e Maximum Transmission Unit (MTU) del percorso.</p></article>
+        </div>
+        <div class="callout"><p><strong>Comune ai tre:</strong> nessuno cifra il traffico cliente. Le label MPLS controllano l’inoltro; riservatezza, autenticazione del control plane, protezione e monitoraggio richiedono misure separate.</p></div>
+      </section>
+
+      <section id="glossario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>10</p></div><div class="section-copy">
+          <h5 class="section-kicker">Glossario</h5><h2>Sigle introdotte nell’Unità 7</h2>
+          <div class="section-intro"><p>La sigla è accompagnata dalla denominazione alla prima occorrenza in questa unità. Le definizioni sono brevi: servono per orientarsi nella lettura delle figure e delle verifiche.</p></div>
+        </div></div>
+        <dl class="glossary">
+          <dt>IGP — Interior Gateway Protocol</dt><dd>Protocollo di routing usato all’interno di un dominio amministrativo, per esempio Open Shortest Path First (OSPF) o Intermediate System to Intermediate System (IS-IS).</dd>
+          <dt>LDP — Label Distribution Protocol</dt><dd>Protocollo che scambia fra router MPLS associazioni fra Forwarding Equivalence Class e label.</dd>
+          <dt>LIB — Label Information Base</dt><dd>Insieme delle associazioni di label apprese o create dal router; il formato operativo varia per piattaforma.</dd>
+          <dt>FIB — Forwarding Information Base</dt><dd>Tabella di inoltro IP risultante dalle rotte selezionate, con next hop e interfaccia per i prefissi raggiungibili.</dd>
+          <dt>LFIB — Label Forwarding Information Base</dt><dd>Tabella usata dal data plane per inoltrare pacchetti MPLS mediante label.</dd>
+          <dt>RSVP — Resource Reservation Protocol</dt><dd>Protocollo di segnalazione su cui RSVP-TE aggiunge funzioni per tunnel MPLS con vincoli.</dd>
+          <dt>RSVP-TE — RSVP Traffic Engineering</dt><dd>Estensioni RSVP per segnalare Label Switched Path MPLS con percorso e attributi di Traffic Engineering.</dd>
+          <dt>SR — Segment Routing</dt><dd>Architettura che rappresenta un percorso come una lista ordinata di segmenti o istruzioni.</dd>
+          <dt>SR-MPLS — Segment Routing with the MPLS Data Plane</dt><dd>Realizzazione di Segment Routing in cui i Segment Identifier sono codificati come label MPLS.</dd>
+          <dt>SID — Segment Identifier</dt><dd>Identificatore di un segmento; può descrivere, fra le altre possibilità, un nodo o un’adiacenza.</dd>
+          <dt>FEC — Forwarding Equivalence Class</dt><dd>Classe di pacchetti che ricevono lo stesso trattamento di inoltro.</dd>
+          <dt>LSP — Label Switched Path</dt><dd>Percorso unidirezionale lungo cui i pacchetti vengono inoltrati usando label MPLS.</dd>
+          <dt>PHP — Penultimate Hop Popping</dt><dd>Rimozione della label di trasporto da parte del router penultimo rispetto al router di uscita, quando il comportamento è stato annunciato e configurato.</dd>
+          <dt>TE — Traffic Engineering</dt><dd>Insieme di metodi per controllare l’uso dei percorsi e delle risorse di rete.</dd>
+          <dt>OSPF — Open Shortest Path First</dt><dd>Protocollo IGP link-state. È uno dei possibili protocolli che forniscono la topologia sottostante.</dd>
+          <dt>IS-IS — Intermediate System to Intermediate System</dt><dd>Protocollo IGP link-state usato anche nelle reti di Service Provider.</dd>
+          <dt>PE / P — Provider Edge / Provider</dt><dd>Router al bordo del dominio del provider / router interno di transito, secondo la terminologia del percorso.</dd>
+          <dt>IP / MPLS — Internet Protocol / Multiprotocol Label Switching</dt><dd>Protocollo di rete end-to-end / meccanismo di inoltro basato su label, descritto nell’Unità 6.</dd>
+          <dt>TCP — Transmission Control Protocol</dt><dd>Protocollo di trasporto orientato alla connessione; consegna i dati applicativi in segmenti, come studiato nell’Unità 1.</dd>
+        </dl>
+      </section>
+
+      <section id="autoverifica" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>11</p></div><div class="section-copy">
+          <h5 class="section-kicker">Verifica finale</h5><h2>Domande di orientamento</h2>
+          <div class="section-intro"><p>Prova a rispondere prima di aprire ciascuna spiegazione. Collega ogni risposta alla topologia e alla catena vista nelle figure.</p></div>
+        </div></div>
+        <div class="quiz">
+          <details><summary>1. Che cosa determina il percorso di base di un LSP distribuito con LDP?</summary><p>Nel caso classico, i next hop scelti dall’IGP verso la FEC. LDP distribuisce binding di label coerenti con quel percorso, ma non sceglie una rotta Traffic Engineering indipendente dall’IGP.</p></details>
+          <details><summary>2. Perché una label non deve essere uguale su tutti i link?</summary><p>Le label hanno significato locale. Ogni router downstream può annunciare il proprio valore; il router a monte lo installa come label d’uscita.</p></details>
+          <details><summary>3. In quale direzione sono preparate le associazioni e in quale viaggiano i pacchetti?</summary><p>La conoscenza delle label si propaga dal lato di uscita verso monte; i pacchetti cliente vengono inoltrati dall’ingresso verso l’uscita.</p></details>
+          <details><summary>4. Quale differenza fondamentale distingue RSVP-TE da LDP?</summary><p>RSVP-TE può segnalare un LSP con percorso esplicito e vincoli di Traffic Engineering. LDP segue normalmente i next hop dell’IGP per una FEC.</p></details>
+          <details><summary>5. Una prenotazione RSVP-TE garantisce che il traffico non venga mai perso?</summary><p>No. Il controllo di ammissione usa le risorse e le policy dichiarate, ma non crea capacità, non elimina guasti e non sostituisce le code, il monitoraggio o la progettazione della resilienza.</p></details>
+          <details><summary>6. Che cosa rappresenta lo stack in SR-MPLS?</summary><p>Una sequenza ordinata di Segment Identifier codificati come label MPLS. Ogni router esegue l’azione associata al segmento attivo.</p></details>
+          <details><summary>7. Un Node SID obbliga il traffico a passare per uno specifico router intermedio?</summary><p>No. Identifica un nodo di destinazione; normalmente il percorso verso quel nodo segue l’algoritmo IGP e può includere percorsi equivalenti. Per vincolare specifici collegamenti servono segmenti o policy adeguati.</p></details>
+          <details><summary>8. Quali livelli controlleresti per primi se la label attesa non appare nella LFIB?</summary><p>La raggiungibilità e il next hop IGP, poi il peer e il binding LDP o lo stato del tunnel/SID, quindi la specifica voce LFIB e infine l’header effettivamente trasmesso sul link.</p></details>
+        </div>
+      </section>
+
+      <div class="closing">
+        <h5 class="section-kicker">Punto di arrivo dell’Unità 7</h5>
+        <h2>Il control plane prepara il percorso; la LFIB lo applica.</h2>
+        <p>Ora distinguiamo la dipendenza di LDP dal percorso IGP, la segnalazione di tunnel con vincoli di RSVP-TE e la lista di segmenti di SR-MPLS. In tutti i casi, i meccanismi di controllo preparano le decisioni che il data plane esegue. Nell’Unità 8 il percorso proseguirà verso BGP e le policy fra domini.</p>
+      </div>
+      <div class="sources">
+        <p><strong>Riferimenti essenziali:</strong><br>
+          <a href="https://www.rfc-editor.org/rfc/rfc3031.html">RFC 3031 — Multiprotocol Label Switching Architecture</a> ·
+          <a href="https://www.rfc-editor.org/rfc/rfc5036.html">RFC 5036 — LDP Specification</a> ·
+          <a href="https://www.rfc-editor.org/rfc/rfc3209.html">RFC 3209 — RSVP-TE: Extensions to RSVP for LSP Tunnels</a> ·
+          <a href="https://www.rfc-editor.org/rfc/rfc8402.html">RFC 8402 — Segment Routing Architecture</a> ·
+          <a href="https://www.rfc-editor.org/rfc/rfc8660.html">RFC 8660 — Segment Routing with the MPLS Data Plane</a> ·
+          <a href="https://www.rfc-editor.org/rfc/rfc8661.html">RFC 8661 — Segment Routing MPLS Interworking with LDP</a>
+        </p>
+      </div>
+    </main>
+
+    <footer><span>NETWORKING ACADEMY · UNITÀ 7</span><span>Dal dato del cliente al backbone del Service Provider</span></footer>
+  </div>
+  <script src="assets/unita-07.js?v=1"></script>
+</body>
+</html>

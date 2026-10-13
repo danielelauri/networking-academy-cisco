@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="MPLS classifica i pacchetti in Forwarding Equivalence Class e usa label locali, una Label Forwarding Information Base e operazioni push, swap e pop per attraversare il backbone.">
+  <title>Unità 6 — Multiprotocol Label Switching: inoltrare mediante label</title>
+  <link rel="stylesheet" href="assets/corso.css">
+  <link rel="stylesheet" href="assets/unita-06.css?v=3">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">M6</span> NETWORKING ACADEMY</div>
+      <div class="progress">UNITÀ 6 · DATA PLANE MPLS</div>
+    </header>
+
+    <div class="hero">
+      <div>
+        <p class="kicker">Unità 6 · prima stesura <span class="draft">DRAFT 1</span></p>
+        <h1>Inoltrare mediante <span>label.</span></h1>
+        <p class="hero-lead"><strong>Domanda guida:</strong> perché aggiungere una label quando il datagramma possiede già un indirizzo Internet Protocol?</p>
+      </div>
+      <div class="hero-mpls" aria-label="Un datagramma IP attraversa un backbone MPLS">
+        <div class="hero-caption">Dal lookup IP al label switching</div>
+        <div class="hero-route">
+          <div class="hero-router edge"><b>PE-A</b><small>PUSH 18</small></div>
+          <i></i>
+          <div class="hero-router core"><b>P1</b><small>18 → 27</small></div>
+          <i></i>
+          <div class="hero-router core"><b>P2</b><small>27 → POP</small></div>
+          <i></i>
+          <div class="hero-router edge"><b>PE-B</b><small>IPv4</small></div>
+        </div>
+        <div class="hero-packet"><span>ETHERNET</span><b>LABEL</b><strong>IPv4</strong><em>TCP + DATI</em></div>
+        <div class="hero-note">La label cambia hop-by-hop; il datagramma cliente continua il proprio viaggio.</div>
+        <p class="figure-note"><strong>Legenda:</strong> PE = Provider Edge; P = Provider; IPv4 = Internet Protocol version 4; TCP = Transmission Control Protocol.</p>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell'unità">
+      <a href="#problema">Problema</a>
+      <a href="#collocazione">Collocazione</a>
+      <a href="#header">Header</a>
+      <a href="#ruoli">Ruoli</a>
+      <a href="#lfib">LFIB</a>
+      <a href="#operazioni">Push–swap–pop</a>
+      <a href="#stack">Stack</a>
+      <a href="#cooperazione">Cooperazione</a>
+      <a href="#operativita">Verifica</a>
+      <a href="#limiti">Limiti</a>
+      <a href="#glossario">Glossario</a>
+      <a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+<div id="problema" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>01</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="problema-originario">Problema originario</h5>
+<h2 id="un-backbone-deve-inoltrare-e-offrire-servizi-senza-confondere-i-due-compiti">Un backbone deve inoltrare e offrire servizi senza confondere i due compiti</h2>
+<div class="section-intro">
+<p>Internet Protocol (IP) permette già a ogni router di scegliere un next hop mediante il prefisso di destinazione. Un Service Provider, però, deve anche costruire percorsi controllabili, mantenere il core indipendente dalle rotte dei clienti e associare trattamenti differenti a traffico che attraversa la stessa infrastruttura.</p>
+</div>
+</div>
+</div>
+<div class="cards cards-3">
+<div class="card accent-cyan">
+<h5 class="card-tag" id="prima-della-label">PRIMA DELLA LABEL</h5>
+<h3 id="lookup-internet-protocol-a-ogni-hop">Lookup Internet Protocol a ogni hop</h3>
+<p>Ogni router può leggere la destinazione del datagramma, eseguire il Longest-Prefix Match (LPM) e scegliere next hop e interfaccia mediante la Forwarding Information Base (FIB).</p>
+</div>
+<div class="card accent-purple">
+<h5 class="card-tag" id="nuova-astrazione">NUOVA ASTRAZIONE</h5>
+<h3 id="forwarding-equivalence-class">Forwarding Equivalence Class (FEC)</h3>
+<p>Pacchetti destinati allo stesso trattamento vengono associati a una classe. Nel dominio Multiprotocol Label Switching (MPLS) la label rappresenta quella classe nel contesto locale.</p>
+</div>
+<div class="card accent-green">
+<h5 class="card-tag" id="risultato">RISULTATO</h5>
+<h3 id="inoltro-mediante-label">Inoltro mediante label</h3>
+<p>I router di transito consultano una tabella dedicata, sostituiscono la label superiore e inoltrano il pacchetto lungo un Label Switched Path (LSP).</p>
+</div>
+</div>
+<div class="insight">
+<p><strong>Il valore moderno di Multiprotocol Label Switching non è semplicemente “fare prima del routing Internet Protocol”.</strong><br />
+Il confronto nasce storicamente quando il lookup di prefisso era più oneroso; oggi la forza dell’architettura è soprattutto costruire un data plane comune per percorsi, Traffic Engineering (TE) e servizi Virtual Private Network (VPN).</p>
+</div>
+<div class="callout">
+<p><strong>MPLS aggiunge un livello di decisione, non elimina quelli già esistenti.</strong> Nel nostro scenario, Internet Protocol continua a identificare la sorgente e la destinazione Layer 3 del datagramma. MPLS aggiunge temporaneamente una o più label per attraversare il dominio del provider. Ethernet, infine, consegna il pacchetto sul singolo collegamento fisico: la sua trama viene rimossa e ricostruita a ogni hop. Le tre tecnologie sono quindi annidate e svolgono compiti differenti.</p>
+</div>
+</div>
+<div id="collocazione" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>02</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="fra-collegamento-e-rete">Fra collegamento e rete</h5>
+<h2 id="layer-2.5-è-una-scorciatoia-utile-non-un-livello-osi-ufficiale">“Layer 2.5” è una scorciatoia utile, non un livello Open Systems Interconnection (OSI) ufficiale</h2>
+<div class="section-intro">
+<p>Una o più entry dello stack MPLS vengono inserite dopo l’header del collegamento e prima del payload di livello superiore. La posizione spiega il soprannome informale Layer 2.5: MPLS coopera con entrambi i livelli senza diventare un nuovo livello del modello Open Systems Interconnection.</p>
+</div>
+</div>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Incapsulamento su un collegamento Ethernet del core</strong><span>una label aggiunge 4 byte</span></div>
+  <div class="layer-stack">
+    <div class="layer-row l2"><b>LAYER 2 · ETHERNET</b><span>MAC sorgente e destinazione validi sul link corrente</span><small>EtherType MPLS unicast 0x8847</small></div>
+    <div class="layer-row mpls"><b>MPLS · LABEL STACK</b><span>Una o più entry da 32 bit; la label superiore guida il lookup</span><small>presente nel dominio MPLS</small></div>
+    <div class="layer-row l3"><b>LAYER 3 · IPv4</b><span>Indirizzi del datagramma cliente o del payload trasportato</span><small>continua il viaggio end-to-end</small></div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> MAC = Media Access Control; MPLS = Multiprotocol Label Switching; IPv4 = Internet Protocol version 4.</p>
+</div>
+<h3 id="un-datagramma-tre-domande-differenti">Un datagramma, tre domande differenti</h3>
+<p>Consideriamo un datagramma diretto a <code>10.20.30.77</code>. Nel nostro esempio il Provider Edge (PE) di uscita è PE-B e i collegamenti del core usano Ethernet:</p>
+<ol type="1">
+<li><strong>Internet Protocol domanda:</strong> qual è la destinazione Layer 3 finale? La risposta resta <code>10.20.30.77</code> anche mentre il datagramma attraversa il backbone. Gli indirizzi sorgente e destinazione normalmente non cambiano; campi come Time To Live e Header Checksum possono invece essere aggiornati.</li>
+<li><strong>MPLS domanda:</strong> quale trattamento deve ricevere il pacchetto dentro il dominio del provider? PE-A lo associa a una Forwarding Equivalence Class e aggiunge una label; i router P consultano la label superiore senza dover usare l’indirizzo <code>10.20.30.77</code> per quella decisione di transito.</li>
+<li><strong>Ethernet domanda:</strong> quale interfaccia adiacente deve ricevere il pacchetto su questo specifico link? Gli indirizzi Media Access Control valgono soltanto fra i due nodi collegati e cambiano al collegamento successivo.</li>
+</ol>
+<div class="figure">
+  <div class="figure-title"><strong>Lo stesso datagramma dentro involucri successivi</strong><span>esempio a una sola label di trasporto</span></div>
+  <div class="encap-walk">
+    <div class="encap-hop">
+      <div class="hop-title"><b>CE-A → PE-A</b><span>prima del dominio MPLS</span></div>
+      <div class="hop-frame"><i>ETH · MAC CE-A → PE-A</i><strong>IPv4 · dst 10.20.30.77</strong><em>TCP + DATI</em></div>
+      <p>La trama Ethernet trasporta direttamente il datagramma IPv4. Non è ancora presente una label.</p>
+    </div>
+    <div class="encap-hop">
+      <div class="hop-title"><b>PE-A → P1</b><span>ingresso nel backbone</span></div>
+      <div class="hop-frame"><i>ETH · MAC PE-A → P1</i><mark>MPLS · 18</mark><strong>IPv4 · dst 10.20.30.77</strong><em>TCP + DATI</em></div>
+      <p>PE-A rimuove la trama ricevuta, classifica il datagramma, esegue push della label 18 e costruisce una nuova trama Ethernet.</p>
+    </div>
+    <div class="encap-hop">
+      <div class="hop-title"><b>P1 → P2</b><span>transito MPLS</span></div>
+      <div class="hop-frame"><i>ETH · MAC P1 → P2</i><mark>MPLS · 27</mark><strong>IPv4 · dst 10.20.30.77</strong><em>TCP + DATI</em></div>
+      <p>P1 elimina l'involucro Ethernet ricevuto, usa la label 18 nella LFIB, la sostituisce con 27 e crea la trama per P2.</p>
+    </div>
+    <div class="encap-hop">
+      <div class="hop-title"><b>PE-B → CE-B</b><span>dopo l'uscita MPLS</span></div>
+      <div class="hop-frame"><i>ETH · MAC PE-B → CE-B</i><strong>IPv4 · dst 10.20.30.77</strong><em>TCP + DATI</em></div>
+      <p>Rimossa la label di trasporto, PE-B torna alla decisione Internet Protocol appropriata e costruisce un'altra trama Ethernet verso il Customer Edge.</p>
+    </div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> CE = Customer Edge; PE = Provider Edge; P = Provider; ETH = Ethernet; MAC = Media Access Control; MPLS = Multiprotocol Label Switching; IPv4 = Internet Protocol version 4; dst = destination; TCP = Transmission Control Protocol.</p>
+</div>
+<div class="table-scroll">
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Elemento</th>
+<th>Dove serve</th>
+<th>Che cosa legge il nodo</th>
+<th>Che cosa cambia lungo il viaggio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Trama Ethernet</strong></td>
+<td>Sul singolo collegamento Ethernet</td>
+<td>MAC destinazione del prossimo dispositivo</td>
+<td>Header, trailer e Frame Check Sequence vengono ricostruiti a ogni hop instradato</td>
+</tr>
+<tr>
+<td><strong>Stack MPLS</strong></td>
+<td>Fra ingresso e uscita del dominio MPLS</td>
+<td>Label superiore</td>
+<td>La label può essere aggiunta, sostituita o rimossa; lo stack esiste soltanto dove richiesto</td>
+</tr>
+<tr>
+<td><strong>Datagramma IPv4</strong></td>
+<td>Dalla sorgente alla destinazione Layer 3</td>
+<td>Indirizzo IP di destinazione quando occorre un lookup IP</td>
+<td>Gli indirizzi normalmente restano; Time To Live e Header Checksum possono cambiare</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="insight">
+<p><strong>Dentro il core un router P può ignorare la destinazione IPv4 per il forwarding, ma il datagramma IPv4 non è scomparso.</strong><br />
+Rimane sotto lo stack MPLS e torna disponibile quando le label vengono rimosse. Allo stesso modo, MPLS non può trasmettere bit sul collegamento: deve essere a sua volta trasportato da Ethernet o da un’altra tecnologia Layer 2 supportata.</p>
+</div>
+<h3 id="dalla-destinazione-al-trattamento-la-fec">Dalla destinazione al trattamento: la FEC</h3>
+<p>Una <strong>Forwarding Equivalence Class (FEC)</strong> è un insieme di pacchetti che ricevono lo stesso trattamento di inoltro. Nel caso base costruito con Label Distribution Protocol, una FEC corrisponde spesso a un prefisso Internet Protocol raggiungibile attraverso lo stesso router di uscita. L’architettura permette però criteri più ricchi.</p>
+<div class="fec-map">
+<div class="fec-box">
+<p><strong>DATAGRAMMI IN INGRESSO</strong><br />
+Destinazioni differenti possono condividere la stessa decisione operativa.</p>
+</div>
+<div class="fec-arrow">
+<p>→</p>
+</div>
+<div class="fec-box">
+<p><strong>CLASSIFICAZIONE FEC</strong><br />
+Il Provider Edge di ingresso associa il pacchetto al trattamento predisposto.</p>
+</div>
+<div class="fec-arrow">
+<p>→</p>
+</div>
+<div class="fec-box">
+<p><strong>LABEL SUPERIORE</strong><br />
+Il core usa un identificatore corto e locale per applicare quel trattamento.</p>
+</div>
+</div>
+<div class="callout">
+<p><strong>FEC e label non sono sinonimi.</strong> La FEC descrive il trattamento; la label è la rappresentazione usata su un tratto del percorso. Router adiacenti possono usare valori differenti per la stessa FEC.</p>
+</div>
+</div>
+<div id="header" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>03</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="label-stack-entry">Label Stack Entry</h5>
+<h2 id="trentadue-bit-separano-il-trattamento-dal-contenuto-trasportato">Trentadue bit separano il trattamento dal contenuto trasportato</h2>
+<div class="section-intro">
+<p>Ogni Label Stack Entry (LSE) occupa quattro byte: 20 bit di Label Value, 3 bit di Traffic Class (TC), 1 bit Bottom of Stack (S) e 8 bit di Time To Live (TTL). Se sono presenti più entry, soltanto quella superiore viene normalmente usata dal router di transito per il lookup corrente.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Header MPLS — una Label Stack Entry</strong><span>seleziona un campo</span></div>
+  <div class="label-header" role="group" aria-label="Campi di una entry MPLS">
+    <button class="label-field" type="button" data-label-field="label"><b>LABEL</b><small>20 bit</small></button>
+    <button class="label-field" type="button" data-label-field="tc"><b>TC</b><small>3 bit</small></button>
+    <button class="label-field" type="button" data-label-field="s"><b>S</b><small>1 bit</small></button>
+    <button class="label-field" type="button" data-label-field="ttl"><b>TTL</b><small>8 bit</small></button>
+  </div>
+  <div class="status-copy"><strong id="fieldTitle">Label · 20 bit</strong><span id="fieldText">È il valore consultato nel forwarding MPLS. Ha significato locale fra nodi adiacenti e può essere sostituito a ogni hop.</span></div>
+  <p class="figure-note"><strong>Legenda:</strong> MPLS = Multiprotocol Label Switching; LSE = Label Stack Entry; TC = Traffic Class; S = Bottom of Stack; TTL = Time To Live.</p>
+</div>
+<div class="table-scroll">
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Funzione essenziale</th>
+<th>Errore da evitare</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Label Value — 20 bit</strong></td>
+<td>Seleziona l’azione di inoltro nel contesto del ricevente</td>
+<td>Trattarla come identificatore globale end-to-end</td>
+</tr>
+<tr>
+<td><strong>Traffic Class — 3 bit</strong></td>
+<td>Supporta Quality of Service ed Explicit Congestion Notification</td>
+<td>Considerarla una copia obbligatoriamente identica del Differentiated Services Code Point IP</td>
+</tr>
+<tr>
+<td><strong>Bottom of Stack — 1 bit</strong></td>
+<td>Indica se questa è l’ultima entry MPLS</td>
+<td>Interpretare <code>S=1</code> come “ultima label da elaborare nel router corrente”</td>
+</tr>
+<tr>
+<td><strong>Time To Live — 8 bit</strong></td>
+<td>Limita la vita del pacchetto labeled</td>
+<td>Confonderlo con una misura del tempo reale trascorso</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3 id="che-cosa-rappresentano-i-20-bit-della-label">Che cosa rappresentano i 20 bit della label</h3>
+<p>Venti bit permettono di rappresentare 2<sup>20</sup> = 1.048.576 valori, numerati da <code>0</code> a <code>1.048.575</code>. Questo dato descrive la dimensione dello <strong>spazio numerico</strong>, non un milione di entry già presenti nella Label Forwarding Information Base: ciascun router installa soltanto le associazioni necessarie e la capacità effettiva dipende anche dalla piattaforma.</p>
+<p>I 20 bit non sono suddivisi in campi per operatore, cliente, router o servizio. Formano un unico numero che il router ricevente usa come chiave di lookup. I valori <code>0–15</code> hanno significati speciali standardizzati; i valori ordinari iniziano da <code>16</code> e possono essere assegnati dai router e dai protocolli del dominio MPLS.</p>
+<div class="callout">
+<p><strong>Le label non appartengono a un registro mondiale suddiviso fra carrier.</strong> Salvo i valori speciali e gli intervalli coordinati per funzioni come Segment Routing, una label ha significato locale nel dispositivo che la riceve. Telecom Italia o un altro carrier può organizzare internamente pool per Label Distribution Protocol, tunnel, servizi Virtual Private Network o Segment Routing, ma non riceve da Internet Assigned Numbers Authority un blocco esclusivo paragonabile a un prefisso Internet Protocol.</p>
+</div>
+<h3 id="esempio-didattico-la-stessa-fec-tre-decisioni-locali">Esempio didattico: la stessa FEC, tre decisioni locali</h3>
+<p>Supponiamo che PE-A debba inviare verso PE-B i pacchetti appartenenti alla stessa Forwarding Equivalence Class. I valori seguenti sono puramente illustrativi e sono gli stessi usati in tutte le figure dell’unità. Ogni router assegna una label locale alla FEC e la comunica al proprio vicino a monte; per questo il valore scritto sul pacchetto è quello che il router successivo saprà interpretare.</p>
+<div class="table-scroll">
+<table style="width:100%;">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 30%" />
+<col style="width: 23%" />
+<col style="width: 23%" />
+</colgroup>
+<thead>
+<tr>
+<th>Nodo che agisce</th>
+<th style="text-align: right;">Label ricevuta</th>
+<th>Lookup e operazione</th>
+<th>Pacchetto inviato</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PE-A — ingresso</strong></td>
+<td style="text-align: right;">nessuna</td>
+<td>Classifica il datagramma nella FEC; P1 gli ha comunicato di usare <code>18</code></td>
+<td><code>18 · IPv4</code></td>
+</tr>
+<tr>
+<td><strong>P1 — transito</strong></td>
+<td style="text-align: right;"><code>18</code></td>
+<td>La propria LFIB associa <code>18</code> al next hop P2 e alla label <code>27</code>, comunicata da P2</td>
+<td><code>27 · IPv4</code></td>
+</tr>
+<tr>
+<td><strong>P2 — penultimo</strong></td>
+<td style="text-align: right;"><code>27</code></td>
+<td>La LFIB richiede il pop perché PE-B è il nodo di uscita</td>
+<td><code>IPv4</code></td>
+</tr>
+<tr>
+<td><strong>PE-B — uscita</strong></td>
+<td style="text-align: right;">nessuna</td>
+<td>Esegue il lookup appropriato sul datagramma Internet Protocol e prosegue verso la destinazione</td>
+<td><code>IPv4</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<pre class="text"><code>PE-A              P1                 P2                 PE-B
+IPv4 ── push ──&gt; [18 | IPv4] ── swap ──&gt; [27 | IPv4] ── pop ──&gt; IPv4
+                  ^ interpreta P1         ^ interpreta P2</code></pre>
+<p>La label <code>18</code> non descrive da sola PE-B e non deve essere compresa da tutti i router del carrier: è una chiave nella LFIB di P1. Analogamente, <code>27</code> è significativa per P2. Lo stesso numero potrebbe essere riutilizzato su un altro router per una FEC differente senza creare conflitti, perché cambia il contesto del ricevente.</p>
+<h3 id="label-riservate">Label riservate</h3>
+<p>I valori più bassi hanno significati speciali. Due esempi operativi sono <strong>IPv4 Explicit NULL, valore 0</strong>, e <strong>Implicit NULL, valore 3</strong>. Quest’ultimo viene annunciato nel control plane per chiedere al penultimo router di rimuovere la label, ma non viene trasmesso come label 3 sul collegamento.</p>
+<div class="callout">
+<p><strong>Lo stack MPLS di base non contiene un campo EtherType per descrivere direttamente il payload successivo.</strong> Il significato deriva dalla label e dal contesto predisposto dal control plane; il bit S indica soltanto la fine dello stack MPLS.</p>
+</div>
+</div>
+<div id="ruoli" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>04</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="bordo-transito-e-percorso">Bordo, transito e percorso</h5>
+<h2 id="ler-lsr-e-lsp-descrivono-ruoli-differenti">Label Edge Router (LER), Label Switching Router (LSR) e Label Switched Path (LSP) descrivono ruoli differenti</h2>
+<div class="section-intro">
+<p>Il bordo classifica il traffico e traduce fra forwarding Internet Protocol e forwarding MPLS. Il core applica operazioni alla label superiore. La sequenza unidirezionale di queste decisioni costituisce un Label Switched Path.</p>
+</div>
+</div>
+</div>
+<div class="cards cards-3">
+<div class="card accent-purple">
+<h5 class="card-tag" id="label-edge-router">LABEL EDGE ROUTER</h5>
+<h3 id="ingress-ed-egress-ler">Ingress ed egress LER</h3>
+<p>Il Label Edge Router di ingresso classifica il pacchetto in una FEC e impone la label. Quello di uscita rimuove o interpreta l’ultima label e prosegue la consegna.</p>
+</div>
+<div class="card accent-cyan">
+<h5 class="card-tag" id="label-switching-router">LABEL SWITCHING ROUTER</h5>
+<h3 id="transito-lsr">Transito LSR</h3>
+<p>Il Label Switching Router riceve un pacchetto labeled, consulta la Label Forwarding Information Base e applica swap, pop o un’altra operazione prevista.</p>
+</div>
+<div class="card accent-green">
+<h5 class="card-tag" id="label-switched-path">LABEL SWITCHED PATH</h5>
+<h3 id="percorso-unidirezionale">Percorso unidirezionale</h3>
+<p>Un Label Switched Path conduce il traffico di una FEC dal punto di ingresso al punto di uscita. Il percorso inverso è un LSP distinto.</p>
+</div>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Ruoli nella topologia comune del corso</strong><span>il ruolo dipende dalla posizione rispetto al dominio MPLS</span></div>
+  <div class="mpls-path">
+    <div class="mpls-node"><b>PE-A</b><span>Ingress LER</span></div><div class="mpls-link" data-label-copy="PUSH"></div>
+    <div class="mpls-node"><b>P1</b><span>Transit LSR</span></div><div class="mpls-link" data-label-copy="SWAP"></div>
+    <div class="mpls-node"><b>P2</b><span>Transit / penultimo</span></div><div class="mpls-link" data-label-copy="POP / SWAP"></div>
+    <div class="mpls-node"><b>PE-B</b><span>Egress LER</span></div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> PE = Provider Edge; P = Provider; LER = Label Edge Router; LSR = Label Switching Router; MPLS = Multiprotocol Label Switching.</p>
+</div>
+<div class="insight">
+<p><strong>PE e P descrivono la funzione nell’architettura del provider; LER e LSR descrivono la funzione MPLS.</strong><br />
+Un Provider Edge è normalmente un Label Edge Router per il traffico che entra o esce dal dominio. Un router Provider interno opera normalmente come Label Switching Router.</p>
+</div>
+</div>
+<div id="lfib" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>05</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="decisione-del-data-plane">Decisione del data plane</h5>
+<h2 id="la-lfib-traduce-una-label-ricevuta-in-azione-uscita-e-nuova-label">La Label Forwarding Information Base (LFIB) traduce una label ricevuta in azione, uscita e nuova label</h2>
+<div class="section-intro">
+<p>La Label Forwarding Information Base contiene le informazioni necessarie al forwarding labeled. La chiave reale dipende dall’implementazione e dal contesto, ma didatticamente possiamo leggerla come: label in ingresso → operazione → label in uscita → next hop/interfaccia.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Esempio semplificato di LFIB su P1</strong><span>seleziona una label ricevuta</span></div>
+  <div class="lfib">
+    <div class="head">Label in</div><div class="head">Azione</div><div class="head">Label out</div><div class="head">Next hop</div><div class="head">Uscita</div>
+    <div><button type="button" data-lfib="18" aria-pressed="true">18</button></div><div>SWAP</div><div>27</div><div>192.0.2.2</div><div>Gi0/1</div>
+    <div><button type="button" data-lfib="17">17</button></div><div>SWAP</div><div>31</div><div>192.0.2.6</div><div>Gi0/2</div>
+    <div><button type="button" data-lfib="19">19</button></div><div>POP</div><div>—</div><div>192.0.2.2</div><div>Gi0/1</div>
+  </div>
+  <div class="status-copy"><strong id="lfibTitle">Label 18 → swap 27 → Gi0/1</strong><span id="lfibText">Il pacchetto appartiene alla FEC diretta verso PE-B: è la stessa decisione che P1 applica nel viaggio della sezione 06. L'adiacenza determina la riscrittura Layer 2 verso P2.</span></div>
+  <p class="figure-note"><strong>Legenda:</strong> LFIB = Label Forwarding Information Base; Gi = GigabitEthernet; FEC = Forwarding Equivalence Class; PE = Provider Edge; P = Provider; L2 = Layer 2.</p>
+</div>
+<div class="pipeline pipeline-long">
+<div class="pipe-box">
+<p><strong>Label superiore</strong><br />
+Chiave del lookup corrente.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>LFIB</strong><br />
+Seleziona l’azione programmata.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>Next Hop Label Forwarding Entry (NHLFE)</strong><br />
+Descrive l'operazione e il prossimo passo per il pacchetto labeled.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>Adiacenza L2</strong><br />
+Prepara la nuova trama.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>Interfaccia</strong><br />
+Trasmette sul link successivo.</p>
+</div>
+</div>
+<div class="callout">
+<p><strong>Anche nel core MPLS la trama resta hop-by-hop.</strong> Il router termina l’incapsulamento Layer 2 ricevuto, elabora la label, decrementa il Time To Live secondo il modello applicato e costruisce una nuova trama per il collegamento di uscita.</p>
+</div>
+</div>
+<div id="operazioni" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>06</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="viaggio-nel-core">Viaggio nel core</h5>
+<h2 id="push-swap-e-pop-trasformano-lo-stack-senza-cambiare-la-destinazione-cliente">Push, swap e pop trasformano lo stack senza cambiare la destinazione cliente</h2>
+<div class="section-intro">
+<p>L’operazione dipende dalla voce programmata. L’ingresso aggiunge una label, il transito la sostituisce e l’uscita la rimuove. Un router può anche aggiungere o rimuovere più entry quando il servizio richiede uno stack.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Segui un datagramma lungo il backbone</strong><span>valori di label puramente didattici</span></div>
+  <div class="button-row" role="group" aria-label="Fasi dell'inoltro MPLS">
+    <button type="button" data-journey="ingress" aria-pressed="true">1 · Ingress PE-A</button>
+    <button type="button" data-journey="transit1">2 · Transit P1</button>
+    <button type="button" data-journey="transit2">3 · Penultimo P2</button>
+    <button type="button" data-journey="egress">4 · Egress PE-B</button>
+  </div>
+  <div class="mpls-path">
+    <div class="mpls-node" data-mpls-node="pea"><b>PE-A</b><span>PUSH</span></div><div class="mpls-link" data-mpls-link="a1" data-label-copy="18"></div>
+    <div class="mpls-node" data-mpls-node="p1"><b>P1</b><span>SWAP</span></div><div class="mpls-link" data-mpls-link="12" data-label-copy="27"></div>
+    <div class="mpls-node" data-mpls-node="p2"><b>P2</b><span>PHP</span></div><div class="mpls-link" data-mpls-link="2b" data-label-copy="IPv4"></div>
+    <div class="mpls-node" data-mpls-node="peb"><b>PE-B</b><span>EGRESS</span></div>
+  </div>
+  <div class="packet-state">
+    <div class="frame">NUOVA TRAMA L2</div><div class="label">LABEL <b id="journeyLabel">18</b></div><div class="ip">IPv4 A → B</div><div class="payload">TCP + DATI <b id="journeyAction">PUSH 18</b></div>
+  </div>
+  <div class="status-copy"><strong id="journeyTitle">PE-A classifica il datagramma nella FEC e impone la label 18.</strong><span id="journeyText">Il Provider Edge di ingresso usa informazioni già programmate dal control plane. Costruisce anche il nuovo involucro Layer 2 per il collegamento verso P1.</span></div>
+  <p class="figure-note"><strong>Legenda:</strong> PE = Provider Edge; P = Provider; PHP = Penultimate-Hop Popping; L2 = Layer 2; IPv4 = Internet Protocol version 4; TCP = Transmission Control Protocol; FEC = Forwarding Equivalence Class.</p>
+</div>
+<div class="operation-grid">
+<div class="operation">
+<p><strong>PUSH</strong></p>
+<p>Aggiunge una o più entry sopra il payload esistente.</p>
+</div>
+<div class="operation">
+<p><strong>SWAP</strong></p>
+<p>Sostituisce la label superiore con il valore previsto per il link successivo.</p>
+</div>
+<div class="operation">
+<p><strong>POP</strong></p>
+<p>Rimuove la label superiore e rende visibile l’elemento sottostante.</p>
+</div>
+<div class="operation">
+<p><strong>PHP</strong></p>
+<p>Penultimate-Hop Popping: il penultimo LSR rimuove la label di trasporto.</p>
+</div>
+</div>
+<h3 id="perché-usare-il-penultimate-hop-popping">Perché usare il Penultimate-Hop Popping</h3>
+<p>Con <strong>Implicit NULL</strong>, l’egress segnala che non gli serve ricevere la label di trasporto. Il penultimo Label Switching Router la rimuove: l’egress evita un lookup MPLS separato per una label che avrebbe come unico risultato il passaggio al payload sottostante. Con <strong>Explicit NULL</strong>, invece, una label esplicita arriva fino all’egress e viene rimossa lì, comportamento utile quando occorre conservare fino al bordo informazioni MPLS come Traffic Class o Time To Live.</p>
+<div class="callout">
+<p><strong>PHP rimuove soltanto la label superiore.</strong> Se sotto è presente una label di servizio, il pacchetto rimane labeled e il Provider Edge di uscita può usare la label residua per scegliere il contesto corretto.</p>
+</div>
+</div>
+<div id="stack" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>07</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="più-trattamenti-sovrapposti">Più trattamenti sovrapposti</h5>
+<h2 id="lo-stack-separa-il-trasporto-nel-core-dal-servizio-al-bordo">Lo stack separa il trasporto nel core dal servizio al bordo</h2>
+<div class="section-intro">
+<p>Multiprotocol Label Switching (MPLS) non impone una sola label. Le entry formano una pila: il core elabora normalmente la cima, mentre le label inferiori restano nascoste fino alla rimozione di quelle esterne.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Una o due label</strong><span>anticipazione dell'Unità 9 sulle VPN</span></div>
+  <div class="button-row">
+    <button type="button" data-stack-mode="transport" aria-pressed="true">Solo trasporto</button>
+    <button type="button" data-stack-mode="service">Trasporto + servizio</button>
+  </div>
+  <div class="stack-view">
+    <div class="stack-labels">
+      <div class="stack-label">TOP · LABEL TRASPORTO · <span id="outerS">S=1</span></div>
+      <div class="stack-label service inactive" id="serviceLabel">BOTTOM · LABEL SERVIZIO · S=1</div>
+    </div>
+    <div class="stack-arrow">→</div>
+    <div class="stack-payload"><b>PAYLOAD</b><span>Datagramma Internet Protocol o altro contenuto associato al servizio</span></div>
+  </div>
+  <div class="status-copy"><strong id="stackTitle">Una sola label di trasporto</strong><span id="stackText">La label superiore conduce il pacchetto lungo l'LSP verso il router di uscita. Il bit S vale 1 perché questa è l'ultima entry della pila.</span></div>
+  <p class="figure-note"><strong>Legenda:</strong> VPN = Virtual Private Network; S = Bottom of Stack; LSP = Label Switched Path.</p>
+</div>
+<div class="table-scroll">
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Posizione</th>
+<th>Chi la usa principalmente</th>
+<th>Domanda a cui risponde</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Label esterna di trasporto</strong></td>
+<td>Router P e PE lungo il core</td>
+<td>Come raggiungere il Provider Edge di uscita?</td>
+</tr>
+<tr>
+<td><strong>Label interna di servizio</strong></td>
+<td>Provider Edge di uscita</td>
+<td>Quale servizio, Virtual Routing and Forwarding o interfaccia deve ricevere il payload?</td>
+</tr>
+<tr>
+<td><strong>Payload Internet Protocol</strong></td>
+<td>Estremi e router che eseguono il relativo lookup</td>
+<td>Qual è la destinazione di livello 3?</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="insight">
+<p><strong>Il router P non deve conoscere il significato commerciale del servizio.</strong><br />
+Gli basta inoltrare usando la label superiore. Questa separazione permette al core di restare indipendente dalle rotte dei singoli clienti; l’Unità 9 mostrerà come Multiprotocol Border Gateway Protocol distribuisce le informazioni di servizio fra Provider Edge.</p>
+</div>
+</div>
+<div id="cooperazione" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>08</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="tabelle-preparate-traffico-inoltrato">Tabelle preparate, traffico inoltrato</h5>
+<h2 id="il-data-plane-mpls-dipende-da-un-control-plane-già-funzionante">Il data plane Multiprotocol Label Switching (MPLS) dipende da un control plane già funzionante</h2>
+<div class="section-intro">
+<p>La label visibile nel pacchetto non spiega da sola chi l’abbia scelta né quale percorso rappresenti. Prima del traffico cliente, i protocolli di routing rendono raggiungibili i router e un meccanismo di segnalazione o distribuzione programma le associazioni necessarie.</p>
+</div>
+</div>
+</div>
+<div class="pipeline pipeline-long">
+<div class="pipe-box">
+<p><strong>OSPF / IS-IS</strong><br />
+Costruisce la raggiungibilità dell’underlay.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>RIB e FIB</strong><br />
+Scelgono e risolvono i next hop.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>LDP / RSVP-TE / SR</strong><br />
+Associa label o istruzioni al percorso.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>LFIB</strong><br />
+Programma push, swap e pop.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>Traffico cliente</strong><br />
+Attraversa il Label Switched Path.</p>
+</div>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Tre piani, tre domande differenti</strong><span>MPLS partecipa direttamente al data plane</span></div>
+  <div class="plane-grid">
+    <div class="plane-row control"><b>CONTROL PLANE</b><span>Quale percorso esiste e quali label rappresentano le FEC?</span><i>OSPF/IS-IS · LDP · RSVP-TE · Segment Routing</i></div>
+    <div class="plane-row data"><b>DATA PLANE</b><span>Che cosa faccio al pacchetto ricevuto adesso?</span><i>Label superiore → LFIB → operazione → adiacenza → uscita</i></div>
+    <div class="plane-row service"><b>SERVICE PLANE</b><span>A quale cliente o servizio appartiene il payload?</span><i>VRF · label di servizio · policy di import/export</i></div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> MPLS = Multiprotocol Label Switching; FEC = Forwarding Equivalence Class; OSPF = Open Shortest Path First; IS-IS = Intermediate System to Intermediate System; LDP = Label Distribution Protocol; RSVP-TE = Resource Reservation Protocol–Traffic Engineering; LFIB = Label Forwarding Information Base; VRF = Virtual Routing and Forwarding.</p>
+</div>
+<div class="callout">
+<p><strong>LDP, RSVP-TE e Segment Routing non sono tre nomi per la stessa procedura.</strong> Producono o segnalano percorsi labeled con modelli differenti. L’Unità 7 confronterà dipendenza dall’Interior Gateway Protocol, vincoli, stato e distribuzione delle label.</p>
+</div>
+</div>
+<div id="operativita" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>09</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="vincoli-e-osservazione">Vincoli e osservazione</h5>
+<h2 id="una-label-corretta-non-basta-se-manca-lintera-catena-di-forwarding">Una label corretta non basta se manca l’intera catena di forwarding</h2>
+<div class="section-intro">
+<p>Per verificare MPLS bisogna osservare interfacce abilitate, raggiungibilità dell’underlay, meccanismo di distribuzione, Label Forwarding Information Base e adiacenza di uscita. Il sintomo nel data plane può nascere da un problema precedente nel control plane.</p>
+</div>
+</div>
+</div>
+<div class="cards cards-3">
+<div class="card accent-amber">
+<h5 class="card-tag" id="overhead">OVERHEAD</h5>
+<h3 id="quattro-byte-per-entry">Quattro byte per entry</h3>
+<p>Ogni label riduce lo spazio disponibile sul collegamento se la Maximum Transmission Unit non viene aumentata. Due label aggiungono otto byte oltre al payload originario.</p>
+</div>
+<div class="card accent-purple">
+<h5 class="card-tag" id="qualità-e-loop">QUALITÀ E LOOP</h5>
+<h3 id="traffic-class-e-ttl">Traffic Class e TTL</h3>
+<p>Il modello configurato decide la relazione con i campi Internet Protocol. Il Time To Live MPLS impedisce comunque che un loop labeled sia infinito.</p>
+</div>
+<div class="card accent-cyan">
+<h5 class="card-tag" id="significato-locale">SIGNIFICATO LOCALE</h5>
+<h3 id="leggere-sempre-il-nodo">Leggere sempre il nodo</h3>
+<p>La label 27 su un collegamento non deve avere lo stesso significato della label 27 altrove. Servono tabella, interfaccia e direzione corrette.</p>
+</div>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Checklist Cisco IOS orientativa</strong><span>nomi e output possono variare per piattaforma e release</span></div>
+  <div class="command-grid">
+    <div><small>Osservazione</small><strong>Il pacchetto non entra nell'LSP</strong></div>
+    <div><small>Controlli</small><span>Rotta verso il Forwarding Equivalence Class; interfaccia MPLS; label locale disponibile; adiacenza risolta.</span></div>
+    <div><small>Comandi iniziali</small><code>show ip route<br>show ip cef<br>show mpls interfaces<br>show mpls forwarding-table</code></div>
+  </div>
+</div>
+<div class="table-scroll">
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Stato osservato</th>
+<th>Interpretazione iniziale</th>
+<th>Verifica successiva</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nessuna voce labeled per la FEC</td>
+<td>La LFIB non è stata programmata</td>
+<td>Underlay, protocollo di label, filtri e next hop</td>
+</tr>
+<tr>
+<td>Voce LFIB presente ma pacchetti non avanzano</td>
+<td>Il problema può essere nel data plane</td>
+<td>Contatori, interfaccia, adiacenza Layer 2 e Maximum Transmission Unit</td>
+</tr>
+<tr>
+<td>Label inattesa in cattura</td>
+<td>Il valore può essere corretto localmente</td>
+<td>Confrontare output dei due router sullo stesso collegamento</td>
+</tr>
+<tr>
+<td>Pacchetto scartato con stack multiplo</td>
+<td>Possibile errore di servizio o dimensione</td>
+<td>Label superiore/inferiore, Bottom of Stack e MTU del percorso</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="callout">
+<p><strong><code>show mpls ldp neighbor</code> è pertinente soltanto se il progetto usa Label Distribution Protocol.</strong> La presenza di MPLS non implica automaticamente LDP: il control plane potrebbe usare RSVP-TE, Segment Routing o un altro meccanismo supportato.</p>
+</div>
+</div>
+<div id="limiti" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>10</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="che-cosa-mpls-non-risolve-da-solo">Che cosa Multiprotocol Label Switching (MPLS) non risolve da solo</h5>
+<h2 id="la-label-è-unistruzione-di-inoltro-non-un-servizio-completo">La label è un’istruzione di inoltro, non un servizio completo</h2>
+<div class="section-intro">
+<p>Multiprotocol Label Switching offre un meccanismo flessibile di forwarding. Sicurezza, isolamento, scelta del percorso e distribuzione delle informazioni richiedono però protocolli, configurazioni e policy ulteriori.</p>
+</div>
+</div>
+</div>
+<div class="cards cards-4">
+<div class="card accent-coral">
+<h5 class="card-tag" id="non-crittografa">NON CRITTOGRAFA</h5>
+<h3 id="riservatezza">Riservatezza</h3>
+<p>Una label non cifra il payload e non autentica il mittente. La protezione dei dati richiede meccanismi separati.</p>
+</div>
+<div class="card accent-coral">
+<h5 class="card-tag" id="non-calcola-da-solo">NON CALCOLA DA SOLO</h5>
+<h3 id="percorso">Percorso</h3>
+<p>La LFIB deve essere programmata a partire da routing e segnalazione. Il solo formato MPLS non scopre la topologia.</p>
+</div>
+<div class="card accent-coral">
+<h5 class="card-tag" id="non-crea-da-solo">NON CREA DA SOLO</h5>
+<h3 id="vpn-cliente">VPN cliente</h3>
+<p>L’isolamento richiede VRF, informazioni di servizio e policy coerenti. Una label singola non equivale automaticamente a una Virtual Private Network.</p>
+</div>
+<div class="card accent-coral">
+<h5 class="card-tag" id="non-elimina">NON ELIMINA</h5>
+<h3 id="layer-2-e-ip">Layer 2 e IP</h3>
+<p>Ethernet o altro collegamento trasmette sul singolo hop; l’underlay IP mantiene la raggiungibilità necessaria al control plane.</p>
+</div>
+</div>
+<div class="insight">
+<p><strong>MPLS disaccoppia il trattamento nel core dal contenuto del payload, ma non rende il core autonomo.</strong><br />
+La semplicità apparente di uno swap dipende da un insieme coerente di protocolli, tabelle, adiacenze e policy preparate prima dell’arrivo del pacchetto.</p>
+</div>
+</div>
+<div id="glossario" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>11</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="glossario-cumulativo">Glossario cumulativo</h5>
+<h2 id="sigle-disponibili-fino-allunità-6">Sigle disponibili fino all’Unità 6</h2>
+<div class="section-intro">
+<p>Le nuove voci descrivono il data plane labeled e si aggiungono ai concetti Internet Protocol, Ethernet, routing e Open Shortest Path First già consolidati.</p>
+</div>
+</div>
+</div>
+<ul>
+<li><strong>CE / PE / P — Customer Edge / Provider Edge / Provider:</strong> ruoli dei router cliente, bordo provider e core provider.</li>
+<li><strong>FEC — Forwarding Equivalence Class:</strong> insieme di pacchetti sottoposti allo stesso trattamento di forwarding.</li>
+<li><strong>IGP — Interior Gateway Protocol:</strong> categoria dei protocolli che costruiscono la raggiungibilità interna, come OSPF e IS-IS.</li>
+<li><strong>IP / IPv4 / IPv6 — Internet Protocol / version 4 / version 6:</strong> indirizzamento e inoltro fra reti.</li>
+<li><strong>LDP — Label Distribution Protocol:</strong> protocollo per distribuire binding fra label e Forwarding Equivalence Class.</li>
+<li><strong>LER — Label Edge Router:</strong> nodo al bordo che traduce fra forwarding labeled e unlabeled.</li>
+<li><strong>LFIB — Label Forwarding Information Base:</strong> struttura del data plane usata per il forwarding MPLS.</li>
+<li><strong>LSA / LSDB / SPF — Link State Advertisement / Link State Database / Shortest Path First:</strong> informazione, database e calcolo link-state studiati con OSPF.</li>
+<li><strong>LSE — Label Stack Entry:</strong> entry MPLS da 32 bit contenente Label, Traffic Class, Bottom of Stack e Time To Live.</li>
+<li><strong>LSP — Label Switched Path:</strong> percorso MPLS unidirezionale per una Forwarding Equivalence Class.</li>
+<li><strong>LSR — Label Switching Router:</strong> nodo che inoltra applicando operazioni allo stack MPLS.</li>
+<li><strong>MAC / FCS / VLAN — Media Access Control / Frame Check Sequence / Virtual Local Area Network:</strong> elementi del collegamento Ethernet.</li>
+<li><strong>MPLS — Multiprotocol Label Switching:</strong> architettura di inoltro basata su label.</li>
+<li><strong>MTU — Maximum Transmission Unit:</strong> dimensione massima trasportabile sul collegamento.</li>
+<li><strong>NHLFE — Next Hop Label Forwarding Entry:</strong> informazione che definisce next hop e operazione sulla label.</li>
+<li><strong>OSPF / IS-IS — Open Shortest Path First / Intermediate System to Intermediate System:</strong> Interior Gateway Protocol link-state.</li>
+<li><strong>PHP — Penultimate-Hop Popping:</strong> rimozione della label di trasporto da parte del penultimo nodo.</li>
+<li><strong>QoS / ECN — Quality of Service / Explicit Congestion Notification:</strong> trattamento della qualità e segnalazione esplicita di congestione.</li>
+<li><strong>RIB / FIB — Routing Information Base / Forwarding Information Base:</strong> scelta delle rotte e struttura di inoltro Internet Protocol.</li>
+<li><strong>RSVP-TE — Resource Reservation Protocol - Traffic Engineering:</strong> segnalazione di Label Switched Path con vincoli.</li>
+<li><strong>SR-MPLS — Segment Routing over MPLS data plane:</strong> modello in cui una pila di label esprime segmenti del percorso o istruzioni.</li>
+<li><strong>TC / S / TTL — Traffic Class / Bottom of Stack / Time To Live:</strong> campi da 3, 1 e 8 bit della Label Stack Entry.</li>
+<li><strong>VRF / VPN — Virtual Routing and Forwarding / Virtual Private Network:</strong> contesto separato e servizio di rete privata virtuale.</li>
+</ul>
+</div>
+<div id="autoverifica" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>12</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="verifica-finale">Verifica finale</h5>
+<h2 id="domande-di-orientamento">Domande di orientamento</h2>
+<div class="section-intro">
+<p>Rispondi prima di aprire ogni scheda. Le domande collegano header, tabelle e trasformazioni osservate lungo il percorso.</p>
+</div>
+</div>
+</div>
+<div class="quiz">
+<details><summary>1. Perché MPLS viene chiamato informalmente Layer 2.5?</summary><p>Perché lo stack di label viene normalmente inserito fra l'header Layer 2 e il payload di livello superiore. Non è però un livello ufficiale aggiuntivo del modello OSI.</p></details>
+<details><summary>2. Qual è la differenza fra FEC e label?</summary><p>La Forwarding Equivalence Class descrive un insieme di pacchetti che riceve lo stesso trattamento. La label è il valore locale usato per rappresentare quel trattamento su un tratto del percorso.</p></details>
+<details><summary>3. Quali sono i quattro campi di una Label Stack Entry?</summary><p>Label Value da 20 bit, Traffic Class da 3 bit, Bottom of Stack da 1 bit e Time To Live da 8 bit, per un totale di 32 bit.</p></details>
+<details><summary>4. La stessa FEC deve usare lo stesso numero di label su tutti i link?</summary><p>No. La label ha significato locale nel contesto in cui viene ricevuta; uno swap può rappresentare la stessa FEC con un valore differente sul link successivo.</p></details>
+<details><summary>5. Che cosa distingue push, swap e pop?</summary><p>Push aggiunge una o più label, swap sostituisce la label superiore e pop rimuove la label superiore rendendo visibile l'elemento sottostante.</p></details>
+<details><summary>6. Perché un Label Switched Path è considerato unidirezionale?</summary><p>Perché definisce la sequenza di forwarding per una direzione e una FEC. Il traffico di ritorno usa un altro LSP, che può anche seguire un percorso differente.</p></details>
+<details><summary>7. Che cosa consulta normalmente un router P per inoltrare il traffico labeled?</summary><p>La label superiore e la Label Forwarding Information Base. La voce risultante specifica operazione, label di uscita, next hop e interfaccia.</p></details>
+<details><summary>8. Che cosa accade con Penultimate-Hop Popping?</summary><p>Il penultimo Label Switching Router rimuove la label superiore prima di consegnare il pacchetto all'egress. Se sotto esiste una label di servizio, quella rimane presente.</p></details>
+<details><summary>9. Perché due label possono essere utili in una MPLS L3VPN?</summary><p>La label esterna conduce il pacchetto fino al Provider Edge di uscita; quella interna identifica il trattamento o contesto di servizio. Il router P usa soltanto la label superiore.</p></details>
+<details><summary>10. MPLS può funzionare senza un control plane che programmi le tabelle?</summary><p>No. Il data plane esegue operazioni semplici, ma routing, distribuzione o segnalazione delle label e programmazione della LFIB devono predisporre le decisioni.</p></details>
+<details><summary>11. Una label MPLS offre cifratura o riservatezza?</summary><p>No. MPLS controlla il forwarding; la protezione crittografica del payload richiede tecnologie separate.</p></details>
+<details><summary>12. Quale effetto ha uno stack di due label sulla dimensione trasmessa?</summary><p>Ogni Label Stack Entry occupa quattro byte: due label aggiungono otto byte. La MTU del percorso deve essere coerente con questo overhead.</p></details>
+</div>
+</div>
+<div class="closing">
+<h5 class="section-kicker" id="punto-di-arrivo-dellunità-6">Punto di arrivo dell’Unità 6</h5>
+<h2 id="il-core-non-segue-il-nome-del-cliente-segue-la-label-superiore.">Il core non segue il nome del cliente: segue la label superiore.</h2>
+<p>Ora possiamo leggere un pacchetto MPLS, distinguere Forwarding Equivalence Class e label, seguire push, swap, pop e Penultimate-Hop Popping, interpretare la Label Forwarding Information Base e separare label di trasporto, label di servizio e payload. L’Unità 7 risponderà alla domanda rimasta aperta: chi assegna queste label e come vengono costruiti i Label Switched Path?</p>
+</div>
+<div class="sources">
+<p><strong>Riferimenti essenziali:</strong><br />
+<a href="https://www.rfc-editor.org/info/rfc3031">RFC 3031 — Multiprotocol Label Switching Architecture</a> · <a href="https://www.rfc-editor.org/info/rfc3032">RFC 3032 — MPLS Label Stack Encoding</a> · <a href="https://www.rfc-editor.org/info/rfc7274">RFC 7274 — Allocating and Retiring Special-Purpose MPLS Labels</a> · <a href="https://www.iana.org/assignments/mpls-label-values/">IANA — MPLS Label Values</a></p>
+</div>
+    </main>
+
+    <footer>
+      <span>NETWORKING ACADEMY · UNITÀ 6 · DRAFT 1</span>
+      <span>Dal dato del cliente al backbone del Service Provider</span>
+    </footer>
+  </div>
+  <script src="assets/unita-06.js?v=2"></script>
+</body>
+</html>

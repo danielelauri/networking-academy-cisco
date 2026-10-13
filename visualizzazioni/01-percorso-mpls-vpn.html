@@ -1,0 +1,486 @@
+<div id="mpls-vpn-journey">
+  <style>
+    #mpls-vpn-journey {
+      color: var(--foreground);
+      width: 100%;
+    }
+    #mpls-vpn-journey .mv-controls {
+      margin-bottom: 14px;
+    }
+    #mpls-vpn-journey .mv-topology,
+    #mpls-vpn-journey .mv-packet {
+      width: 100%;
+      display: block;
+    }
+    #mpls-vpn-journey .mv-topology {
+      min-height: 190px;
+    }
+    #mpls-vpn-journey .mv-topology-mobile,
+    #mpls-vpn-journey .mv-packet-mobile {
+      display: none;
+    }
+    #mpls-vpn-journey .mv-link {
+      stroke: var(--border);
+      stroke-width: 4;
+      stroke-linecap: round;
+      transition: stroke 220ms ease, stroke-width 220ms ease;
+    }
+    #mpls-vpn-journey .mv-link.is-active {
+      stroke: var(--viz-series-1);
+      stroke-width: 7;
+    }
+    #mpls-vpn-journey .mv-node-shape {
+      fill: var(--card);
+      stroke: var(--border);
+      stroke-width: 2;
+      transition: fill 220ms ease, stroke 220ms ease;
+    }
+    #mpls-vpn-journey .mv-node.is-active .mv-node-shape {
+      fill: var(--accent);
+      stroke: var(--viz-series-1);
+      stroke-width: 4;
+    }
+    #mpls-vpn-journey .mv-label {
+      fill: var(--foreground);
+      font-size: 14px;
+      font-weight: 500;
+      text-anchor: middle;
+    }
+    #mpls-vpn-journey .mv-sub {
+      fill: var(--muted-foreground);
+      font-size: 12px;
+      text-anchor: middle;
+    }
+    #mpls-vpn-journey .mv-core-cloud {
+      fill: color-mix(in srgb, var(--viz-series-2) 8%, transparent);
+      stroke: var(--border);
+      stroke-width: 1.5;
+      stroke-dasharray: 6 5;
+    }
+    #mpls-vpn-journey .mv-core-text {
+      fill: var(--muted-foreground);
+      font-size: 12px;
+      text-anchor: middle;
+    }
+    #mpls-vpn-journey .mv-selected {
+      margin: 6px 0 18px;
+      display: grid;
+      grid-template-columns: minmax(110px, 0.8fr) minmax(220px, 2fr);
+      gap: 12px;
+      align-items: center;
+    }
+    #mpls-vpn-journey .mv-selected strong {
+      font-weight: 500;
+    }
+    #mpls-vpn-journey .mv-section-label {
+      margin: 18px 0 8px;
+      font-weight: 500;
+    }
+    #mpls-vpn-journey .mv-packet {
+      min-height: 128px;
+    }
+    #mpls-vpn-journey .mv-segment {
+      stroke: var(--background);
+      stroke-width: 2;
+      transition: x 240ms ease, width 240ms ease, opacity 180ms ease;
+    }
+    #mpls-vpn-journey .mv-segment-text {
+      fill: var(--foreground);
+      font-size: 12px;
+      font-weight: 500;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+    #mpls-vpn-journey .mv-segment-sub {
+      fill: var(--muted-foreground);
+      font-size: 11px;
+      text-anchor: middle;
+      pointer-events: none;
+    }
+    #mpls-vpn-journey .mv-l2 { fill: color-mix(in srgb, var(--viz-series-1) 22%, var(--card)); }
+    #mpls-vpn-journey .mv-mpls-t { fill: color-mix(in srgb, var(--viz-series-2) 34%, var(--card)); }
+    #mpls-vpn-journey .mv-mpls-v { fill: color-mix(in srgb, var(--viz-series-3) 34%, var(--card)); }
+    #mpls-vpn-journey .mv-ip { fill: color-mix(in srgb, var(--viz-series-4) 30%, var(--card)); }
+    #mpls-vpn-journey .mv-tcp { fill: color-mix(in srgb, var(--viz-series-5) 30%, var(--card)); }
+    #mpls-vpn-journey .mv-data { fill: color-mix(in srgb, var(--viz-series-6) 26%, var(--card)); }
+    #mpls-vpn-journey .mv-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin: 8px 0 16px;
+    }
+    #mpls-vpn-journey .mv-key {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #mpls-vpn-journey .mv-swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    #mpls-vpn-journey .mv-plane {
+      display: grid;
+      grid-template-columns: minmax(135px, 0.75fr) minmax(230px, 2fr) minmax(130px, 1fr);
+      gap: 8px 12px;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #mpls-vpn-journey .mv-plane:last-child {
+      border-bottom: 0;
+    }
+    #mpls-vpn-journey .mv-plane-name {
+      font-weight: 500;
+    }
+    #mpls-vpn-journey .mv-plane-flow {
+      position: relative;
+      min-height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted-foreground);
+    }
+    #mpls-vpn-journey .mv-plane-flow::before {
+      content: "";
+      position: absolute;
+      left: 3%;
+      right: 3%;
+      top: 50%;
+      border-top: 2px solid var(--border);
+    }
+    #mpls-vpn-journey .mv-plane-flow.is-pe-only::before {
+      left: 14%;
+      right: 14%;
+      border-top-color: var(--viz-series-2);
+      border-top-style: dashed;
+    }
+    #mpls-vpn-journey .mv-plane-flow span {
+      position: relative;
+      background: var(--background);
+      padding: 0 8px;
+    }
+    #mpls-vpn-journey .mv-plane-scope {
+      color: var(--muted-foreground);
+    }
+    @media (max-width: 560px) {
+      #mpls-vpn-journey .mv-topology,
+      #mpls-vpn-journey .mv-packet {
+        display: none;
+      }
+      #mpls-vpn-journey .mv-topology-mobile {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        margin: 14px 0;
+      }
+      #mpls-vpn-journey .mv-mobile-node {
+        padding: 6px 8px;
+        border-bottom: 2px solid var(--border);
+      }
+      #mpls-vpn-journey .mv-mobile-node.is-active {
+        background: var(--accent);
+        color: var(--accent-foreground);
+        border-bottom-color: var(--viz-series-1);
+      }
+      #mpls-vpn-journey .mv-mobile-arrow {
+        color: var(--muted-foreground);
+      }
+      #mpls-vpn-journey .mv-packet-mobile {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        margin: 8px 0;
+      }
+      #mpls-vpn-journey .mv-mobile-segment {
+        flex: 1 1 78px;
+        min-width: 70px;
+        padding: 8px 6px;
+        border-radius: 3px;
+        text-align: center;
+        border-bottom: 2px solid var(--background);
+      }
+      #mpls-vpn-journey .mv-mobile-segment small {
+        display: block;
+        color: var(--muted-foreground);
+        margin-top: 2px;
+      }
+      #mpls-vpn-journey .mv-mobile-segment.mv-l2 { background: color-mix(in srgb, var(--viz-series-1) 22%, var(--card)); }
+      #mpls-vpn-journey .mv-mobile-segment.mv-mpls-t { background: color-mix(in srgb, var(--viz-series-2) 34%, var(--card)); }
+      #mpls-vpn-journey .mv-mobile-segment.mv-mpls-v { background: color-mix(in srgb, var(--viz-series-3) 34%, var(--card)); }
+      #mpls-vpn-journey .mv-mobile-segment.mv-ip { background: color-mix(in srgb, var(--viz-series-4) 30%, var(--card)); }
+      #mpls-vpn-journey .mv-mobile-segment.mv-tcp { background: color-mix(in srgb, var(--viz-series-5) 30%, var(--card)); }
+      #mpls-vpn-journey .mv-mobile-segment.mv-data { background: color-mix(in srgb, var(--viz-series-6) 26%, var(--card)); }
+      #mpls-vpn-journey .mv-selected {
+        grid-template-columns: 1fr;
+      }
+      #mpls-vpn-journey .mv-plane {
+        grid-template-columns: 1fr;
+        gap: 5px;
+      }
+      #mpls-vpn-journey .mv-plane-flow {
+        justify-content: flex-start;
+      }
+      #mpls-vpn-journey .mv-plane-flow span {
+        padding-left: 0;
+      }
+      #mpls-vpn-journey .mv-plane-flow::before {
+        display: none;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #mpls-vpn-journey * { transition: none !important; }
+    }
+  </style>
+
+  <div class="viz-controls mv-controls" role="group" aria-label="Fase del percorso">
+    <button type="button" class="btn btn-primary" data-step="0" aria-pressed="true">1 · Host A</button>
+    <button type="button" class="btn" data-step="1" aria-pressed="false">2 · PE ingresso</button>
+    <button type="button" class="btn" data-step="2" aria-pressed="false">3 · Core MPLS</button>
+    <button type="button" class="btn" data-step="3" aria-pressed="false">4 · PE uscita</button>
+    <button type="button" class="btn" data-step="4" aria-pressed="false">5 · Host B</button>
+  </div>
+
+  <svg class="mv-topology" viewBox="0 0 920 220" role="img" aria-labelledby="mv-topology-title mv-topology-desc">
+    <title id="mv-topology-title">Percorso del file attraverso una VPN MPLS</title>
+    <desc id="mv-topology-desc">Il traffico parte dall'host cliente A, attraversa CE, PE e router P del provider, quindi raggiunge PE, CE e host cliente B.</desc>
+    <rect class="mv-core-cloud" x="320" y="22" width="390" height="128" rx="58"></rect>
+    <text class="mv-core-text" x="515" y="45">CORE DEL PROVIDER · MPLS</text>
+
+    <line class="mv-link" data-link="0" x1="75" y1="94" x2="170" y2="94"></line>
+    <line class="mv-link" data-link="0" x1="205" y1="94" x2="325" y2="94"></line>
+    <line class="mv-link" data-link="1" x1="365" y1="94" x2="470" y2="94"></line>
+    <line class="mv-link" data-link="2" x1="510" y1="94" x2="660" y2="94"></line>
+    <line class="mv-link" data-link="3" x1="700" y1="94" x2="805" y2="94"></line>
+    <line class="mv-link" data-link="4" x1="840" y1="94" x2="895" y2="94"></line>
+
+    <g class="mv-node is-active" data-node="0" transform="translate(48 94)">
+      <rect class="mv-node-shape" x="-28" y="-22" width="56" height="44" rx="7"></rect>
+      <text class="mv-label" y="52">Host A</text><text class="mv-sub" y="70">file sorgente</text>
+    </g>
+    <g class="mv-node" data-node="0" transform="translate(188 94)">
+      <circle class="mv-node-shape" r="28"></circle>
+      <text class="mv-label" y="5">CE-A</text><text class="mv-sub" y="52">cliente</text>
+    </g>
+    <g class="mv-node" data-node="1" transform="translate(345 94)">
+      <circle class="mv-node-shape" r="31"></circle>
+      <text class="mv-label" y="5">PE-1</text><text class="mv-sub" y="58">push label</text>
+    </g>
+    <g class="mv-node" data-node="2" transform="translate(490 94)">
+      <circle class="mv-node-shape" r="27"></circle>
+      <text class="mv-label" y="5">P-1</text><text class="mv-sub" y="53">swap</text>
+    </g>
+    <g class="mv-node" data-node="2" transform="translate(580 94)">
+      <circle class="mv-node-shape" r="27"></circle>
+      <text class="mv-label" y="5">P-2</text><text class="mv-sub" y="53">swap</text>
+    </g>
+    <g class="mv-node" data-node="3" transform="translate(680 94)">
+      <circle class="mv-node-shape" r="31"></circle>
+      <text class="mv-label" y="5">PE-2</text><text class="mv-sub" y="58">pop label</text>
+    </g>
+    <g class="mv-node" data-node="4" transform="translate(823 94)">
+      <circle class="mv-node-shape" r="28"></circle>
+      <text class="mv-label" y="5">CE-B</text><text class="mv-sub" y="52">cliente</text>
+    </g>
+    <g class="mv-node" data-node="4" transform="translate(895 94)">
+      <rect class="mv-node-shape" x="-25" y="-22" width="50" height="44" rx="7"></rect>
+      <text class="mv-label" y="52">Host B</text><text class="mv-sub" y="70">destinazione</text>
+    </g>
+
+    <text class="mv-sub" x="258" y="180">Accesso IP / Ethernet</text>
+    <text class="mv-sub" x="515" y="180">Label Switched Path</text>
+    <text class="mv-sub" x="764" y="180">Accesso IP / Ethernet</text>
+  </svg>
+
+  <div class="mv-topology-mobile text-small" aria-label="Percorso compatto del file">
+    <span class="mv-mobile-node is-active" data-node="0">Host A / CE-A</span><span class="mv-mobile-arrow">→</span>
+    <span class="mv-mobile-node" data-node="1">PE-1 · push</span><span class="mv-mobile-arrow">→</span>
+    <span class="mv-mobile-node" data-node="2">P-1 / P-2 · swap</span><span class="mv-mobile-arrow">→</span>
+    <span class="mv-mobile-node" data-node="3">PE-2 · pop</span><span class="mv-mobile-arrow">→</span>
+    <span class="mv-mobile-node" data-node="4">CE-B / Host B</span>
+  </div>
+
+  <div class="card mv-selected" aria-live="polite">
+    <strong id="mv-step-title">Host A · incapsulamento</strong>
+    <span id="mv-step-detail">L’applicazione consegna i dati a TCP; TCP crea segmenti, IP crea pacchetti ed Ethernet crea frame per il primo collegamento.</span>
+  </div>
+
+  <div class="mv-section-label">Busta osservata sul collegamento</div>
+  <svg class="mv-packet" viewBox="0 0 920 132" role="img" aria-labelledby="mv-packet-title mv-packet-desc">
+    <title id="mv-packet-title">Incapsulamento del traffico nella fase selezionata</title>
+    <desc id="mv-packet-desc">La composizione cambia mostrando Ethernet, label MPLS, pacchetto IP cliente, segmento TCP e dati del file.</desc>
+    <g id="mv-packet-stack"></g>
+    <text class="mv-sub" x="460" y="116" id="mv-wire-label">Frame sul link Host A → CE-A</text>
+  </svg>
+  <div class="mv-packet-mobile text-small" id="mv-packet-mobile" aria-label="Incapsulamento compatto"></div>
+  <div class="mv-packet-mobile text-small text-muted" id="mv-wire-label-mobile">Frame sul link Host A → CE-A</div>
+
+  <div class="mv-legend text-small" aria-label="Legenda degli incapsulamenti">
+    <span class="mv-key"><span class="mv-swatch mv-l2"></span>L2 Ethernet</span>
+    <span class="mv-key"><span class="mv-swatch mv-mpls-t"></span>Label trasporto</span>
+    <span class="mv-key"><span class="mv-swatch mv-mpls-v"></span>Label VPN</span>
+    <span class="mv-key"><span class="mv-swatch mv-ip"></span>IP cliente</span>
+    <span class="mv-key"><span class="mv-swatch mv-tcp"></span>TCP</span>
+    <span class="mv-key"><span class="mv-swatch mv-data"></span>Dati file</span>
+  </div>
+
+  <div class="mv-section-label">Chi prepara il percorso (control plane)</div>
+  <div aria-label="Ruoli dei protocolli di controllo">
+    <div class="mv-plane">
+      <div class="mv-plane-name">OSPF oppure IS-IS</div>
+      <div class="mv-plane-flow"><span>IGP: raggiungibilità di loopback e link del core</span></div>
+      <div class="mv-plane-scope text-small">PE + P · non trasporta il file</div>
+    </div>
+    <div class="mv-plane">
+      <div class="mv-plane-name">LDP / RSVP-TE / SR-MPLS</div>
+      <div class="mv-plane-flow"><span>costruisce il percorso e la label di trasporto</span></div>
+      <div class="mv-plane-scope text-small">MPLS data plane</div>
+    </div>
+    <div class="mv-plane">
+      <div class="mv-plane-name">MP-iBGP</div>
+      <div class="mv-plane-flow is-pe-only"><span>VPNv4/VPNv6 + RD/RT + label VPN</span></div>
+      <div class="mv-plane-scope text-small">PE ↔ PE · i router P ignorano la VPN</div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('mpls-vpn-journey');
+      const buttons = Array.from(root.querySelectorAll('[data-step]'));
+      const nodes = Array.from(root.querySelectorAll('[data-node]'));
+      const links = Array.from(root.querySelectorAll('[data-link]'));
+      const packetStack = root.querySelector('#mv-packet-stack');
+      const packetMobile = root.querySelector('#mv-packet-mobile');
+      const title = root.querySelector('#mv-step-title');
+      const detail = root.querySelector('#mv-step-detail');
+      const wireLabel = root.querySelector('#mv-wire-label');
+      const wireLabelMobile = root.querySelector('#mv-wire-label-mobile');
+
+      const phases = [
+        {
+          title: 'Host A · incapsulamento',
+          detail: 'L’applicazione consegna i dati a TCP; TCP crea segmenti, IP crea pacchetti ed Ethernet crea frame per il primo collegamento.',
+          wire: 'Frame sul link Host A → CE-A',
+          segments: [
+            ['Ethernet', 'MAC A → CE-A', 'mv-l2', 150],
+            ['IPv4', 'IP A → IP B', 'mv-ip', 150],
+            ['TCP', 'porte + sequenza', 'mv-tcp', 135],
+            ['Dati del file', 'payload', 'mv-data', 350],
+            ['FCS', 'L2', 'mv-l2', 70]
+          ]
+        },
+        {
+          title: 'PE-1 · push di due label',
+          detail: 'PE-1 cerca l’IP cliente nella VRF. Aggiunge una label VPN interna e una label di trasporto esterna, poi crea un nuovo header L2 per il link del provider.',
+          wire: 'Frame sul link PE-1 → P-1',
+          segments: [
+            ['Ethernet', 'PE-1 → P-1', 'mv-l2', 120],
+            ['Label T', 'verso PE-2', 'mv-mpls-t', 110],
+            ['Label VPN', 'VRF su PE-2', 'mv-mpls-v', 115],
+            ['IPv4', 'IP A → IP B', 'mv-ip', 135],
+            ['TCP', 'invariato', 'mv-tcp', 110],
+            ['Dati del file', 'invariati', 'mv-data', 260],
+            ['FCS', 'L2', 'mv-l2', 70]
+          ]
+        },
+        {
+          title: 'Router P · label swap',
+          detail: 'Il router P legge soltanto la label di trasporto, la sostituisce per il prossimo hop e riscrive il frame L2. IP cliente, TCP e dati restano intatti.',
+          wire: 'Frame sul link P-1 → P-2 (la label T cambia a ogni hop)',
+          segments: [
+            ['Ethernet', 'P-1 → P-2', 'mv-l2', 120],
+            ['Label T', 'swap', 'mv-mpls-t', 110],
+            ['Label VPN', 'immutata', 'mv-mpls-v', 115],
+            ['IPv4', 'non esaminato', 'mv-ip', 135],
+            ['TCP', 'invariato', 'mv-tcp', 110],
+            ['Dati del file', 'invariati', 'mv-data', 260],
+            ['FCS', 'L2', 'mv-l2', 70]
+          ]
+        },
+        {
+          title: 'PE-2 · pop e lookup nella VRF',
+          detail: 'Rimossa la label di trasporto, la label VPN identifica la VRF/rotta cliente. PE-2 elimina le label MPLS e inoltra il pacchetto IP verso CE-B.',
+          wire: 'Frame sul link PE-2 → CE-B',
+          segments: [
+            ['Ethernet', 'PE-2 → CE-B', 'mv-l2', 150],
+            ['IPv4', 'IP A → IP B', 'mv-ip', 150],
+            ['TCP', 'invariato', 'mv-tcp', 135],
+            ['Dati del file', 'invariati', 'mv-data', 350],
+            ['FCS', 'L2', 'mv-l2', 70]
+          ]
+        },
+        {
+          title: 'Host B · decapsulamento',
+          detail: 'Ethernet consegna il pacchetto a IP, IP consegna il segmento a TCP e TCP ricompone il flusso di byte per l’applicazione destinataria.',
+          wire: 'Consegna sul link CE-B → Host B',
+          segments: [
+            ['Ethernet', 'CE-B → B', 'mv-l2', 150],
+            ['IPv4', 'IP A → IP B', 'mv-ip', 150],
+            ['TCP', 'riordino byte', 'mv-tcp', 135],
+            ['Dati del file', 'all’applicazione', 'mv-data', 350],
+            ['FCS', 'verifica L2', 'mv-l2', 70]
+          ]
+        }
+      ];
+
+      function renderPacket(segments) {
+        packetStack.replaceChildren();
+        packetMobile.replaceChildren();
+        const usable = 870;
+        const total = segments.reduce((sum, segment) => sum + segment[3], 0);
+        let x = 25;
+        segments.forEach(([label, sub, className, nominal]) => {
+          const width = usable * nominal / total;
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', x.toFixed(1));
+          rect.setAttribute('y', '20');
+          rect.setAttribute('width', width.toFixed(1));
+          rect.setAttribute('height', '66');
+          rect.setAttribute('rx', '4');
+          rect.setAttribute('class', `mv-segment ${className}`);
+          const main = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          main.setAttribute('x', (x + width / 2).toFixed(1));
+          main.setAttribute('y', '48');
+          main.setAttribute('class', 'mv-segment-text');
+          main.textContent = label;
+          const secondary = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          secondary.setAttribute('x', (x + width / 2).toFixed(1));
+          secondary.setAttribute('y', '68');
+          secondary.setAttribute('class', 'mv-segment-sub');
+          secondary.textContent = width > 78 ? sub : '';
+          packetStack.append(rect, main, secondary);
+          const mobile = document.createElement('span');
+          mobile.className = `mv-mobile-segment ${className}`;
+          const mobileLabel = document.createElement('span');
+          mobileLabel.textContent = label;
+          const mobileSub = document.createElement('small');
+          mobileSub.textContent = sub;
+          mobile.append(mobileLabel, mobileSub);
+          packetMobile.append(mobile);
+          x += width;
+        });
+      }
+
+      function selectStep(step) {
+        const phase = phases[step];
+        buttons.forEach((button, index) => {
+          const selected = index === step;
+          button.classList.toggle('btn-primary', selected);
+          button.setAttribute('aria-pressed', String(selected));
+        });
+        nodes.forEach(node => node.classList.toggle('is-active', Number(node.dataset.node) === step));
+        links.forEach(link => link.classList.toggle('is-active', Number(link.dataset.link) === step));
+        title.textContent = phase.title;
+        detail.textContent = phase.detail;
+        wireLabel.textContent = phase.wire;
+        wireLabelMobile.textContent = phase.wire;
+        renderPacket(phase.segments);
+      }
+
+      buttons.forEach(button => button.addEventListener('click', () => selectStep(Number(button.dataset.step))));
+      selectStep(0);
+    })();
+  </script>
+</div>

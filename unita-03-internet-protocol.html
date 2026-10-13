@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>Unità 3 — Internet Protocol: il datagramma attraversa reti differenti</title>
+  <link rel="stylesheet" href="assets/corso.css">
+  <link rel="stylesheet" href="assets/unita-03.css">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">IP</span><span>NETWORKING ACADEMY</span></div>
+      <div class="progress-label">Unità 3 · livello Internet</div>
+    </header>
+
+    <div class="hero">
+      <div>
+        <p class="kicker">Dal dato del cliente al backbone · Unità 3</p>
+        <h1>Il datagramma attraversa <span>reti differenti.</span></h1>
+        <p class="hero-lead"><strong>Domanda guida:</strong> come si identifica e si raggiunge una destinazione che non appartiene al collegamento locale? Internet Protocol version 4 (IPv4) fornisce indirizzamento e inoltro best effort; Ethernet cambia involucro a ogni hop.</p>
+      </div>
+      <div class="hero-packet" aria-label="Datagramma da Host A a Host B attraverso tre router">
+        <div class="hero-label">Identità logica end-to-end dell'esempio</div>
+        <div class="address-pair">
+          <div class="address-row"><small>IPv4 sorgente</small><b>192.0.2.10</b></div>
+          <div class="address-row"><small>IPv4 destinazione</small><b>198.51.100.23</b></div>
+        </div>
+        <div class="hero-route"><span>Host A</span><span class="hero-line"></span><span class="hero-router">R1</span><span class="hero-line"></span><span>Host B</span></div>
+        <p class="hero-note">Gli indirizzi mostrati appartengono ai blocchi riservati alla documentazione.</p>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell'unità">
+      <a href="#problema">01 Problema</a>
+      <a href="#header">02 Header IPv4</a>
+      <a href="#subnet">03 Subnet e gateway</a>
+      <a href="#hop">04 Hop-by-hop</a>
+      <a href="#prefisso">05 Prefissi</a>
+      <a href="#mtu">06 MTU</a>
+      <a href="#best-effort">07 Best effort</a>
+      <a href="#ipv6">08 IPv6</a>
+      <a href="#glossario">09 Glossario</a>
+      <a href="#verifica">10 Verifica</a>
+    </nav>
+
+    <main>
+      <section id="problema">
+        <div class="section-head">
+          <div class="section-number">01</div>
+          <div>
+            <p class="section-kicker">Problema originario</p>
+            <h2>Un indirizzo locale non basta per collegare reti indipendenti</h2>
+            <p class="section-intro">Gli indirizzi Media Access Control (MAC) hanno significato sul collegamento corrente. Per attraversare router, mezzi e tecnologie Layer 2 differenti serve un'identità logica comune e una regola con cui ogni router possa avvicinare il datagramma alla destinazione.</p>
+          </div>
+        </div>
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">ADDR</div><h3>Identificare gli endpoint</h3><p>Gli indirizzi IPv4 sorgente e destinazione, normalmente stabili lungo il percorso, identificano gli endpoint logici della comunicazione.</p></article>
+          <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">ROUTE</div><h3>Scegliere il prossimo passo</h3><p>Host e router confrontano la destinazione con prefissi conosciuti e selezionano next hop e interfaccia d'uscita.</p></article>
+          <article class="info-card" style="--accent: var(--coral)"><div class="card-icon">LIMIT</div><h3>Limitare il viaggio</h3><p>Il Time To Live (TTL) diminuisce a ogni router. Se raggiunge zero, il datagramma viene scartato invece di circolare indefinitamente.</p></article>
+        </div>
+        <div class="core-insight"><strong>Internet Protocol non sostituisce Ethernet: coopera con Ethernet.</strong><br>IP decide verso quale rete procedere; il collegamento corrente consegna concretamente il datagramma al prossimo hop. Il router rimuove la vecchia trama, elabora l'header IP e costruisce un nuovo involucro Layer 2.</div>
+        <div class="callout"><strong>Contesto storico.</strong> La specifica base di IPv4 risale al 1981. L'indirizzamento classless e il Classless Inter-Domain Routing (CIDR) hanno poi sostituito il vecchio ragionamento per classi con prefissi espliciti, rendendo possibili aggregazione e uso più flessibile dello spazio di indirizzi.</div>
+      </section>
+
+      <section id="header">
+        <div class="section-head">
+          <div class="section-number">02</div>
+          <div>
+            <p class="section-kicker">Anatomia della Protocol Data Unit (PDU)</p>
+            <h2>L'header IPv4 descrive come trattare il datagramma</h2>
+            <p class="section-intro">La rappresentazione segue parole da 32 bit. L'header ordinario senza opzioni misura 20 byte; con opzioni può arrivare a 60 byte. Total Length comprende header e payload e può rappresentare al massimo 65.535 byte.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Anatomia interattiva dell'header IPv4</strong><span>seleziona un gruppo di campi</span></div>
+          <div class="button-row" role="group" aria-label="Gruppi di campi IPv4">
+            <button type="button" data-ip-field="format" aria-pressed="false">Formato</button>
+            <button type="button" data-ip-field="service" aria-pressed="false">Servizio</button>
+            <button type="button" data-ip-field="length" aria-pressed="false">Lunghezze</button>
+            <button type="button" data-ip-field="fragment" aria-pressed="false">Frammentazione</button>
+            <button type="button" data-ip-field="forward" aria-pressed="false">Inoltro</button>
+            <button type="button" data-ip-field="address" aria-pressed="true">Indirizzi</button>
+            <button type="button" data-ip-field="payload" aria-pressed="false">Payload</button>
+          </div>
+          <div class="ip-header" aria-label="Campi dell'header IPv4 disposti in righe da 32 bit">
+            <div class="ip-field f-base" data-field-group="format" style="grid-column: span 4">Version<small>4 bit</small></div>
+            <div class="ip-field f-base" data-field-group="format" style="grid-column: span 4">IHL<small>4 bit</small></div>
+            <div class="ip-field f-service" data-field-group="service" style="grid-column: span 8">DSCP + ECN<small>8 bit</small></div>
+            <div class="ip-field f-length" data-field-group="length" style="grid-column: span 16">Total Length<small>16 bit</small></div>
+            <div class="ip-field f-frag" data-field-group="fragment" style="grid-column: span 16">Identification<small>16 bit</small></div>
+            <div class="ip-field f-frag" data-field-group="fragment" style="grid-column: span 3">Flags<small>3 bit</small></div>
+            <div class="ip-field f-frag" data-field-group="fragment" style="grid-column: span 13">Fragment Offset<small>13 bit</small></div>
+            <div class="ip-field f-hop" data-field-group="forward" style="grid-column: span 8">TTL<small>8 bit</small></div>
+            <div class="ip-field f-proto" data-field-group="forward" style="grid-column: span 8">Protocol<small>8 bit</small></div>
+            <div class="ip-field f-hop" data-field-group="forward" style="grid-column: span 16">Header Checksum<small>16 bit</small></div>
+            <div class="ip-field f-address active" data-field-group="address" style="grid-column: span 32">Source Address · 192.0.2.10<small>32 bit</small></div>
+            <div class="ip-field f-address active" data-field-group="address" style="grid-column: span 32">Destination Address · 198.51.100.23<small>32 bit</small></div>
+            <div class="ip-field f-option" data-field-group="format" style="grid-column: span 32">Options + Padding<small>0–40 byte, opzionali</small></div>
+            <div class="ip-field f-payload" data-field-group="payload" style="grid-column: span 32">Payload del livello superiore<small>per esempio segmento TCP, datagramma UDP o messaggio ICMP</small></div>
+          </div>
+          <div class="field-copy"><strong id="fieldTitle">Indirizzi sorgente e destinazione</strong><span id="fieldText">Sono indirizzi logici a 32 bit. Un router ordinario li usa per l'inoltro ma non li sostituisce a ogni hop; traduzioni, tunnel e policy speciali sono eccezioni esplicite, non il comportamento base di IP.</span></div>
+        </div>
+        <p class="figure-note"><b>Legenda:</b> IHL = Internet Header Length; DSCP = Differentiated Services Code Point; ECN = Explicit Congestion Notification; TTL = Time To Live; TCP = Transmission Control Protocol; UDP = User Datagram Protocol; ICMP = Internet Control Message Protocol.</p>
+        <div class="compare-table" aria-label="Esempi del campo Protocol IPv4">
+          <div class="table-head">Valore Protocol</div><div class="table-head">Protocollo successivo</div><div class="table-head">Significato</div>
+          <div class="table-cell"><strong>1</strong></div><div class="table-cell">Internet Control Message Protocol</div><div class="table-cell">Messaggi di controllo e di errore relativi al livello Internet.</div>
+          <div class="table-cell"><strong>6</strong></div><div class="table-cell">Transmission Control Protocol</div><div class="table-cell">Il payload IP inizia con un header TCP.</div>
+          <div class="table-cell"><strong>17</strong></div><div class="table-cell">User Datagram Protocol</div><div class="table-cell">Il payload IP inizia con un header UDP.</div>
+          <div class="table-cell"><strong>89</strong></div><div class="table-cell">Open Shortest Path First</div><div class="table-cell">OSPF è trasportato direttamente da IP, non dentro TCP o UDP.</div>
+        </div>
+        <div class="callout"><strong>Checksum limitato.</strong> Header Checksum protegge soltanto l'header IPv4. Poiché il TTL cambia, un router che inoltra deve aggiornare il checksum. Il payload ha eventuali controlli propri nei livelli superiore e inferiore.</div>
+      </section>
+
+      <section id="subnet">
+        <div class="section-head">
+          <div class="section-number">03</div>
+          <div>
+            <p class="section-kicker">Prima decisione dell'host</p>
+            <h2>Destinazione locale o gateway?</h2>
+            <p class="section-intro">Il prefisso indica quanti bit iniziali descrivono la rete. L'host consulta la propria tabella di routing; nel caso base confronta la destinazione con il prefisso direttamente connesso. Se è on-link, cerca il Media Access Control (MAC) della destinazione. Se è remota, cerca il MAC del next hop.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Decisione di Host A: 192.0.2.10/24</strong><span>gateway predefinito 192.0.2.1</span></div>
+          <div class="button-row" role="group" aria-label="Destinazioni di esempio">
+            <button type="button" data-destination="local" aria-pressed="true">192.0.2.77 · locale</button>
+            <button type="button" data-destination="remote" aria-pressed="false">198.51.100.23 · remota</button>
+            <button type="button" data-destination="gateway" aria-pressed="false">192.0.2.1 · gateway</button>
+          </div>
+          <div class="subnet-stage">
+            <div class="subnet-card"><b>Prefisso dell'host</b><code>192.0.2.0/24</code><small>Maschera 255.255.255.0. I primi 24 bit identificano la rete direttamente connessa.</small></div>
+            <div class="decision-symbol">≟</div>
+            <div class="subnet-card"><b>Prefisso della destinazione</b><code id="destinationNetwork">192.0.2.0/24</code><small id="destinationBinary">AND fra 192.0.2.77 e la maschera /24 → 192.0.2.0</small></div>
+          </div>
+          <div class="decision-result" id="decisionResult"><strong>Stessa rete: consegna diretta.</strong> Host A mantiene 192.0.2.77 come destinazione IP e usa Address Resolution Protocol per conoscere il MAC di 192.0.2.77.</div>
+        </div>
+        <div class="core-insight"><strong>“Inviare al gateway” non significa cambiare l'IP destinazione con quello del gateway.</strong><br>Il datagramma resta destinato a 198.51.100.23. È la trama Ethernet del primo collegamento ad avere come destinazione il MAC di 192.0.2.1.</div>
+        <div class="callout"><strong>Gateway e next hop.</strong> Il default gateway è il router usato quando non esiste una rotta più specifica. “Next hop” è più generale: è il prossimo nodo Layer 3 selezionato da una rotta, predefinita o specifica.</div>
+      </section>
+
+      <section id="hop">
+        <div class="section-head">
+          <div class="section-number">04</div>
+          <div>
+            <p class="section-kicker">Trasformazione lungo il percorso</p>
+            <h2>IP resta riconoscibile; il collegamento viene riscritto</h2>
+            <p class="section-intro">Segui il datagramma dall'host sorgente alla destinazione. In questo esempio non sono presenti Network Address Translation (NAT), tunnel o altre funzioni che modifichino gli indirizzi: sorgente e destinazione Internet Protocol (IP) rimangono uguali, il Time To Live (TTL) diminuisce nei router e gli indirizzi Media Access Control (MAC) descrivono soltanto il link selezionato.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Viaggio hop-by-hop</strong><span>seleziona un collegamento</span></div>
+          <div class="button-row" role="group" aria-label="Collegamenti del percorso">
+            <button type="button" data-hop="a-r1" aria-pressed="true">Host A → R1</button>
+            <button type="button" data-hop="r1-r2" aria-pressed="false">R1 → R2</button>
+            <button type="button" data-hop="r2-r3" aria-pressed="false">R2 → R3</button>
+            <button type="button" data-hop="r3-b" aria-pressed="false">R3 → Host B</button>
+          </div>
+          <div class="hop-map" aria-label="Host A, tre router e Host B">
+            <div class="hop-node active" data-hop-node="a-r1"><b>Host A</b>192.0.2.10</div>
+            <div class="hop-node router active" data-hop-node="a-r1"><b>R1</b>gateway</div>
+            <div class="hop-node router" data-hop-node="r1-r2"><b>R2</b>transito</div>
+            <div class="hop-node router" data-hop-node="r2-r3"><b>R3</b>egresso</div>
+            <div class="hop-node" data-hop-node="r3-b"><b>Host B</b>198.51.100.23</div>
+          </div>
+          <div class="hop-detail">
+            <div><small>Trama sul link</small><b id="hopMac">MAC Host A → MAC R1</b></div>
+            <div><small>Datagramma dentro la trama</small><b>IP 192.0.2.10 → 198.51.100.23</b></div>
+            <div><small>TTL trasmesso</small><b id="hopTtl">64</b></div>
+          </div>
+          <div class="status-copy"><strong id="hopTitle">Primo collegamento: Host A → R1</strong><span id="hopText">Host A determina che la destinazione è remota e invia la trama al MAC del gateway. R1 riceverà il datagramma con TTL 64.</span></div>
+        </div>
+        <div class="compare-table" aria-label="Confronto fra informazioni IP e informazioni Ethernet lungo il percorso">
+          <div class="table-head">Informazione</div><div class="table-head">Ambito</div><div class="table-head">Comportamento ordinario</div>
+          <div class="table-cell"><strong>IP sorgente e destinazione</strong></div><div class="table-cell">End-to-end</div><div class="table-cell">Restano uguali attraverso i router, salvo funzioni esplicite come NAT o tunnel.</div>
+          <div class="table-cell"><strong>TTL e Header Checksum</strong></div><div class="table-cell">Elaborati dai router</div><div class="table-cell">TTL diminuisce; il checksum dell'header IPv4 viene aggiornato.</div>
+          <div class="table-cell"><strong>MAC sorgente, MAC destinazione e FCS</strong></div><div class="table-cell">Hop-by-hop</div><div class="table-cell">Vengono sostituiti con la nuova trama del collegamento d'uscita.</div>
+          <div class="table-cell"><strong>Payload di trasporto</strong></div><div class="table-cell">End-to-end</div><div class="table-cell">Un router IP ordinario non ricompone il flusso TCP e non consegna i dati all'applicazione.</div>
+        </div>
+      </section>
+
+      <section id="prefisso">
+        <div class="section-head">
+          <div class="section-number">05</div>
+          <div>
+            <p class="section-kicker">La regola di scelta</p>
+            <h2>Vince il prefisso corrispondente più lungo</h2>
+            <p class="section-intro">Più rotte possono includere lo stesso indirizzo. Il Longest-Prefix Match (LPM) sceglie quella con il maggior numero di bit iniziali coincidenti: la rotta più specifica. Come le rotte arrivano nella Routing Information Base (RIB) e nella Forwarding Information Base (FIB) sarà il tema dell'Unità 4.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Lookup concettuale su quattro prefissi</strong><span>seleziona la destinazione</span></div>
+          <div class="button-row" role="group" aria-label="Indirizzi per il lookup">
+            <button type="button" data-route-destination="10.20.30.44" aria-pressed="true">10.20.30.44</button>
+            <button type="button" data-route-destination="10.20.99.8" aria-pressed="false">10.20.99.8</button>
+            <button type="button" data-route-destination="10.77.4.9" aria-pressed="false">10.77.4.9</button>
+            <button type="button" data-route-destination="203.0.113.9" aria-pressed="false">203.0.113.9</button>
+          </div>
+          <div class="route-table" id="routeTable" aria-label="Tabella di routing semplificata"></div>
+          <div class="route-status" id="routeStatus"><strong>Risultato: 10.20.30.0/24.</strong> Anche /16, /8 e /0 corrispondono, ma /24 fissa più bit ed è quindi la scelta più specifica: uscita verso R-C.</div>
+        </div>
+        <div class="callout"><strong>Due decisioni distinte.</strong> Il longest-prefix match sceglie una rotta. La metrica o la distanza amministrativa possono aver contribuito prima a scegliere quale rotta installare quando più candidati descrivevano lo stesso prefisso; non sostituiscono la regola del prefisso più lungo fra prefissi diversi.</div>
+      </section>
+
+      <section id="mtu">
+        <div class="section-head">
+          <div class="section-number">06</div>
+          <div>
+            <p class="section-kicker">Dimensione lungo il percorso</p>
+            <h2>La Maximum Transmission Unit (MTU) del link può essere più piccola del datagramma</h2>
+            <p class="section-intro">La Maximum Transmission Unit (MTU) limita la dimensione della Protocol Data Unit (PDU) superiore trasportabile su un collegamento. In IPv4 la frammentazione è possibile, ma aumenta lavoro e fragilità; Path Maximum Transmission Unit Discovery (PMTUD) cerca una dimensione che attraversi l'intero percorso senza frammentazione.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Datagramma IPv4 da 1.500 byte, prossimo link MTU 1.280</strong><span>header minimo 20 byte</span></div>
+          <div class="button-row" role="group" aria-label="Comportamento del flag Don't Fragment">
+            <button type="button" data-fragment-mode="allow" aria-pressed="true">Don't Fragment (DF) = 0 · frammentazione consentita</button>
+            <button type="button" data-fragment-mode="deny" aria-pressed="false">Don't Fragment (DF) = 1 · non frammentare</button>
+          </div>
+          <div class="fragment-path">
+            <div class="packet-box"><b>Datagramma in ingresso</b><div class="packet-strip"><span class="header">IPv4<br>20 B</span><span class="data">payload 1.480 B</span></div></div>
+            <div class="fragment-arrow">→</div>
+            <div class="mtu-box"><b>Vincolo d'uscita</b><div class="packet-strip"><span class="header">MTU</span><span class="data">massimo 1.280 B</span></div></div>
+          </div>
+          <div class="fragment-output" id="fragmentOutput" aria-live="polite"></div>
+          <div class="status-copy"><strong id="fragmentTitle">Il router produce due frammenti.</strong><span id="fragmentText">Il primo porta 1.256 byte di dati, multiplo di 8; il secondo porta i 224 byte rimanenti. Ogni frammento riceve un proprio header, conserva Identification e usa More Fragments (MF) e Fragment Offset per il riassemblaggio finale.</span></div>
+        </div>
+        <div class="pmtu-steps" aria-label="Passi della Path MTU Discovery IPv4 classica">
+          <div class="pmtu-step"><b>1 · PROVA</b>La sorgente invia con Don't Fragment impostato, partendo da una dimensione coerente con il primo link.</div>
+          <div class="pmtu-step"><b>2 · SEGNALAZIONE</b>Se il datagramma è troppo grande, il router lo scarta e invia Internet Control Message Protocol “fragmentation needed” con la MTU del next hop.</div>
+          <div class="pmtu-step"><b>3 · ADATTAMENTO</b>La sorgente riduce la dimensione dei datagrammi; TCP può adeguare la segmentazione senza richiedere frammenti IPv4 lungo il percorso.</div>
+        </div>
+        <div class="core-insight"><strong>I frammenti IPv4 vengono riassemblati dalla destinazione finale.</strong><br>Un router intermedio che inoltra non aspetta di ricostruire il datagramma originale. Se un frammento manca, il datagramma completo non può essere consegnato al livello superiore.</div>
+        <div class="callout"><strong>Path MTU Discovery dipende dai messaggi di errore.</strong> Filtrare indiscriminatamente Internet Control Message Protocol può creare un “PMTU black hole”: i datagrammi grandi scompaiono e la sorgente non riceve l'informazione necessaria per ridurne la dimensione.</div>
+
+        <div class="lab" id="frammentazione-rischi">
+          <div class="figure-title"><strong>Perché la frammentazione IPv4 è considerata pericolosa</strong><span>RFC 8900 · IP Fragmentation Considered Fragile</span></div>
+          <div class="cards-2">
+            <article class="info-card" style="--accent: var(--coral)"><div class="card-icon">LOSS</div><h3>Un frammento perso, un datagramma perso</h3><p>Il datagramma IP viene ricomposto solo dalla destinazione finale. Se manca anche un solo frammento, l'intero datagramma IP viene scartato alla scadenza del tempo di riassemblaggio, e con esso il segmento TCP o il datagramma UDP che trasportava. La perdita si amplifica: con tre frammenti e l'1% di perdita per pacchetto, circa il 3% dei datagrammi non arriva. Inoltre il campo Identification, di soli 16 bit, si ricicla in pochi secondi alle velocità moderne, e frammenti di datagrammi diversi possono essere ricomposti in modo errato.</p></article>
+            <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">L4?</div><h3>Le porte spariscono</h3><p>Solo il primo frammento contiene l'header TCP o UDP. Per i frammenti successivi, firewall e Access Control List (ACL) non conoscono le porte, la Network Address Translation (NAT) non sa che cosa tradurre e il bilanciamento Equal-Cost Multi-Path (ECMP), che calcola un hash su indirizzi e porte, può separare i frammenti su percorsi diversi.</p></article>
+            <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">ATK</div><h3>Una superficie d'attacco</h3><p>Frammenti sovrapposti ricomposti in modo diverso da firewall e host; header TCP spezzato su due frammenti per eludere i filtri (tiny fragment); frammenti che, ricomposti, superano i 65.535 byte (ping of death); memoria di riassemblaggio esaurita con frammenti mai completati; frammenti contraffatti inseriti in risposte legittime, per esempio per avvelenare le cache del Domain Name System (DNS).</p></article>
+            <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">CPU</div><h3>Central Processing Unit (CPU)</h3><p>Su molte piattaforme, anche Cisco, la frammentazione non avviene nell'hardware di inoltro veloce: il datagramma viene passato al processore del router. Molto traffico da frammentare significa processore carico e inoltro rallentato per tutti.</p></article>
+          </div>
+          <div class="callout"><strong>Si frammenta il datagramma IP, non il segmento TCP.</strong> A frammentare e a ricomporre è IP, che non conosce il contenuto del proprio payload. I frammenti non sono segmenti: solo il primo porta l'header TCP, gli altri contengono soltanto la continuazione dei byte. Se un frammento si perde, TCP non riceve mai il segmento; il mittente lo ritrasmette in un nuovo datagramma IP, con un nuovo valore di Identification, che verrà frammentato di nuovo se la MTU resta insufficiente. Segmentazione (TCP, alla sorgente, in base alla MSS) e frammentazione (IP, in base alla MTU del collegamento) sono operazioni distinte.</div>
+          <div class="pmtu-steps" aria-label="Tecniche per evitare la frammentazione IPv4">
+            <div class="pmtu-step"><b>MAXIMUM SEGMENT SIZE (MSS) CLAMPING</b>Sui router di bordo il comando Cisco <code>ip tcp adjust-mss</code> riduce la Maximum Segment Size annunciata negli handshake TCP: i segmenti nascono già abbastanza piccoli.</div>
+            <div class="pmtu-step"><b>MTU AMPIA NEL CORE</b>I provider configurano il backbone MPLS con MTU generose, spesso 9.000 byte o più: le label aggiunte non costringono a frammentare il traffico dei clienti.</div>
+            <div class="pmtu-step"><b>IPv6</b>I router IPv6 non frammentano: può farlo soltanto la sorgente, con un apposito header di estensione, dopo aver scoperto la MTU del percorso.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="best-effort">
+        <div class="section-head">
+          <div class="section-number">07</div>
+          <div>
+            <p class="section-kicker">Data plane e limiti</p>
+            <h2>Best effort: IP prova a consegnare, senza promettere il risultato</h2>
+            <p class="section-intro">IPv4 offre un servizio di datagrammi senza connessione. Ogni datagramma può essere inoltrato indipendentemente; congestione, errori, loop temporanei o assenza di rotta possono causare scarto, duplicazione o riordinamento.</p>
+          </div>
+        </div>
+        <div class="plane-grid">
+          <div class="plane-item"><b>IP fa</b><span>Indirizza, delimita il payload, identifica il protocollo superiore, limita il percorso con TTL e rende possibile l'inoltro fra reti.</span></div>
+          <div class="plane-item"><b>IP non garantisce</b><span>Consegna, ordine, assenza di duplicati, ritrasmissione, velocità, riservatezza o autenticità.</span></div>
+          <div class="plane-item"><b>Altri livelli completano</b><span>TCP può offrire affidabilità e ordine; Ethernet controlla la trama locale; applicazioni e protocolli di sicurezza aggiungono semantica e protezione.</span></div>
+        </div>
+        <div class="compare-table" aria-label="Collocazione di IP nei piani della rete">
+          <div class="table-head">Piano</div><div class="table-head">Ruolo di IP</div><div class="table-head">Esempio</div>
+          <div class="table-cell"><strong>Data plane</strong></div><div class="table-cell">Diretto</div><div class="table-cell">Ogni datagramma cliente viene letto e inoltrato in base alla destinazione.</div>
+          <div class="table-cell"><strong>Control plane</strong></div><div class="table-cell">Base di trasporto e risultato</div><div class="table-cell">OSPF può viaggiare direttamente dentro IP e contribuisce a preparare le rotte che il data plane userà.</div>
+          <div class="table-cell"><strong>Service plane</strong></div><div class="table-cell">Contenuto separato per cliente</div><div class="table-cell">In una Layer 3 Virtual Private Network, la Virtual Routing and Forwarding sceglie il contesto nel quale eseguire il lookup IP.</div>
+        </div>
+      </section>
+
+      <section id="ipv6">
+        <div class="section-head">
+          <div class="section-number">08</div>
+          <div>
+            <p class="section-kicker">Confronto orientativo</p>
+            <h2>Internet Protocol version 6 (IPv6) conserva il ruolo di rete, ma semplifica l'header base</h2>
+            <p class="section-intro">Internet Protocol version 6 (IPv6) non è un “IPv4 più lungo”. Mantiene l'idea di indirizzamento e inoltro fra reti, usa indirizzi da 128 bit e un header base fisso da 40 byte; le funzioni opzionali sono espresse mediante extension header.</p>
+          </div>
+        </div>
+        <div class="ipv6-compare">
+          <article class="version-card"><h3>IPv4</h3><ul><li>Indirizzi da 32 bit.</li><li>Header da 20 a 60 byte.</li><li>Time To Live e campo Protocol.</li><li>Header Checksum presente.</li><li>Un router può frammentare se Don't Fragment non è impostato.</li><li>Address Resolution Protocol per IPv4 su Ethernet.</li></ul></article>
+          <article class="version-card"><h3>IPv6</h3><ul><li>Indirizzi da 128 bit.</li><li>Header base fisso da 40 byte.</li><li>Hop Limit e Next Header.</li><li>Nessun checksum nell'header IPv6.</li><li>I router non frammentano: la sorgente può usare un Fragment extension header.</li><li>Neighbor Discovery tramite Internet Control Message Protocol version 6.</li></ul></article>
+        </div>
+        <div class="core-insight"><strong>La distinzione fondamentale resta invariata.</strong><br>Un indirizzo IP identifica logicamente la destinazione attraverso più reti; l'indirizzo del livello di collegamento serve a raggiungere il prossimo hop sul link corrente.</div>
+      </section>
+
+      <section id="glossario">
+        <div class="section-head">
+          <div class="section-number">09</div>
+          <div>
+            <p class="section-kicker">Glossario cumulativo</p>
+            <h2>Sigle disponibili fino all'Unità 3</h2>
+            <p class="section-intro">Le nuove voci di Internet Protocol si aggiungono ai termini già incontrati nei livelli applicativo, di trasporto e di collegamento.</p>
+          </div>
+        </div>
+        <dl class="glossary">
+          <div class="gloss-item"><dt>PDU</dt><dd>Protocol Data Unit — unità dati considerata a uno specifico livello.</dd></div>
+          <div class="gloss-item"><dt>IP</dt><dd>Internet Protocol — protocollo di indirizzamento e inoltro fra reti.</dd></div>
+          <div class="gloss-item"><dt>IPv4 / IPv6</dt><dd>Internet Protocol version 4 / version 6 — versioni con indirizzi rispettivamente da 32 e 128 bit.</dd></div>
+          <div class="gloss-item"><dt>CIDR</dt><dd>Classless Inter-Domain Routing — indirizzamento e aggregazione basati su prefissi di lunghezza esplicita.</dd></div>
+          <div class="gloss-item"><dt>IHL</dt><dd>Internet Header Length — lunghezza dell'header IPv4 in parole da 32 bit.</dd></div>
+          <div class="gloss-item"><dt>TTL</dt><dd>Time To Live — campo IPv4 ridotto a ogni router per limitare la permanenza del datagramma.</dd></div>
+          <div class="gloss-item"><dt>DSCP</dt><dd>Differentiated Services Code Point — marcatura per trattamento differenziato del traffico.</dd></div>
+          <div class="gloss-item"><dt>ECN</dt><dd>Explicit Congestion Notification — segnalazione esplicita di congestione quando supportata.</dd></div>
+          <div class="gloss-item"><dt>ICMP</dt><dd>Internet Control Message Protocol — messaggi di controllo e di errore del livello Internet.</dd></div>
+          <div class="gloss-item"><dt>DF / MF</dt><dd>Don't Fragment / More Fragments — flag IPv4 relativi alla frammentazione.</dd></div>
+          <div class="gloss-item"><dt>MTU</dt><dd>Maximum Transmission Unit — massima PDU superiore trasportabile sul collegamento.</dd></div>
+          <div class="gloss-item"><dt>ACL</dt><dd>Access Control List — elenco di regole che filtra il traffico in base a indirizzi, protocollo e porte.</dd></div>
+          <div class="gloss-item"><dt>ECMP</dt><dd>Equal-Cost Multi-Path — distribuzione del traffico su più percorsi di pari costo, spesso tramite hash su indirizzi e porte.</dd></div>
+          <div class="gloss-item"><dt>NAT</dt><dd>Network Address Translation — traduzione di indirizzi, e spesso porte, eseguita da un dispositivo intermedio.</dd></div>
+          <div class="gloss-item"><dt>DNS</dt><dd>Domain Name System — sistema distribuito di risoluzione dei nomi.</dd></div>
+          <div class="gloss-item"><dt>PMTUD</dt><dd>Path MTU Discovery — scoperta di una dimensione adatta all'intero percorso.</dd></div>
+          <div class="gloss-item"><dt>LPM</dt><dd>Longest-Prefix Match — scelta del prefisso corrispondente più lungo.</dd></div>
+          <div class="gloss-item"><dt>ARP</dt><dd>Address Resolution Protocol — associa un indirizzo IPv4 al MAC del prossimo hop locale.</dd></div>
+          <div class="gloss-item"><dt>MAC</dt><dd>Media Access Control — sottolivello e indirizzo usato sul collegamento locale.</dd></div>
+          <div class="gloss-item"><dt>FCS</dt><dd>Frame Check Sequence — controllo di errore della trama Ethernet.</dd></div>
+          <div class="gloss-item"><dt>TCP / UDP</dt><dd>Transmission Control Protocol / User Datagram Protocol — protocolli di trasporto introdotti nell'Unità 1.</dd></div>
+          <div class="gloss-item"><dt>MSS</dt><dd>Maximum Segment Size — massimo payload TCP annunciato.</dd></div>
+          <div class="gloss-item"><dt>RIB / FIB</dt><dd>Routing Information Base / Forwarding Information Base — conoscenza di routing e struttura operativa di inoltro.</dd></div>
+          <div class="gloss-item"><dt>OSPF</dt><dd>Open Shortest Path First — protocollo di routing interno trasportato direttamente da IP.</dd></div>
+          <div class="gloss-item"><dt>VRF</dt><dd>Virtual Routing and Forwarding — contesto separato di routing e forwarding.</dd></div>
+          <div class="gloss-item"><dt>MPLS</dt><dd>Multiprotocol Label Switching — inoltro mediante label nel backbone.</dd></div>
+          <div class="gloss-item"><dt>CE / PE / P</dt><dd>Customer Edge / Provider Edge / Provider — ruoli dei router cliente e provider.</dd></div>
+          <div class="gloss-item"><dt>L2VPN / L3VPN</dt><dd>Layer 2 / Layer 3 Virtual Private Network — servizi provider di collegamento o di rete.</dd></div>
+        </dl>
+      </section>
+
+      <section id="verifica">
+        <div class="section-head">
+          <div class="section-number">10</div>
+          <div>
+            <p class="section-kicker">Autoverifica</p>
+            <h2>Domande di orientamento</h2>
+            <p class="section-intro">Formula prima la risposta. Le domande collegano Internet Protocol alle unità precedenti e preparano il lavoro interno del router.</p>
+          </div>
+        </div>
+        <div class="quiz">
+          <details><summary>1. Host A invia a una rete remota: quale indirizzo appartiene al gateway, quello IP destinazione o quello MAC destinazione?</summary><p>Nel comportamento base, l'IP destinazione resta quello dell'host finale. Il MAC destinazione della prima trama appartiene al gateway locale.</p></details>
+          <details><summary>2. Quale campo impedisce a un datagramma di circolare indefinitamente in un loop?</summary><p>Il Time To Live. Ogni router lo riduce; quando non è più sufficiente per proseguire, il datagramma viene scartato e normalmente viene generato un messaggio ICMP Time Exceeded.</p></details>
+          <details><summary>3. Perché l'Header Checksum IPv4 deve essere aggiornato durante l'inoltro?</summary><p>Perché copre l'header e il router modifica almeno il TTL. Non copre il payload del datagramma.</p></details>
+          <details><summary>4. Fra 10.0.0.0/8 e 10.20.0.0/16, quale rotta vince per 10.20.30.44?</summary><p>10.20.0.0/16, perché entrambi i prefissi corrispondono ma /16 è più lungo e quindi più specifico. Se esistesse anche 10.20.30.0/24, vincerebbe /24.</p></details>
+          <details><summary>5. Una default route /0 può corrispondere a qualsiasi IPv4?</summary><p>Sì. Non fissa alcun bit iniziale e funziona come ultima scelta quando nessun prefisso più specifico corrisponde.</p></details>
+          <details><summary>6. Che cosa accade se un datagramma supera la MTU del next hop e DF è impostato?</summary><p>Il router non lo frammenta: lo scarta e, nell'IPv4 classico, invia alla sorgente un messaggio ICMP Destination Unreachable, fragmentation needed, includendo la MTU del next hop.</p></details>
+          <details><summary>7. Chi riassembla normalmente i frammenti IPv4?</summary><p>La destinazione finale, non i router intermedi che li stanno inoltrando.</p></details>
+          <details><summary>8. “Best effort” significa che IP non tenta di inoltrare?</summary><p>No. IP applica le proprie regole di inoltro, ma non promette consegna, ordine, ritrasmissione o assenza di duplicati.</p></details>
+          <details><summary>9. Quale differenza di frammentazione separa IPv4 e IPv6?</summary><p>In IPv4 un router può frammentare quando consentito. In IPv6 i router non frammentano; la sorgente può inserire un Fragment extension header e deve adattarsi alla Path MTU.</p></details>
+          <details><summary>10. Datagramma e trama sono sinonimi?</summary><p>No. Il datagramma IP è la PDU del livello Internet; la trama è l'involucro del livello di collegamento usato sul link corrente. Un datagramma può attraversare più trame successive.</p></details>
+          <details><summary>11. Un frammento IPv4 si perde lungo il percorso: che cosa deve ritrasmettere il mittente TCP?</summary><p>L'intero segmento TCP. La destinazione non riesce a ricomporre il datagramma IP e lo scarta, quindi TCP non riceve il segmento. Il mittente se ne accorge dai riscontri mancanti e ritrasmette il segmento in un nuovo datagramma IP, che verrà frammentato di nuovo se la MTU del percorso resta insufficiente.</p></details>
+        </div>
+      </section>
+
+      <div class="closing">
+        <p class="section-kicker">Punto di arrivo dell'Unità 3</p>
+        <h2>IP conserva la direzione del viaggio; ogni link fornisce il prossimo passo.</h2>
+        <p>Ora sappiamo leggere un datagramma, decidere se usare la consegna diretta o un gateway, distinguere indirizzi end-to-end e hop-by-hop, applicare il longest-prefix match e interpretare MTU, frammentazione e best effort. L'Unità 4 entrerà nel router: rotte, Routing Information Base, Forwarding Information Base e riscrittura Layer 2.</p>
+      </div>
+
+      <div class="sources">
+        <strong>Riferimenti essenziali:</strong>
+        <a href="https://www.rfc-editor.org/rfc/rfc791.html">RFC 791 — Internet Protocol</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc1122">RFC 1122 — Requirements for Internet Hosts</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc1812">RFC 1812 — Requirements for IPv4 Routers</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc1191">RFC 1191 — Path MTU Discovery</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc8900">RFC 8900 — IP Fragmentation Considered Fragile</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc4963">RFC 4963 — IPv4 Reassembly Errors at High Data Rates</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc1858">RFC 1858 — Security Considerations for IP Fragment Filtering</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc4632">RFC 4632 — CIDR</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc5737">RFC 5737 — IPv4 Address Blocks for Documentation</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc8200">RFC 8200 — IPv6 Specification</a> ·
+        <a href="https://www.iana.org/assignments/protocol-numbers/">IANA — Protocol Numbers</a>
+      </div>
+    </main>
+
+    <footer>
+      <span>NETWORKING ACADEMY · UNITÀ 3</span>
+      <span>Dal dato del cliente al backbone del Service Provider</span>
+    </footer>
+  </div>
+
+  <script src="assets/unita-03.js"></script>
+</body>
+</html>

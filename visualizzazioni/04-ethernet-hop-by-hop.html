@@ -1,0 +1,355 @@
+<div id="ethernet-hop-map">
+  <style>
+    #ethernet-hop-map {
+      width: 100%;
+      color: var(--foreground);
+    }
+    #ethernet-hop-map h3 {
+      margin: 0 0 4px;
+      font-weight: 500;
+    }
+    #ethernet-hop-map .eh-subtitle {
+      margin-bottom: 16px;
+      color: var(--muted-foreground);
+    }
+    #ethernet-hop-map .eh-section-title {
+      margin: 18px 0 8px;
+      font-weight: 500;
+    }
+    #ethernet-hop-map .eh-frame-anatomy {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 3px;
+      margin: 8px 0;
+    }
+    #ethernet-hop-map .eh-field {
+      flex: 1 1 88px;
+      min-width: 0;
+      min-height: 74px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 7px 5px;
+      overflow-wrap: anywhere;
+    }
+    #ethernet-hop-map .eh-field strong {
+      font-weight: 500;
+    }
+    #ethernet-hop-map .eh-field span {
+      color: var(--muted-foreground);
+      margin-top: 3px;
+    }
+    #ethernet-hop-map .eh-outside {
+      background: color-mix(in srgb, var(--muted) 55%, transparent);
+      border-bottom: 2px dashed var(--border);
+    }
+    #ethernet-hop-map .eh-mac {
+      background: color-mix(in srgb, var(--viz-series-1) 22%, var(--card));
+    }
+    #ethernet-hop-map .eh-tag {
+      background: color-mix(in srgb, var(--viz-series-2) 20%, var(--card));
+    }
+    #ethernet-hop-map .eh-type {
+      background: color-mix(in srgb, var(--viz-series-3) 20%, var(--card));
+    }
+    #ethernet-hop-map .eh-payload {
+      background: color-mix(in srgb, var(--viz-series-4) 20%, var(--card));
+      flex-grow: 2;
+    }
+    #ethernet-hop-map .eh-fcs {
+      background: color-mix(in srgb, var(--viz-series-5) 20%, var(--card));
+    }
+    #ethernet-hop-map .eh-frame-brace {
+      display: grid;
+      grid-template-columns: minmax(120px, 1fr) minmax(220px, 2fr) minmax(120px, 1fr);
+      gap: 8px;
+      margin: 8px 0 16px;
+      color: var(--muted-foreground);
+      text-align: center;
+    }
+    #ethernet-hop-map .eh-frame-brace span:nth-child(2) {
+      border-top: 2px solid var(--viz-series-1);
+      padding-top: 5px;
+      color: var(--foreground);
+    }
+    #ethernet-hop-map .eh-zones {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin: 8px 0 12px;
+    }
+    #ethernet-hop-map .eh-zone-title {
+      padding-bottom: 6px;
+      border-bottom: 3px solid var(--border);
+      font-weight: 500;
+      text-align: center;
+    }
+    #ethernet-hop-map .eh-zone.is-provider .eh-zone-title {
+      border-bottom-color: var(--viz-series-2);
+    }
+    #ethernet-hop-map .eh-device {
+      position: relative;
+      display: grid;
+      grid-template-columns: 22px minmax(62px, 0.7fr) minmax(90px, 1.3fr);
+      gap: 5px;
+      align-items: center;
+      min-height: 68px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #ethernet-hop-map .eh-device strong {
+      font-weight: 500;
+    }
+    #ethernet-hop-map .eh-device span {
+      color: var(--muted-foreground);
+    }
+    #ethernet-hop-map .eh-device:not(:last-child)::after {
+      content: "↓";
+      position: absolute;
+      bottom: -10px;
+      left: 8px;
+      color: var(--muted-foreground);
+      z-index: 2;
+    }
+    #ethernet-hop-map .eh-snapshot {
+      margin-top: 10px;
+    }
+    #ethernet-hop-map .eh-snapshot-title {
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    #ethernet-hop-map .eh-mini-frame {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+    }
+    #ethernet-hop-map .eh-mini {
+      flex: 1 1 72px;
+      padding: 7px 4px;
+      text-align: center;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    #ethernet-hop-map .eh-size {
+      margin-top: 5px;
+      color: var(--muted-foreground);
+    }
+    #ethernet-hop-map .eh-behavior {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.8fr) minmax(170px, 1.25fr) minmax(170px, 1.25fr);
+      gap: 0 12px;
+      align-items: stretch;
+    }
+    #ethernet-hop-map .eh-behavior > div {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #ethernet-hop-map .eh-behavior-head {
+      font-weight: 500;
+      color: var(--muted-foreground);
+    }
+    #ethernet-hop-map .eh-behavior-name {
+      font-weight: 500;
+    }
+    #ethernet-hop-map .eh-resolution {
+      display: grid;
+      grid-template-columns: minmax(150px, 0.8fr) minmax(230px, 2fr) minmax(120px, 0.8fr);
+      gap: 10px;
+      align-items: center;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #ethernet-hop-map .eh-resolution strong {
+      font-weight: 500;
+    }
+    #ethernet-hop-map .eh-resolution-path {
+      position: relative;
+      text-align: center;
+      color: var(--muted-foreground);
+    }
+    #ethernet-hop-map .eh-resolution-path::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 2px solid var(--border);
+    }
+    #ethernet-hop-map .eh-resolution-path span {
+      position: relative;
+      padding: 0 7px;
+      background: var(--background);
+    }
+    #ethernet-hop-map .eh-resolution-scope {
+      color: var(--muted-foreground);
+    }
+    #ethernet-hop-map .eh-keyline {
+      margin-top: 14px;
+      padding-left: 10px;
+      border-left: 4px solid var(--viz-series-1);
+    }
+    @media (max-width: 680px) {
+      #ethernet-hop-map .eh-frame-brace,
+      #ethernet-hop-map .eh-zones,
+      #ethernet-hop-map .eh-behavior,
+      #ethernet-hop-map .eh-resolution {
+        grid-template-columns: 1fr;
+      }
+      #ethernet-hop-map .eh-frame-brace span:nth-child(2) {
+        order: -1;
+      }
+      #ethernet-hop-map .eh-device {
+        grid-template-columns: 22px minmax(72px, 0.7fr) minmax(110px, 1.3fr);
+      }
+      #ethernet-hop-map .eh-zone {
+        margin-bottom: 12px;
+      }
+      #ethernet-hop-map .eh-behavior-head {
+        display: none;
+      }
+      #ethernet-hop-map .eh-behavior > div {
+        border-bottom: 0;
+        padding: 3px 0;
+      }
+      #ethernet-hop-map .eh-behavior-name {
+        border-top: 2px solid var(--border);
+        margin-top: 8px;
+        padding-top: 8px !important;
+      }
+      #ethernet-hop-map .eh-resolution {
+        gap: 4px;
+      }
+      #ethernet-hop-map .eh-resolution-path {
+        text-align: left;
+      }
+      #ethernet-hop-map .eh-resolution-path::before {
+        display: none;
+      }
+      #ethernet-hop-map .eh-resolution-path span {
+        padding: 0;
+      }
+    }
+  </style>
+
+  <h3>Ethernet: il frame esiste solo sul collegamento locale</h3>
+  <div class="eh-subtitle text-small">Vista del primo pacchetto di Archivio.zip: 1.460 byte di file · pacchetto IPv4 (Internet Protocol version 4) da 1.500 byte</div>
+
+  <div class="eh-section-title">Anatomia sul mezzo trasmissivo</div>
+  <div class="eh-frame-anatomy text-small" role="img" aria-label="Campi trasmessi prima, dentro e dopo un frame Ethernet">
+    <div class="eh-field eh-outside"><strong>Preambolo + SFD (Start Frame Delimiter)</strong><span>8 byte · livello fisico</span></div>
+    <div class="eh-field eh-mac"><strong>MAC (Media Access Control) destinazione</strong><span>6 byte</span></div>
+    <div class="eh-field eh-mac"><strong>MAC (Media Access Control) sorgente</strong><span>6 byte</span></div>
+    <div class="eh-field eh-tag"><strong>Tag VLAN (Virtual Local Area Network)</strong><span>4 byte · opzionale</span></div>
+    <div class="eh-field eh-type"><strong>EtherType</strong><span>2 byte</span></div>
+    <div class="eh-field eh-payload"><strong>Payload</strong><span>46–1.500 byte normalmente</span></div>
+    <div class="eh-field eh-fcs"><strong>FCS (Frame Check Sequence)</strong><span>4 byte</span></div>
+    <div class="eh-field eh-outside"><strong>IFG (Interframe Gap)</strong><span>12 byte-tempo · non è un campo</span></div>
+  </div>
+  <div class="eh-frame-brace text-small">
+    <span>fuori dal frame</span>
+    <span>Frame Ethernet standard: 64–1.518 byte senza tag</span>
+    <span>fuori dal frame</span>
+  </div>
+
+  <div class="eh-section-title">Stesso flusso di trasporto, frame differenti lungo il percorso</div>
+  <div class="eh-zones text-small" role="img" aria-label="Percorso Ethernet attraverso sede cliente, provider e sede remota">
+    <section class="eh-zone">
+      <div class="eh-zone-title">Sede A · rete Ethernet locale</div>
+      <div class="eh-device"><i data-lucide="laptop" aria-hidden="true"></i><strong>FileZilla</strong><span>crea il frame verso il gateway predefinito</span></div>
+      <div class="eh-device"><i data-lucide="network" aria-hidden="true"></i><strong>Switch A</strong><span>legge la destinazione e inoltra il frame invariato</span></div>
+      <div class="eh-device"><i data-lucide="router" aria-hidden="true"></i><strong>Router cliente A</strong><span>termina il frame, instrada il pacchetto e crea un nuovo frame</span></div>
+      <div class="eh-snapshot">
+        <div class="eh-snapshot-title">Frame FileZilla → gateway</div>
+        <div class="eh-mini-frame">
+          <div class="eh-mini eh-mac">Destinazione: MAC (Media Access Control) router A</div>
+          <div class="eh-mini eh-mac">Sorgente: MAC (Media Access Control) FileZilla</div>
+          <div class="eh-mini eh-type">0x0800 · IPv4 (Internet Protocol version 4)</div>
+          <div class="eh-mini eh-payload">Pacchetto · 1.500 byte</div>
+          <div class="eh-mini eh-fcs">FCS (Frame Check Sequence)</div>
+        </div>
+        <div class="eh-size">14 + 1.500 + 4 = 1.518 byte</div>
+      </div>
+    </section>
+
+    <section class="eh-zone is-provider">
+      <div class="eh-zone-title">Provider · core MPLS (Multiprotocol Label Switching)</div>
+      <div class="eh-device"><i data-lucide="router" aria-hidden="true"></i><strong>Bordo provider 1</strong><span>termina Ethernet, aggiunge due label e crea il frame del core</span></div>
+      <div class="eh-device"><i data-lucide="network" aria-hidden="true"></i><strong>Router core</strong><span>verifica Ethernet, sostituisce la label esterna e ricrea il frame</span></div>
+      <div class="eh-device"><i data-lucide="router" aria-hidden="true"></i><strong>Bordo provider 2</strong><span>rimuove le label e crea il frame di uscita</span></div>
+      <div class="eh-snapshot">
+        <div class="eh-snapshot-title">Frame su un link del core</div>
+        <div class="eh-mini-frame">
+          <div class="eh-mini eh-mac">Destinazione: MAC (Media Access Control) prossimo router</div>
+          <div class="eh-mini eh-mac">Sorgente: MAC (Media Access Control) interfaccia uscente</div>
+          <div class="eh-mini eh-type">0x8847 · MPLS (Multiprotocol Label Switching)</div>
+          <div class="eh-mini eh-tag">2 label · 8 byte</div>
+          <div class="eh-mini eh-payload">Pacchetto · 1.500 byte</div>
+          <div class="eh-mini eh-fcs">FCS (Frame Check Sequence)</div>
+        </div>
+        <div class="eh-size">14 + 8 + 1.500 + 4 = 1.526 byte · MTU (Maximum Transmission Unit) del core almeno 1.508 byte</div>
+      </div>
+    </section>
+
+    <section class="eh-zone">
+      <div class="eh-zone-title">Sede B · rete Ethernet locale</div>
+      <div class="eh-device"><i data-lucide="router" aria-hidden="true"></i><strong>Router cliente B</strong><span>risolve l’indirizzo fisico dello storage e crea il frame finale</span></div>
+      <div class="eh-device"><i data-lucide="network" aria-hidden="true"></i><strong>Switch B</strong><span>legge la destinazione e inoltra il frame invariato</span></div>
+      <div class="eh-device"><i data-lucide="server" aria-hidden="true"></i><strong>NAS (Network Attached Storage)</strong><span>verifica il frame e consegna il pacchetto al livello di rete</span></div>
+      <div class="eh-snapshot">
+        <div class="eh-snapshot-title">Frame gateway → storage</div>
+        <div class="eh-mini-frame">
+          <div class="eh-mini eh-mac">Destinazione: MAC (Media Access Control) del NAS (Network Attached Storage)</div>
+          <div class="eh-mini eh-mac">Sorgente: MAC (Media Access Control) router B</div>
+          <div class="eh-mini eh-type">0x0800 · IPv4 (Internet Protocol version 4)</div>
+          <div class="eh-mini eh-payload">Pacchetto · 1.500 byte</div>
+          <div class="eh-mini eh-fcs">FCS (Frame Check Sequence)</div>
+        </div>
+        <div class="eh-size">14 + 1.500 + 4 = 1.518 byte</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="eh-section-title">La differenza decisiva tra switch e router</div>
+  <div class="eh-behavior text-small" role="table" aria-label="Confronto del comportamento Ethernet di host, switch e router">
+    <div class="eh-behavior-head">Dispositivo</div>
+    <div class="eh-behavior-head">Cosa esamina</div>
+    <div class="eh-behavior-head">Cosa accade al frame</div>
+
+    <div class="eh-behavior-name">Host</div>
+    <div>pacchetto da inviare + indirizzo del prossimo salto</div>
+    <div>crea o consuma il frame Ethernet</div>
+
+    <div class="eh-behavior-name">Switch Ethernet</div>
+    <div>MAC (Media Access Control) destinazione + tabella di inoltro</div>
+    <div>inoltra logicamente lo stesso frame nello stesso dominio di livello 2</div>
+
+    <div class="eh-behavior-name">Router</div>
+    <div>prima il frame; poi pacchetto o label dopo la decapsulazione; aggiorna TTL (Time To Live) quando instrada</div>
+    <div>distrugge l’incapsulamento ricevuto e costruisce un nuovo frame per il link successivo</div>
+
+    <div class="eh-behavior-name">Router core MPLS (Multiprotocol Label Switching)</div>
+    <div>frame Ethernet + label trasporto esterna</div>
+    <div>sostituisce la label, modifica il payload e calcola una nuova FCS (Frame Check Sequence)</div>
+  </div>
+
+  <div class="eh-section-title">Come viene scoperto il MAC (Media Access Control) del prossimo salto</div>
+  <div class="text-small" aria-label="Risoluzione degli indirizzi fisici">
+    <div class="eh-resolution">
+      <strong>ARP (Address Resolution Protocol)</strong>
+      <div class="eh-resolution-path"><span>“Chi possiede questo indirizzo IPv4 (Internet Protocol version 4)?” → risposta con indirizzo MAC (Media Access Control)</span></div>
+      <div class="eh-resolution-scope">solo nel dominio Ethernet locale</div>
+    </div>
+    <div class="eh-resolution">
+      <strong>Cache locale</strong>
+      <div class="eh-resolution-path"><span>associazione indirizzo di rete ↔ indirizzo fisico conservata temporaneamente</span></div>
+      <div class="eh-resolution-scope">host e router</div>
+    </div>
+  </div>
+
+  <div class="eh-keyline text-small">
+    Ethernet è dominante nelle reti cablate e in molti collegamenti del provider, ma non è universale: Wi-Fi usa IEEE 802.11 (Institute of Electrical and Electronics Engineers 802.11) e altri collegamenti possono usare meccanismi differenti.
+  </div>
+</div>

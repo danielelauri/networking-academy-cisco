@@ -1,0 +1,405 @@
+<div id="layer-device-map">
+  <style>
+    #layer-device-map {
+      width: 100%;
+      color: var(--foreground);
+    }
+    #layer-device-map h3 {
+      margin: 0 0 4px;
+      font-weight: 500;
+    }
+    #layer-device-map .ld-subtitle {
+      margin-bottom: 14px;
+      color: var(--muted-foreground);
+    }
+    #layer-device-map .ld-path {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 5px;
+      align-items: stretch;
+      margin-bottom: 14px;
+    }
+    #layer-device-map .ld-device {
+      position: relative;
+      min-height: 86px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 7px 4px;
+      border-bottom: 3px solid var(--viz-series-1);
+      background: color-mix(in srgb, var(--viz-series-1) 8%, transparent);
+      overflow-wrap: anywhere;
+    }
+    #layer-device-map .ld-device:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -8px;
+      top: 34px;
+      z-index: 2;
+      color: var(--muted-foreground);
+    }
+    #layer-device-map .ld-device i {
+      margin-bottom: 5px;
+    }
+    #layer-device-map .ld-device strong {
+      font-weight: 500;
+    }
+    #layer-device-map .ld-device span {
+      color: var(--muted-foreground);
+    }
+    #layer-device-map .ld-matrix {
+      display: grid;
+      grid-template-columns: 108px repeat(7, minmax(0, 1fr));
+      gap: 3px;
+      align-items: stretch;
+    }
+    #layer-device-map .ld-corner,
+    #layer-device-map .ld-col-head,
+    #layer-device-map .ld-layer,
+    #layer-device-map .ld-cell {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    #layer-device-map .ld-corner,
+    #layer-device-map .ld-col-head {
+      padding: 5px 3px;
+      color: var(--muted-foreground);
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    #layer-device-map .ld-corner {
+      text-align: left;
+    }
+    #layer-device-map .ld-layer {
+      padding: 8px 6px;
+      font-weight: 500;
+      border-left: 4px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    #layer-device-map .ld-layer span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted-foreground);
+      font-weight: 400;
+    }
+    #layer-device-map .ld-cell {
+      min-height: 92px;
+      padding: 7px 5px;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted-foreground);
+    }
+    #layer-device-map .ld-cell strong {
+      display: block;
+      color: var(--foreground);
+      font-weight: 500;
+      margin-bottom: 3px;
+    }
+    #layer-device-map .ld-active {
+      color: var(--foreground);
+    }
+    #layer-device-map .ld-active::before,
+    #layer-device-map .ld-transit::before {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      margin-right: 4px;
+      border-radius: 50%;
+      content: "";
+      vertical-align: 1px;
+    }
+    #layer-device-map .ld-active::before {
+      background: var(--viz-series-1);
+    }
+    #layer-device-map .ld-transit::before {
+      border: 1px solid var(--muted-foreground);
+    }
+    #layer-device-map .ld-l7 { border-left-color: var(--viz-series-6); }
+    #layer-device-map .ld-l5 { border-left-color: var(--viz-series-5); }
+    #layer-device-map .ld-l4 { border-left-color: var(--viz-series-4); }
+    #layer-device-map .ld-l3 { border-left-color: var(--viz-series-3); }
+    #layer-device-map .ld-l25 { border-left-color: var(--viz-series-2); }
+    #layer-device-map .ld-l2 { border-left-color: var(--viz-series-1); }
+    #layer-device-map .ld-active-l7 { background: color-mix(in srgb, var(--viz-series-6) 13%, transparent); }
+    #layer-device-map .ld-active-l5 { background: color-mix(in srgb, var(--viz-series-5) 13%, transparent); }
+    #layer-device-map .ld-active-l4 { background: color-mix(in srgb, var(--viz-series-4) 13%, transparent); }
+    #layer-device-map .ld-active-l3 { background: color-mix(in srgb, var(--viz-series-3) 13%, transparent); }
+    #layer-device-map .ld-active-l25 { background: color-mix(in srgb, var(--viz-series-2) 15%, transparent); }
+    #layer-device-map .ld-active-l2 { background: color-mix(in srgb, var(--viz-series-1) 13%, transparent); }
+    #layer-device-map .ld-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin: 10px 0 18px;
+      color: var(--muted-foreground);
+    }
+    #layer-device-map .ld-legend span {
+      display: inline-flex;
+      align-items: center;
+    }
+    #layer-device-map .ld-section-title {
+      margin: 18px 0 8px;
+      font-weight: 500;
+    }
+    #layer-device-map .ld-control-lane {
+      display: grid;
+      grid-template-columns: minmax(170px, 1.1fr) minmax(250px, 2fr) minmax(120px, 0.8fr);
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    #layer-device-map .ld-control-lane strong {
+      font-weight: 500;
+    }
+    #layer-device-map .ld-control-path {
+      position: relative;
+      text-align: center;
+      color: var(--muted-foreground);
+    }
+    #layer-device-map .ld-control-path::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 2px solid var(--border);
+    }
+    #layer-device-map .ld-control-path span {
+      position: relative;
+      padding: 0 7px;
+      background: var(--background);
+    }
+    #layer-device-map .ld-control-scope {
+      color: var(--muted-foreground);
+    }
+    #layer-device-map .ld-wire-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    #layer-device-map .ld-wire-title {
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    #layer-device-map .ld-frame {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+    }
+    #layer-device-map .ld-field {
+      flex: 1 1 62px;
+      min-width: 0;
+      padding: 7px 3px;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+    #layer-device-map .ld-f-eth { background: color-mix(in srgb, var(--viz-series-1) 20%, var(--card)); }
+    #layer-device-map .ld-f-label { background: color-mix(in srgb, var(--viz-series-2) 24%, var(--card)); }
+    #layer-device-map .ld-f-ip { background: color-mix(in srgb, var(--viz-series-3) 22%, var(--card)); }
+    #layer-device-map .ld-f-tcp { background: color-mix(in srgb, var(--viz-series-4) 22%, var(--card)); }
+    #layer-device-map .ld-f-data { background: color-mix(in srgb, var(--viz-series-6) 22%, var(--card)); flex-grow: 1.5; }
+    #layer-device-map .ld-mobile {
+      display: none;
+    }
+    @media (max-width: 680px) {
+      #layer-device-map .ld-path {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+      #layer-device-map .ld-device {
+        min-height: 52px;
+        flex-direction: row;
+        gap: 6px;
+      }
+      #layer-device-map .ld-device:not(:last-child)::after {
+        content: "↓";
+        right: 50%;
+        top: auto;
+        bottom: -11px;
+      }
+      #layer-device-map .ld-desktop {
+        display: none;
+      }
+      #layer-device-map .ld-mobile {
+        display: block;
+      }
+      #layer-device-map .ld-mobile-layer {
+        margin-bottom: 12px;
+        padding-left: 10px;
+        border-left: 4px solid var(--border);
+      }
+      #layer-device-map .ld-mobile-layer strong,
+      #layer-device-map .ld-mobile-layer span {
+        display: block;
+      }
+      #layer-device-map .ld-mobile-layer span {
+        margin-top: 4px;
+        color: var(--muted-foreground);
+      }
+      #layer-device-map .ld-control-lane {
+        grid-template-columns: 1fr;
+        gap: 4px;
+      }
+      #layer-device-map .ld-control-path {
+        text-align: left;
+      }
+      #layer-device-map .ld-control-path::before {
+        display: none;
+      }
+      #layer-device-map .ld-control-path span {
+        padding: 0;
+      }
+      #layer-device-map .ld-wire-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <h3>Chi elabora cosa durante il trasferimento</h3>
+  <div class="ld-subtitle text-small">Archivio.zip · 4.000 byte · tre segmenti · elaborazione da FileZilla al NAS (Network Attached Storage)</div>
+
+  <div class="ld-path text-small" role="img" aria-label="Percorso fisico dal client FileZilla al Network Attached Storage remoto">
+    <div class="ld-device"><i data-lucide="laptop" aria-hidden="true"></i><strong>Host client</strong><span>FileZilla</span></div>
+    <div class="ld-device"><i data-lucide="router" aria-hidden="true"></i><strong>Router cliente A</strong><span>primo salto</span></div>
+    <div class="ld-device"><i data-lucide="router" aria-hidden="true"></i><strong>Bordo provider 1</strong><span>ingresso</span></div>
+    <div class="ld-device"><i data-lucide="network" aria-hidden="true"></i><strong>Router core</strong><span>transito</span></div>
+    <div class="ld-device"><i data-lucide="router" aria-hidden="true"></i><strong>Bordo provider 2</strong><span>uscita</span></div>
+    <div class="ld-device"><i data-lucide="router" aria-hidden="true"></i><strong>Router cliente B</strong><span>ultimo salto</span></div>
+    <div class="ld-device"><i data-lucide="server" aria-hidden="true"></i><strong>NAS (Network Attached Storage)</strong></div>
+  </div>
+
+  <div class="ld-desktop">
+    <div class="ld-matrix text-small" role="table" aria-label="Matrice dei livelli elaborati da ciascun dispositivo">
+      <div class="ld-corner" role="columnheader">Livello</div>
+      <div class="ld-col-head" role="columnheader">FileZilla</div>
+      <div class="ld-col-head" role="columnheader">Router cliente A</div>
+      <div class="ld-col-head" role="columnheader">Bordo provider 1</div>
+      <div class="ld-col-head" role="columnheader">Router core</div>
+      <div class="ld-col-head" role="columnheader">Bordo provider 2</div>
+      <div class="ld-col-head" role="columnheader">Router cliente B</div>
+      <div class="ld-col-head" role="columnheader">NAS (Network Attached Storage)</div>
+
+      <div class="ld-layer ld-l7" role="rowheader">7 · Applicazione<span>FTP (File Transfer Protocol)</span></div>
+      <div class="ld-cell ld-active ld-active-l7"><strong>Client</strong>comando di upload + dati file</div>
+      <div class="ld-cell ld-transit">nessuna elaborazione applicativa</div>
+      <div class="ld-cell ld-transit">nessuna elaborazione applicativa</div>
+      <div class="ld-cell ld-transit">nessuna elaborazione applicativa</div>
+      <div class="ld-cell ld-transit">nessuna elaborazione applicativa</div>
+      <div class="ld-cell ld-transit">nessuna elaborazione applicativa</div>
+      <div class="ld-cell ld-active ld-active-l7"><strong>Server</strong>ricezione e scrittura di Archivio.zip</div>
+
+      <div class="ld-layer ld-l5" role="rowheader">5 · Sessione<span>stato del dialogo</span></div>
+      <div class="ld-cell ld-active ld-active-l5"><strong>Sessione FTP (File Transfer Protocol)</strong>login, directory, modalità binaria</div>
+      <div class="ld-cell ld-transit">stato non interpretato</div>
+      <div class="ld-cell ld-transit">stato non interpretato</div>
+      <div class="ld-cell ld-transit">stato non interpretato</div>
+      <div class="ld-cell ld-transit">stato non interpretato</div>
+      <div class="ld-cell ld-transit">stato non interpretato</div>
+      <div class="ld-cell ld-active ld-active-l5"><strong>Stato lato server</strong>utente, percorso, risposta 226</div>
+
+      <div class="ld-layer ld-l4" role="rowheader">4 · Trasporto<span>TCP (Transmission Control Protocol)</span></div>
+      <div class="ld-cell ld-active ld-active-l4"><strong>Segmentazione</strong>1.460 + 1.460 + 1.080 byte; sequenze e riscontri</div>
+      <div class="ld-cell ld-transit">nessuna terminazione del trasporto</div>
+      <div class="ld-cell ld-transit">nessuna terminazione del trasporto</div>
+      <div class="ld-cell ld-transit">nessuna terminazione del trasporto</div>
+      <div class="ld-cell ld-transit">nessuna terminazione del trasporto</div>
+      <div class="ld-cell ld-transit">nessuna terminazione del trasporto</div>
+      <div class="ld-cell ld-active ld-active-l4"><strong>Riordino e affidabilità</strong>ricomposizione dei 4.000 byte</div>
+
+      <div class="ld-layer ld-l3" role="rowheader">3 · Rete<span>IPv4 (Internet Protocol version 4)</span></div>
+      <div class="ld-cell ld-active ld-active-l3"><strong>Incapsula</strong>indirizzo sorgente e destinazione</div>
+      <div class="ld-cell ld-active ld-active-l3"><strong>Instrada</strong>lookup della rete remota</div>
+      <div class="ld-cell ld-active ld-active-l3"><strong>VRF (Virtual Routing and Forwarding)</strong>lookup della rotta cliente</div>
+      <div class="ld-cell ld-transit"><strong>Non legge il pacchetto cliente</strong>usa la label esterna</div>
+      <div class="ld-cell ld-active ld-active-l3"><strong>VRF (Virtual Routing and Forwarding)</strong>lookup verso il cliente B</div>
+      <div class="ld-cell ld-active ld-active-l3"><strong>Instrada</strong>rete locale dello storage</div>
+      <div class="ld-cell ld-active ld-active-l3"><strong>Decapsula</strong>destinazione locale</div>
+
+      <div class="ld-layer ld-l25" role="rowheader">2,5 · Commutazione<span>MPLS (Multiprotocol Label Switching)</span></div>
+      <div class="ld-cell ld-transit">non presente</div>
+      <div class="ld-cell ld-transit">non presente</div>
+      <div class="ld-cell ld-active ld-active-l25"><strong>Push</strong>label trasporto + label VPN (Virtual Private Network)</div>
+      <div class="ld-cell ld-active ld-active-l25"><strong>Swap</strong>sostituisce solo la label trasporto</div>
+      <div class="ld-cell ld-active ld-active-l25"><strong>Pop</strong>rimuove le label e seleziona il contesto cliente</div>
+      <div class="ld-cell ld-transit">non presente</div>
+      <div class="ld-cell ld-transit">non presente</div>
+
+      <div class="ld-layer ld-l2" role="rowheader">2 · Collegamento<span>Ethernet + FCS (Frame Check Sequence)</span></div>
+      <div class="ld-cell ld-active ld-active-l2"><strong>Crea il frame</strong>indirizzi fisici del primo link</div>
+      <div class="ld-cell ld-active ld-active-l2"><strong>Verifica e riscrive</strong>nuovo frame per il prossimo link</div>
+      <div class="ld-cell ld-active ld-active-l2"><strong>Verifica e riscrive</strong>frame del core</div>
+      <div class="ld-cell ld-active ld-active-l2"><strong>Verifica e riscrive</strong>frame per ogni salto</div>
+      <div class="ld-cell ld-active ld-active-l2"><strong>Verifica e riscrive</strong>frame di uscita</div>
+      <div class="ld-cell ld-active ld-active-l2"><strong>Verifica e riscrive</strong>frame dell’ultimo link</div>
+      <div class="ld-cell ld-active ld-active-l2"><strong>Verifica e rimuove</strong>consegna il pacchetto al livello di rete</div>
+    </div>
+  </div>
+
+  <div class="ld-mobile text-small" aria-label="Sintesi dei livelli e dei dispositivi attivi">
+    <div class="ld-mobile-layer ld-l7"><strong>Livello 7 · FTP (File Transfer Protocol)</strong><span>Attivi: FileZilla e NAS (Network Attached Storage). Comandi, ricezione e scrittura del file.</span></div>
+    <div class="ld-mobile-layer ld-l5"><strong>Livello 5 · Sessione</strong><span>Attivi: FileZilla e NAS (Network Attached Storage). Login, directory, modalità e stato del dialogo.</span></div>
+    <div class="ld-mobile-layer ld-l4"><strong>Livello 4 · TCP (Transmission Control Protocol)</strong><span>Attivi: i due host. Segmentazione, sequenze, riscontri e ricomposizione.</span></div>
+    <div class="ld-mobile-layer ld-l3"><strong>Livello 3 · IPv4 (Internet Protocol version 4)</strong><span>Attivi: host, router cliente e bordi provider. Il router core non legge il pacchetto cliente.</span></div>
+    <div class="ld-mobile-layer ld-l25"><strong>Livello 2,5 · MPLS (Multiprotocol Label Switching)</strong><span>Attivi: bordo provider in ingresso, router core e bordo provider in uscita. Operazioni push, swap e pop.</span></div>
+    <div class="ld-mobile-layer ld-l2"><strong>Livello 2 · Ethernet + FCS (Frame Check Sequence)</strong><span>Attivi: tutte le interfacce. Il frame viene verificato e ricreato a ogni salto.</span></div>
+  </div>
+
+  <div class="ld-legend text-small" aria-label="Legenda">
+    <span class="ld-active">elabora il livello</span>
+    <span class="ld-transit">non termina o non interpreta il livello</span>
+  </div>
+
+  <div class="ld-section-title">Control plane del provider: prepara il percorso, non trasporta Archivio.zip</div>
+  <div class="text-small" aria-label="Meccanismi del control plane del provider">
+    <div class="ld-control-lane">
+      <strong>IGP (Interior Gateway Protocol)</strong>
+      <div class="ld-control-path"><span>OSPF (Open Shortest Path First) oppure IS-IS (Intermediate System to Intermediate System)</span></div>
+      <div class="ld-control-scope">bordi provider + router core</div>
+    </div>
+    <div class="ld-control-lane">
+      <strong>Label di trasporto</strong>
+      <div class="ld-control-path"><span>LDP (Label Distribution Protocol) oppure SR-MPLS (Segment Routing over Multiprotocol Label Switching)</span></div>
+      <div class="ld-control-scope">bordi provider + router core</div>
+    </div>
+    <div class="ld-control-lane">
+      <strong>Rotta e label di servizio</strong>
+      <div class="ld-control-path"><span>MP-BGP (Multiprotocol Border Gateway Protocol) tramite iBGP (Internal Border Gateway Protocol)</span></div>
+      <div class="ld-control-scope">bordo provider 1 ↔ bordo provider 2</div>
+    </div>
+  </div>
+
+  <div class="ld-section-title">Busta visibile sui tre tratti del percorso</div>
+  <div class="ld-wire-row text-small">
+    <div>
+      <div class="ld-wire-title">Accesso sede A</div>
+      <div class="ld-frame">
+        <div class="ld-field ld-f-eth">Ethernet</div>
+        <div class="ld-field ld-f-ip">IPv4 (Internet Protocol version 4)</div>
+        <div class="ld-field ld-f-tcp">TCP (Transmission Control Protocol)</div>
+        <div class="ld-field ld-f-data">Dati</div>
+      </div>
+    </div>
+    <div>
+      <div class="ld-wire-title">Core MPLS (Multiprotocol Label Switching)</div>
+      <div class="ld-frame">
+        <div class="ld-field ld-f-eth">Ethernet</div>
+        <div class="ld-field ld-f-label">Label trasporto</div>
+        <div class="ld-field ld-f-label">Label VPN (Virtual Private Network)</div>
+        <div class="ld-field ld-f-ip">IPv4 (Internet Protocol version 4)</div>
+        <div class="ld-field ld-f-tcp">TCP (Transmission Control Protocol)</div>
+        <div class="ld-field ld-f-data">Dati</div>
+      </div>
+    </div>
+    <div>
+      <div class="ld-wire-title">Accesso sede B</div>
+      <div class="ld-frame">
+        <div class="ld-field ld-f-eth">Ethernet</div>
+        <div class="ld-field ld-f-ip">IPv4 (Internet Protocol version 4)</div>
+        <div class="ld-field ld-f-tcp">TCP (Transmission Control Protocol)</div>
+        <div class="ld-field ld-f-data">Dati</div>
+      </div>
+    </div>
+  </div>
+</div>

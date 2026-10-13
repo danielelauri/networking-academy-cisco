@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>Unità 2 — Ethernet: la consegna sul collegamento locale</title>
+  <link rel="stylesheet" href="assets/corso.css">
+  <link rel="stylesheet" href="assets/unita-02.css">
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand"><span class="brand-mark">N2</span> Networking Academy</div>
+      <div class="progress-label">Unità 2 di 12</div>
+    </div>
+
+    <header class="hero">
+      <div>
+        <p class="kicker">Dal dato del cliente al backbone del Service Provider</p>
+        <h1>Ethernet: il prossimo <span>collegamento</span></h1>
+        <p class="hero-lead"><strong>Domanda guida:</strong> come viene consegnato un datagramma Internet Protocol (IP) al prossimo dispositivo fisicamente raggiungibile? Ethernet costruisce un involucro locale: la <strong>trama</strong>.</p>
+      </div>
+      <div class="hero-frame" aria-label="Consegna Ethernet fra un host e il proprio prossimo hop">
+        <div class="hero-label">Un solo hop Ethernet</div>
+        <div class="hero-hop">
+          <div class="hero-node"><b>Host A</b><small>scheda di rete</small></div>
+          <div class="hero-arrow">→</div>
+          <div class="hero-node"><b>CE-A</b><small>prossimo hop</small></div>
+        </div>
+        <div class="mini-frame"><span>MAC dst</span><span>MAC src</span><span>Type</span><span class="wide">datagramma IP</span><span>FCS</span></div>
+        <p class="figure-note"><b>Legenda:</b> CE = Customer Edge; MAC = Media Access Control; dst/src = destination/source; IP = Internet Protocol; FCS = Frame Check Sequence.</p>
+      </div>
+    </header>
+
+    <nav class="quick-nav" aria-label="Indice dell'unità">
+      <a href="#problema">01 · Problema</a>
+      <a href="#trama">02 · Trama</a>
+      <a href="#mac-phy">03 · MAC/PHY</a>
+      <a href="#switch">04 · Switch</a>
+      <a href="#vlan">05 · VLAN</a>
+      <a href="#hop">06 · Hop</a>
+      <a href="#vpn">07 · VPN</a>
+      <a href="#glossario">08 · Glossario</a>
+      <a href="#verifica">09 · Verifica</a>
+    </nav>
+
+    <main>
+      <section id="problema">
+        <div class="section-head">
+          <div class="section-number">01</div>
+          <div>
+            <p class="section-kicker">Problema originario</p>
+            <h2>Conoscere la destinazione IP non muove ancora un segnale sul cavo</h2>
+            <p class="section-intro">Internet Protocol identifica la destinazione logica attraverso reti differenti. Per trasmettere sul collegamento corrente serve però un formato locale, un destinatario raggiungibile su quel collegamento e un controllo degli errori di trasmissione.</p>
+          </div>
+        </div>
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">MAC</div><h3>A chi sul link?</h3><p>L'indirizzo Media Access Control (MAC) destinazione identifica la scheda o l'interfaccia del prossimo dispositivo nel dominio Layer 2.</p></article>
+          <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">TYPE</div><h3>Che cosa trasporta?</h3><p>Il campo Length/Type permette al ricevente di interpretare il payload: per esempio IPv4, IPv6, Address Resolution Protocol o MPLS.</p></article>
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">FCS</div><h3>È arrivata integra?</h3><p>La Frame Check Sequence (FCS) consente di rilevare corruzioni accidentali della trama sul collegamento. Non effettua ritrasmissioni end-to-end.</p></article>
+        </div>
+        <div class="core-insight"><strong>Il destinatario Ethernet non è necessariamente l'host IP finale.</strong><br>Se la destinazione IP è remota, la trama viene indirizzata al Media Access Control del gateway o next hop locale. Address Resolution Protocol (ARP) risolve, in IPv4, l'indirizzo IP del prossimo hop nel relativo indirizzo MAC.</div>
+        <div class="callout"><strong>Contesto storico.</strong> Ethernet nacque per condividere un mezzo fra più stazioni. Le reti moderne usano quasi sempre collegamenti commutati full-duplex: Carrier Sense Multiple Access with Collision Detection (CSMA/CD) rimane importante storicamente, ma non governa una normale porta switch full-duplex.</div>
+      </section>
+
+      <section id="trama">
+        <div class="section-head">
+          <div class="section-number">02</div>
+          <div>
+            <p class="section-kicker">Anatomia della Protocol Data Unit (PDU)</p>
+            <h2>La trama circonda il datagramma sul collegamento</h2>
+            <p class="section-intro">La rappresentazione mostra una trama Ethernet II. Preambolo e Start Frame Delimiter (SFD) sono trasmessi sul mezzo, ma non fanno parte della dimensione della Media Access Control frame (MAC frame) calcolata da Destination Address fino alla Frame Check Sequence (FCS).</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Anatomia interattiva della trama</strong><span>seleziona un gruppo di campi</span></div>
+          <div class="button-row" role="group" aria-label="Gruppi di campi della trama Ethernet">
+            <button type="button" data-frame-field="sync" aria-pressed="false">Sincronizzazione</button>
+            <button type="button" data-frame-field="mac" aria-pressed="true">Indirizzi MAC</button>
+            <button type="button" data-frame-field="tag" aria-pressed="false">Tag opzionale</button>
+            <button type="button" data-frame-field="type" aria-pressed="false">Length/Type</button>
+            <button type="button" data-frame-field="payload" aria-pressed="false">Payload</button>
+            <button type="button" data-frame-field="fcs" aria-pressed="false">FCS</button>
+          </div>
+          <div class="frame-strip" aria-label="Preambolo SFD MAC destinazione MAC sorgente tag opzionale Length Type payload e FCS">
+            <div class="frame-field ff-pre" data-field-group="sync">Preambolo<small>7 byte</small></div>
+            <div class="frame-field ff-pre" data-field-group="sync">SFD<small>1 byte</small></div>
+            <div class="frame-field ff-mac active" data-field-group="mac">MAC destinazione<small>6 byte</small></div>
+            <div class="frame-field ff-mac active" data-field-group="mac">MAC sorgente<small>6 byte</small></div>
+            <div class="frame-field ff-tag" data-field-group="tag">802.1Q?<small>4 byte opzionali</small></div>
+            <div class="frame-field ff-type" data-field-group="type">Length / Type<small>2 byte</small></div>
+            <div class="frame-field ff-data" data-field-group="payload">MAC client data + pad<small>46–1.500 byte senza tag</small></div>
+            <div class="frame-field ff-fcs" data-field-group="fcs">FCS<small>4 byte</small></div>
+          </div>
+          <div class="field-copy"><strong id="fieldTitle">Indirizzi MAC sorgente e destinazione</strong><span id="fieldText">La destinazione guida lo switch verso la porta di uscita; la sorgente permette allo switch di apprendere dove si trova il mittente. Sono indirizzi del collegamento corrente, non indirizzi end-to-end.</span></div>
+        </div>
+        <p class="figure-note"><b>Legenda:</b> SFD = Start Frame Delimiter; MAC = Media Access Control; FCS = Frame Check Sequence; IEEE = Institute of Electrical and Electronics Engineers.</p>
+        <div class="compare-table" aria-label="Dimensioni principali di una trama Ethernet senza tag">
+          <div class="table-head">Elemento</div><div class="table-head">Dimensione</div><div class="table-head">Osservazione</div>
+          <div class="table-cell"><strong>MAC frame minima</strong></div><div class="table-cell">64 byte</div><div class="table-cell">Da Destination Address a FCS; il pad porta il campo dati al minimo necessario.</div>
+          <div class="table-cell"><strong>MAC frame massima ordinaria</strong></div><div class="table-cell">1.518 byte</div><div class="table-cell">Senza tag: 14 byte header + 1.500 byte dati + 4 byte FCS.</div>
+          <div class="table-cell"><strong>Trama con un tag 802.1Q</strong></div><div class="table-cell">1.522 byte</div><div class="table-cell">Il tag aggiunge 4 byte; il payload IP ordinario può restare di 1.500 byte.</div>
+          <div class="table-cell"><strong>Preambolo + SFD</strong></div><div class="table-cell">8 byte</div><div class="table-cell">Servono alla sincronizzazione sul mezzo e sono mostrati separatamente dalla MAC frame.</div>
+        </div>
+        <div class="callout"><strong>Length oppure EtherType.</strong> Nel campo da 2 byte, valori fino a 1.500 indicano la lunghezza dei dati IEEE 802.3; valori da 1.536 in su identificano un protocollo tramite EtherType. La fascia 1.501–1.535 è deliberatamente separata. Nella pratica IP è comunemente trasportato con Ethernet II e EtherType.</div>
+      </section>
+
+      <section id="mac-phy">
+        <div class="section-head">
+          <div class="section-number">03</div>
+          <div>
+            <p class="section-kicker">Una famiglia, molti mezzi</p>
+            <h2>Media Access Control (MAC) comune, Physical Layer (PHY) differenti</h2>
+            <p class="section-intro">Institute of Electrical and Electronics Engineers (IEEE) 802.3 comprende una specifica Media Access Control (MAC) comune e numerosi Physical Layer (PHY). “Ethernet su rame” ed “Ethernet su fibra” non richiedono due formati logici completamente diversi.</p>
+          </div>
+        </div>
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">T</div><h3>Rame</h3><p>Esempio: 1000BASE-T su cablaggio bilanciato. Cambiano codifica, transceiver, portata e caratteristiche elettriche.</p><div class="token-list"><span class="token">1000BASE-T</span><span class="token">RJ45 operativo</span></div></article>
+          <article class="info-card" style="--accent: var(--cyan)"><div class="card-icon">SR</div><h3>Fibra</h3><p>Esempio: 10GBASE-SR su fibra multimodale. Il servizio MAC rimane riconoscibile mentre il segnale è ottico.</p><div class="token-list"><span class="token">10GBASE-SR</span><span class="token">ottico</span></div></article>
+          <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">KX</div><h3>Backplane</h3><p>Esempio: 1000BASE-KX fra componenti di uno chassis. Il mezzo è una connessione interna, non un cavo utente.</p><div class="token-list"><span class="token">1000BASE-KX</span><span class="token">chassis</span></div></article>
+        </div>
+        <div class="compare-table" aria-label="Confronto fra livello MAC e livello fisico Ethernet">
+          <div class="table-head">Domanda</div><div class="table-head">MAC</div><div class="table-head">PHY</div>
+          <div class="table-cell"><strong>Che cosa definisce?</strong></div><div class="table-cell">Trama, indirizzi, servizio di trasmissione e controllo FCS.</div><div class="table-cell">Segnali, codifica, velocità, mezzo, connettori e portata.</div>
+          <div class="table-cell"><strong>Cambia rame/fibra?</strong></div><div class="table-cell">La struttura fondamentale della MAC frame rimane comune.</div><div class="table-cell">Sì: cambia la specifica fisica applicabile.</div>
+          <div class="table-cell"><strong>Legge il datagramma IP?</strong></div><div class="table-cell">Lo trasporta come MAC client data identificato dal tipo.</div><div class="table-cell">Trasmette simboli o segnali; non interpreta il datagramma.</div>
+        </div>
+      </section>
+
+      <section id="switch">
+        <div class="section-head">
+          <div class="section-number">04</div>
+          <div>
+            <p class="section-kicker">Bridge e dominio Layer 2</p>
+            <h2>Lo switch impara dalla sorgente e inoltra verso la destinazione</h2>
+            <p class="section-intro">Un bridge Ethernet mantiene una Forwarding Database (FDB), spesso chiamata tabella Media Access Control (MAC). L'associazione essenziale è indirizzo MAC + Virtual Local Area Network (VLAN) → porta. Non usa la porta Transmission Control Protocol (TCP) o il Sequence Number per il normale switching.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Laboratorio di apprendimento MAC</strong><span>VLAN 10, tabella inizialmente vuota</span></div>
+          <div class="button-row" role="group" aria-label="Passaggi dell'apprendimento dello switch">
+            <button type="button" data-switch-step="0" aria-pressed="true">0 · Vuoto</button>
+            <button type="button" data-switch-step="1" aria-pressed="false">1 · A invia</button>
+            <button type="button" data-switch-step="2" aria-pressed="false">2 · Flood</button>
+            <button type="button" data-switch-step="3" aria-pressed="false">3 · B risponde</button>
+            <button type="button" data-switch-step="4" aria-pressed="false">4 · Unicast noto</button>
+          </div>
+          <div class="mac-topology">
+            <div class="device-card"><b>Host A</b><small>MAC 00:AA<br>porta 1</small></div>
+            <div class="switch-box">
+              <div class="switch-title">SWITCH · VLAN 10</div>
+              <div class="ports"><div class="port" data-port="1">P1 · A</div><div class="port" data-port="2">P2</div><div class="port" data-port="3">P3 · B</div><div class="port" data-port="4">P4</div></div>
+            </div>
+            <div class="device-card"><b>Host B</b><small>MAC 00:BB<br>porta 3</small></div>
+          </div>
+          <div class="fdb" id="fdb" aria-live="polite"></div>
+          <div class="switch-status"><strong id="switchTitle">La Forwarding Database è vuota</strong><span id="switchText">Lo switch non conosce ancora la posizione di 00:AA o 00:BB. Le associazioni dinamiche verranno apprese osservando gli indirizzi MAC sorgente.</span></div>
+        </div>
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--cyan)"><div class="card-icon">SRC</div><h3>Source (SRC) · Learning</h3><p>All'arrivo della trama lo switch associa MAC sorgente, VLAN e porta d'ingresso. Le voci dinamiche scadono dopo un periodo senza traffico.</p></article>
+          <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">?</div><h3>Unknown unicast</h3><p>Se la destinazione è sconosciuta, la trama viene replicata sulle porte ammesse della stessa VLAN, esclusa quella d'ingresso.</p></article>
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">DST</div><h3>Destination (DST) · Known unicast</h3><p>Quando la destinazione è nota, lo switch inoltra soltanto sulla porta associata, salvo condizioni particolari.</p></article>
+        </div>
+        <div class="core-insight"><strong>Attraversando uno switch, gli indirizzi MAC normalmente non cambiano.</strong><br>Lo switch inoltra la stessa comunicazione Layer 2. Può trattare o modificare il tag VLAN in base al tipo di porta e ogni trasmissione sul link possiede la propria Frame Check Sequence. Uno switch store-and-forward verifica la FCS prima di inoltrare; uno switch cut-through può iniziare l'inoltro prima di aver ricevuto la FCS. Un router, invece, termina la trama.</div>
+      </section>
+
+      <section id="vlan">
+        <div class="section-head">
+          <div class="section-number">05</div>
+          <div>
+            <p class="section-kicker">Separazione logica sullo stesso apparato</p>
+            <h2>IEEE 802.1Q aggiunge contesto alla trama</h2>
+            <p class="section-intro">Una Virtual Local Area Network (VLAN) crea un dominio Layer 2 logico. Su un trunk, il tag IEEE 802.1Q indica a quale VLAN appartiene la trama; su una tipica porta access, il dispositivo finale trasmette e riceve trame senza tag.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Confronta gli involucri Ethernet</strong><span>seleziona il contesto</span></div>
+          <div class="button-row" role="group" aria-label="Formati Ethernet senza tag con C tag Q in Q e MPLS">
+            <button type="button" data-tag-mode="untagged" aria-pressed="true">LAN untagged</button>
+            <button type="button" data-tag-mode="ctag" aria-pressed="false">Trunk 802.1Q</button>
+            <button type="button" data-tag-mode="qinq" aria-pressed="false">Q-in-Q provider</button>
+            <button type="button" data-tag-mode="mpls" aria-pressed="false">Core MPLS</button>
+          </div>
+          <div class="tag-stack" id="tagStack"></div>
+          <div class="field-copy"><strong id="tagTitle">LAN cliente senza tag</strong><span id="tagText">La trama porta direttamente EtherType 0x0800 per IPv4. La VLAN può essere comunque associata internamente alla porta access dello switch.</span></div>
+        </div>
+        <p class="figure-note"><b>Legenda:</b> LAN = Local Area Network; VLAN = Virtual Local Area Network; MPLS = Multiprotocol Label Switching; MAC = Media Access Control; IP = Internet Protocol; FCS = Frame Check Sequence; TPID = Tag Protocol Identifier; TCI = Tag Control Information; PCP = Priority Code Point; DEI = Drop Eligible Indicator; VID = VLAN Identifier.</p>
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">TPID</div><h3>Tag Protocol Identifier (TPID)</h3><p>Il valore 0x8100 identifica normalmente un Customer Virtual Local Area Network Tag (Customer VLAN Tag). Il ricevente sa che i successivi 16 bit sono Tag Control Information (TCI).</p></article>
+          <article class="info-card" style="--accent: var(--cyan)"><div class="card-icon">TCI</div><h3>Tag Control Information (TCI)</h3><p>Priority Code Point (PCP): 3 bit. Drop Eligible Indicator (DEI): 1 bit. VLAN Identifier (VID): 12 bit; i valori operativi ordinari sono 1–4.094.</p></article>
+          <article class="info-card" style="--accent: var(--coral)"><div class="card-icon">S+C</div><h3>Service Tag + Customer Tag</h3><p>Il provider può aggiungere un Service Tag esterno, tipicamente 0x88A8, conservando il Customer Tag interno 0x8100. Clienti differenti possono riusare gli stessi Customer VLAN Identifier (C-VID).</p></article>
+        </div>
+        <div class="callout"><strong>Trunk CE–PE.</strong> Sul collegamento Customer Edge–Provider Edge possono essere consegnate più VLAN cliente. Il tagging effettivo dipende dal contratto e dalla configurazione: singolo tag, doppio tag, subinterfacce o accesso untagged sono scelte di servizio, non proprietà universali di ogni collegamento.</div>
+      </section>
+
+      <section id="hop">
+        <div class="section-head">
+          <div class="section-number">06</div>
+          <div>
+            <p class="section-kicker">Dal cliente al backbone</p>
+            <h2>La trama termina a ogni hop instradato</h2>
+            <p class="section-intro">Uno switch opera dentro il dominio Layer 2; un router rimuove l'involucro del collegamento, prende una decisione di inoltro e costruisce un nuovo involucro adatto al collegamento successivo.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Viaggio hop-by-hop</strong><span>stesso datagramma cliente, involucri locali differenti</span></div>
+          <div class="button-row" role="group" aria-label="Passaggi del datagramma attraverso la rete">
+            <button type="button" data-hop="lan-a" aria-pressed="true">LAN A</button>
+            <button type="button" data-hop="access" aria-pressed="false">CE-A → PE-A</button>
+            <button type="button" data-hop="core" aria-pressed="false">Core MPLS</button>
+            <button type="button" data-hop="egress" aria-pressed="false">PE-B → CE-B</button>
+            <button type="button" data-hop="lan-b" aria-pressed="false">LAN B</button>
+          </div>
+          <div class="journey" aria-label="Host A Switch CE A PE A P1 P2 PE B CE B Switch Host B">
+            <div class="journey-node" data-group="lan-a"><b>Host A</b>endpoint</div>
+            <div class="journey-node" data-group="lan-a"><b>Switch</b>Layer 2</div>
+            <div class="journey-node router" data-group="access"><b>CE-A</b>router cliente</div>
+            <div class="journey-node router" data-group="access"><b>PE-A</b>provider edge</div>
+            <div class="journey-node router" data-group="core"><b>P1</b>core</div>
+            <div class="journey-node router" data-group="core"><b>P2</b>core</div>
+            <div class="journey-node router" data-group="egress"><b>PE-B</b>provider edge</div>
+            <div class="journey-node router" data-group="egress"><b>CE-B</b>router cliente</div>
+            <div class="journey-node" data-group="lan-b"><b>Switch</b>Layer 2</div>
+            <div class="journey-node" data-group="lan-b"><b>Host B</b>endpoint</div>
+          </div>
+          <div class="journey-frame" id="journeyFrame"></div>
+          <div class="journey-copy" id="journeyCopy"></div>
+        </div>
+        <p class="figure-note"><b>Legenda:</b> CE = Customer Edge; PE = Provider Edge; P = Provider core router; MPLS = Multiprotocol Label Switching; LAN = Local Area Network.</p>
+        <div class="compare-table" aria-label="Cosa cambia attraversando switch e router">
+          <div class="table-head">Elemento</div><div class="table-head">Attraverso switch</div><div class="table-head">Attraverso router</div>
+          <div class="table-cell"><strong>MAC sorgente/destinazione</strong></div><div class="table-cell">Normalmente rimangono quelli della trama nel dominio VLAN.</div><div class="table-cell">La trama termina; il router usa nuovi MAC per il link successivo.</div>
+          <div class="table-cell"><strong>Tag VLAN</strong></div><div class="table-cell">Può essere aggiunto, rimosso o tradotto secondo le porte e il servizio.</div><div class="table-cell">Appartiene all'interfaccia o subinterfaccia locale, non continua automaticamente.</div>
+          <div class="table-cell"><strong>Datagramma IP</strong></div><div class="table-cell">È payload opaco per il normale switching.</div><div class="table-cell">Viene esaminato per l'inoltro; alcuni campi hop-by-hop cambiano, tema dell'Unità 3.</div>
+          <div class="table-cell"><strong>FCS</strong></div><div class="table-cell">Ogni trasmissione sul link d'uscita possiede una FCS; nel metodo store-and-forward quella ricevuta viene verificata prima dell'inoltro.</div><div class="table-cell">La nuova trama possiede una nuova FCS.</div>
+        </div>
+        <div class="core-insight"><strong>“Ethernet core” non è un formato separato.</strong><br>Nel core possono cambiare mezzo, velocità, tag, indirizzi MAC e payload. Una trama Ethernet fra router MPLS usa normalmente EtherType 0x8847 e trasporta prima lo stack di label, poi il datagramma cliente.</div>
+      </section>
+
+      <section id="vpn">
+        <div class="section-head">
+          <div class="section-number">07</div>
+          <div>
+            <p class="section-kicker">Il tipo di servizio cambia il confine</p>
+            <h2>Layer 3 Virtual Private Network (L3VPN) e Layer 2 Virtual Private Network (L2VPN) non trattano allo stesso modo la trama cliente</h2>
+            <p class="section-intro">La distinzione evita un equivoco frequente: il Provider Edge può terminare il collegamento cliente e instradare il datagramma, oppure offrire al cliente una continuità Layer 2 attraverso il backbone.</p>
+          </div>
+        </div>
+        <div class="lab">
+          <div class="figure-title"><strong>Che cosa entra nel servizio provider?</strong><span>seleziona il modello</span></div>
+          <div class="button-row" role="group" aria-label="Confronto Layer 3 VPN e Layer 2 VPN">
+            <button type="button" data-vpn="l3" aria-pressed="true">Layer 3 VPN</button>
+            <button type="button" data-vpn="l2" aria-pressed="false">Layer 2 VPN</button>
+          </div>
+          <div class="vpn-stage">
+            <div class="vpn-edge"><b>Sito cliente A</b><p>Trama Ethernet cliente con il proprio indirizzamento MAC e un payload.</p></div>
+            <div class="vpn-core" id="vpnCore"></div>
+            <div class="vpn-edge"><b>Sito cliente B</b><p>Consegna secondo il servizio acquistato e l'interfaccia locale.</p></div>
+          </div>
+          <div class="vpn-copy" id="vpnCopy"></div>
+        </div>
+        <div class="cards-2">
+          <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">L3</div><h3>Layer 3 Virtual Private Network (L3VPN)</h3><p>Il Provider Edge (PE) termina la trama cliente, esamina il datagramma Internet Protocol (IP) nella Virtual Routing and Forwarding (VRF) e crea il pacchetto labeled e la trama del core. Gli indirizzi Media Access Control (MAC) cliente non attraversano il backbone come identità end-to-end.</p></article>
+          <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">L2</div><h3>Layer 2 Virtual Private Network (L2VPN)</h3><p>Il servizio trasporta una Protocol Data Unit (PDU) Ethernet o una service instance cliente attraverso uno pseudowire o altra tecnologia L2VPN. L'involucro fisico del link, come preambolo e normalmente Frame Check Sequence (FCS), non coincide necessariamente con ciò che viene trasportato.</p></article>
+        </div>
+        <div class="callout"><strong>Service plane.</strong> VLAN, Service VLAN, pseudowire e Virtual Routing and Forwarding rispondono alla domanda “a quale servizio cliente appartiene questo traffico?”. Non sostituiscono il data plane: preparano o aggiungono il contesto con cui le trame e i pacchetti vengono consegnati separatamente.</div>
+      </section>
+
+      <section id="glossario">
+        <div class="section-head">
+          <div class="section-number">08</div>
+          <div>
+            <p class="section-kicker">Memoria assistita</p>
+            <h2>Glossario cumulativo · Unità 0–2</h2>
+            <p class="section-intro">Le sigle nuove di Ethernet si aggiungono a quelle già introdotte. Nei diagrammi il significato rimane comunque visibile.</p>
+          </div>
+        </div>
+        <dl class="glossary">
+          <div class="gloss-item"><dt>PDU</dt><dd>Protocol Data Unit — unità dati manipolata da un protocollo.</dd></div>
+          <div class="gloss-item"><dt>TCP</dt><dd>Transmission Control Protocol — servizio affidabile a flusso di byte.</dd></div>
+          <div class="gloss-item"><dt>UDP</dt><dd>User Datagram Protocol — servizio a datagrammi senza garanzie proprie.</dd></div>
+          <div class="gloss-item"><dt>IP</dt><dd>Internet Protocol — indirizzamento e inoltro attraverso reti differenti.</dd></div>
+          <div class="gloss-item"><dt>MAC</dt><dd>Media Access Control — sottolivello e indirizzamento del collegamento.</dd></div>
+          <div class="gloss-item"><dt>PHY</dt><dd>Physical Layer — segnali, codifica e interfaccia verso il mezzo.</dd></div>
+          <div class="gloss-item"><dt>FCS</dt><dd>Frame Check Sequence — controllo di errore della trama Ethernet.</dd></div>
+          <div class="gloss-item"><dt>SFD</dt><dd>Start Frame Delimiter — delimita l'inizio della MAC frame dopo il preambolo.</dd></div>
+          <div class="gloss-item"><dt>ARP</dt><dd>Address Resolution Protocol — associa un indirizzo IPv4 al MAC del prossimo hop locale.</dd></div>
+          <div class="gloss-item"><dt>VLAN</dt><dd>Virtual Local Area Network — dominio Layer 2 logico separato.</dd></div>
+          <div class="gloss-item"><dt>TPID</dt><dd>Tag Protocol Identifier — identifica il tipo di tag IEEE 802.1Q.</dd></div>
+          <div class="gloss-item"><dt>TCI</dt><dd>Tag Control Information — PCP, DEI e VLAN Identifier.</dd></div>
+          <div class="gloss-item"><dt>PCP</dt><dd>Priority Code Point — tre bit di priorità nel tag.</dd></div>
+          <div class="gloss-item"><dt>DEI</dt><dd>Drop Eligible Indicator — indica eleggibilità allo scarto in congestione.</dd></div>
+          <div class="gloss-item"><dt>VID</dt><dd>VLAN Identifier — identificatore a 12 bit della VLAN.</dd></div>
+          <div class="gloss-item"><dt>C-Tag</dt><dd>Customer VLAN Tag — tag cliente, normalmente TPID 0x8100.</dd></div>
+          <div class="gloss-item"><dt>S-Tag</dt><dd>Service VLAN Tag — tag provider, tipicamente TPID 0x88A8.</dd></div>
+          <div class="gloss-item"><dt>FDB</dt><dd>Forwarding Database — associa MAC e VLAN alle porte del bridge.</dd></div>
+          <div class="gloss-item"><dt>IEEE</dt><dd>Institute of Electrical and Electronics Engineers — ente di standardizzazione.</dd></div>
+          <div class="gloss-item"><dt>CSMA/CD</dt><dd>Carrier Sense Multiple Access with Collision Detection — accesso storico al mezzo Ethernet condiviso.</dd></div>
+          <div class="gloss-item"><dt>MSS</dt><dd>Maximum Segment Size — massimo payload TCP annunciato.</dd></div>
+          <div class="gloss-item"><dt>MTU</dt><dd>Maximum Transmission Unit — massima PDU superiore trasportabile sul collegamento.</dd></div>
+          <div class="gloss-item"><dt>MPLS</dt><dd>Multiprotocol Label Switching — inoltro mediante label nel backbone.</dd></div>
+          <div class="gloss-item"><dt>VRF</dt><dd>Virtual Routing and Forwarding — contesto di routing e forwarding separato.</dd></div>
+          <div class="gloss-item"><dt>L2VPN</dt><dd>Layer 2 Virtual Private Network — servizio provider di connettività Layer 2.</dd></div>
+          <div class="gloss-item"><dt>L3VPN</dt><dd>Layer 3 Virtual Private Network — servizio provider instradato e separato.</dd></div>
+          <div class="gloss-item"><dt>CE</dt><dd>Customer Edge — router al margine della rete cliente.</dd></div>
+          <div class="gloss-item"><dt>PE</dt><dd>Provider Edge — router provider che termina il servizio cliente.</dd></div>
+          <div class="gloss-item"><dt>P</dt><dd>Provider — router interno al core del provider.</dd></div>
+          <div class="gloss-item"><dt>RIB/FIB</dt><dd>Routing Information Base / Forwarding Information Base — informazioni di routing e struttura operativa IP.</dd></div>
+          <div class="gloss-item"><dt>LFIB</dt><dd>Label Forwarding Information Base — struttura operativa per MPLS.</dd></div>
+        </dl>
+      </section>
+
+      <section id="verifica">
+        <div class="section-head">
+          <div class="section-number">09</div>
+          <div>
+            <p class="section-kicker">Autoverifica</p>
+            <h2>Domande di orientamento</h2>
+            <p class="section-intro">Formula prima la risposta. Lo scopo è distinguere ambito locale, servizio provider e comportamento dei dispositivi.</p>
+          </div>
+        </div>
+        <div class="quiz">
+          <details><summary>1. Se Host B è su una rete IP remota, quale MAC destinazione usa Host A?</summary><p>Quello del prossimo hop locale, normalmente il gateway, non quello dell'Host B remoto. Il datagramma IP conserva invece l'indirizzo IP della destinazione finale.</p></details>
+          <details><summary>2. Uno switch impara osservando il MAC sorgente o quello destinazione?</summary><p>Impara dal MAC sorgente della trama ricevuta, associandolo alla porta d'ingresso e alla VLAN. Usa il MAC destinazione per decidere l'uscita.</p></details>
+          <details><summary>3. Che cosa accade a un unknown unicast?</summary><p>Lo switch lo replica sulle porte ammesse nella stessa VLAN, eccetto quella d'ingresso. Quando apprende la destinazione, può passare all'inoltro unicast selettivo.</p></details>
+          <details><summary>4. Gli indirizzi MAC cambiano attraversando un normale switch?</summary><p>Normalmente no all'interno dello stesso dominio Layer 2. Possono cambiare tag e FCS per il collegamento d'uscita; un router termina invece la trama e ne costruisce una nuova.</p></details>
+          <details><summary>5. Un tag IEEE 802.1Q identifica un nuovo Physical Layer?</summary><p>No. Aggiunge contesto di bridge e VLAN alla trama. Rame, fibra e backplane sono scelte del Physical Layer IEEE 802.3.</p></details>
+          <details><summary>6. Qual è la differenza essenziale fra C-Tag e S-Tag nel Q-in-Q?</summary><p>Il C-Tag descrive la VLAN cliente; il provider aggiunge un S-Tag esterno per identificare il servizio nella propria rete bridged, conservando il tag cliente interno.</p></details>
+          <details><summary>7. Perché una trama Ethernet non è end-to-end attraverso più router?</summary><p>Perché gli indirizzi MAC, il tag e la FCS hanno significato sul collegamento o dominio Layer 2 corrente. Ogni router decapsula e crea un involucro adatto al next hop successivo.</p></details>
+          <details><summary>8. In una L3VPN il PE trasporta intatta la trama cliente nel core?</summary><p>No. Il PE termina la trama, esamina il datagramma IP nel contesto VRF e costruisce label e trama del core. In una L2VPN, invece, una PDU Ethernet o service instance cliente può essere il contenuto del servizio.</p></details>
+          <details><summary>9. EtherType 0x8847 che cosa annuncia?</summary><p>Che il payload inizia con uno stack di label Multiprotocol Label Switching. Dopo le label si trova il contenuto trasportato, per esempio il datagramma cliente.</p></details>
+        </div>
+      </section>
+
+      <div class="closing">
+        <p class="section-kicker">Punto di arrivo dell'Unità 2</p>
+        <h2>Ethernet consegna al prossimo hop, non alla fine del viaggio.</h2>
+        <p>La trama rende trasmissibile il payload sul collegamento corrente. Gli switch la inoltrano dentro un dominio Layer 2; i router la terminano e la ricostruiscono. La prossima unità seguirà ciò che resta dentro questi involucri successivi: il datagramma Internet Protocol.</p>
+      </div>
+
+      <div class="sources">
+        <strong>Riferimenti essenziali:</strong>
+        <a href="https://standards.ieee.org/ieee/802.3/10422/">IEEE 802.3 — Ethernet</a> ·
+        <a href="https://standards.ieee.org/ieee/802.1Q/10323/">IEEE 802.1Q — Bridges and Bridged Networks</a> ·
+        <a href="https://www.ieee802.org/1/pages/802.1ad.html">IEEE 802.1ad — Provider Bridges</a> ·
+        <a href="https://www.iana.org/assignments/ieee-802-numbers/">IANA — IEEE 802 Numbers</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc894">RFC 894 — IP over Ethernet</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc826">RFC 826 — ARP</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc3032.html">RFC 3032 — MPLS Label Stack Encoding</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc4448">RFC 4448 — Ethernet over MPLS</a>
+      </div>
+    </main>
+
+    <footer>
+      <span>NETWORKING ACADEMY · UNITÀ 2</span>
+      <span>Dal dato del cliente al backbone del Service Provider</span>
+    </footer>
+  </div>
+
+  <script src="assets/unita-02.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Percorso didattico progressivo: dal dato applicativo al backbone MPLS e ai servizi VPN del provider.">
+  <title>Networking Academy — Dal dato al backbone</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/index.css?v=1">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Homepage Networking Academy">
+        <span class="brand-mark">NA</span>
+        <span>Networking Academy</span>
+      </a>
+      <label class="theme-switch" for="themeToggle">
+        <span aria-hidden="true">☼</span><span>Tema</span>
+        <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+        <span class="switch-track" aria-hidden="true"><span></span></span>
+        <span id="themeCurrent">Scuro</span>
+      </label>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">Percorso progressivo · unità 0–9</p>
+          <h1 id="page-title">Dal dato del cliente<br>al <span>backbone</span> del provider.</h1>
+          <p>Un percorso visuale e interattivo per collegare incapsulamento, Ethernet, Internet Protocol, routing, OSPF, MPLS, BGP e servizi VPN senza perdere di vista il viaggio reale del pacchetto.</p>
+          <a class="primary-action" href="unita-00-mappa-mentale-rete.html">Inizia dalla mappa mentale <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="hero-path" role="img" aria-label="Progressione dal dato applicativo al servizio VPN del provider">
+          <div><b>APP</b><span>dato</span></div><i>→</i>
+          <div><b>TCP/UDP</b><span>segmento</span></div><i>→</i>
+          <div><b>IP</b><span>datagramma</span></div><i>→</i>
+          <div><b>MPLS</b><span>label stack</span></div><i>→</i>
+          <div><b>VPN</b><span>servizio</span></div>
+        </div>
+      </section>
+
+      <section class="orientation" aria-labelledby="orientation-title">
+        <div>
+          <p class="section-label">Come orientarsi</p>
+          <h2 id="orientation-title">Ogni unità aggiunge un livello, senza cancellare i precedenti.</h2>
+        </div>
+        <p>Puoi seguire l’ordine numerico oppure entrare direttamente nell’argomento che ti serve. L’Unità 0 fornisce la mappa generale; le successive seguono il dato fino alle decisioni del provider.</p>
+      </section>
+
+      <section class="curriculum" aria-labelledby="curriculum-title">
+        <div class="section-heading">
+          <div><p class="section-label">Programma</p><h2 id="curriculum-title">Le unità disponibili</h2></div>
+          <p><strong>10 tappe pubblicate</strong><br>Una mappa introduttiva e nove unità progressive.</p>
+        </div>
+
+        <div class="unit-grid">
+          <a class="unit-card map-card" href="unita-00-mappa-mentale-rete.html">
+            <span class="unit-number">00</span><span class="unit-state">Mappa del percorso</span>
+            <h3>La mappa mentale della rete</h3>
+            <p>Piani, livelli, unità informative e dispositivi: il quadro nel quale collocare tutto ciò che segue.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-01-dati-applicativi-trasporto.html">
+            <span class="unit-number">01</span><span class="unit-state">Applicazione e trasporto</span>
+            <h3>Dati applicativi e protocolli di trasporto</h3>
+            <p>Dal messaggio dell’applicazione a TCP e UDP: porte, affidabilità, segmentazione e multiplexing.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-02-ethernet-collegamento-locale.html">
+            <span class="unit-number">02</span><span class="unit-state">Collegamento locale</span>
+            <h3>Ethernet e la consegna locale</h3>
+            <p>Trame, indirizzi MAC, switch, VLAN e il significato concreto di un singolo collegamento.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-03-internet-protocol.html">
+            <span class="unit-number">03</span><span class="unit-state">Rete</span>
+            <h3>Internet Protocol</h3>
+            <p>Il datagramma attraversa reti differenti: indirizzamento, TTL, frammentazione e nuovo incapsulamento a ogni hop.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-04-router-rib-fib-cef.html">
+            <span class="unit-number">04</span><span class="unit-state">Decisione di inoltro</span>
+            <h3>Il router: RIB, FIB e CEF</h3>
+            <p>Dalle rotte candidate alla decisione operativa usata dal data plane per inoltrare il pacchetto.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-05-ospf.html">
+            <span class="unit-number">05</span><span class="unit-state">Routing interno</span>
+            <h3>OSPF</h3>
+            <p>Adiacenze, Link State Database, aree e calcolo SPF: come i router condividono una descrizione della topologia.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-06-mpls.html">
+            <span class="unit-number">06</span><span class="unit-state">Label switching</span>
+            <h3>Multiprotocol Label Switching</h3>
+            <p>Forwarding Equivalence Class, LFIB e operazioni push, swap e pop nel backbone.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-07-come-nasce-un-percorso-mpls.html">
+            <span class="unit-number">07</span><span class="unit-state">Control plane MPLS</span>
+            <h3>Come nasce un percorso MPLS</h3>
+            <p>La dipendenza dall’IGP, la distribuzione delle label e le alternative per il Traffic Engineering.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card" href="unita-08-bgp.html">
+            <span class="unit-number">08</span><span class="unit-state">Routing interdominio</span>
+            <h3>Border Gateway Protocol</h3>
+            <p>Annunci, attributi, community, best path, iBGP, Route Reflector e risoluzione del next hop.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+          <a class="unit-card featured" href="unita-09-mp-bgp-servizi-vpn.html">
+            <span class="unit-number">09</span><span class="unit-state">Servizi del provider</span>
+            <h3>MP-BGP e servizi VPN</h3>
+            <p>VRF, Route Distinguisher, Route Target, VPNv4, underlay e doppia label nelle MPLS Layer 3 VPN.</p>
+            <span class="open-unit">Apri l’unità →</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="next-step" aria-labelledby="next-title">
+        <p class="section-label">In preparazione</p>
+        <h2 id="next-title">Unità 10 · Il viaggio completo di un datagramma cliente</h2>
+        <p>La prossima tappa riunirà i concetti precedenti seguendo lo stesso datagramma, campo per campo e dispositivo per dispositivo, dalla sede sorgente alla sede remota.</p>
+      </section>
+    </main>
+
+    <footer>
+      <span>Networking Academy · percorso didattico indipendente</span>
+      <a href="unita-00-mappa-mentale-rete.html">Comincia dall’Unità 0 →</a>
+    </footer>
+  </div>
+  <script src="assets/index.js?v=1"></script>
+</body>
+</html>

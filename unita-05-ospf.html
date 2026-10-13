@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="OSPF distribuisce descrizioni dei collegamenti, sincronizza una Link State Database per area e calcola i percorsi che possono essere proposti alla Routing Information Base.">
+  <title>Unità 5 — Open Shortest Path First: conoscere la topologia interna</title>
+  <link rel="stylesheet" href="assets/corso.css">
+  <link rel="stylesheet" href="assets/unita-05.css">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">O5</span> NETWORKING ACADEMY</div>
+      <div class="progress">UNITÀ 5 DI 8 · CONTROL PLANE INTERNO</div>
+    </header>
+
+    <div class="hero">
+      <div>
+        <p class="kicker">Unità 5 · prima stesura <span class="draft">DRAFT 1</span></p>
+        <h1>Conoscere la <span>topologia interna.</span></h1>
+        <p class="hero-lead"><strong>Domanda guida:</strong> come fanno i router dello stesso dominio amministrativo a costruire una mappa coerente della rete?</p>
+      </div>
+      <div class="hero-topology" aria-label="Quattro router OSPF e una Link State Database">
+        <div class="hero-label">Una mappa condivisa, calcoli locali</div>
+        <div class="hero-grid">
+          <span class="hero-node n1">R1</span><i class="hero-link l1"></i>
+          <span class="hero-node n2">R2</span><i class="hero-link l2"></i>
+          <span class="hero-node n3">R3</span><i class="hero-link l3"></i>
+          <span class="hero-node n4">R4</span>
+        </div>
+        <div class="hero-db"><b>LSDB · AREA 0</b><span>LSA coerenti → albero SPF → rotte candidate</span></div>
+        <p class="figure-note"><strong>Legenda:</strong> OSPF = Open Shortest Path First; LSDB = Link State Database; LSA = Link State Advertisement; SPF = Shortest Path First.</p>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell'unità">
+      <a href="#problema">Problema</a>
+      <a href="#ruolo">Ruolo</a>
+      <a href="#pacchetti">Pacchetti</a>
+      <a href="#adiacenze">Adiacenze</a>
+      <a href="#lsa">LSA e LSDB</a>
+      <a href="#spf">SPF</a>
+      <a href="#aree">Aree</a>
+      <a href="#tabelle">RIB e FIB</a>
+      <a href="#troubleshooting">Diagnosi</a>
+      <a href="#limiti">Limiti</a>
+      <a href="#glossario">Glossario</a>
+      <a href="#verifica">Verifica</a>
+    </nav>
+
+    <main>
+<div id="problema" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>01</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="problema-originario">Problema originario</h5>
+<h2 id="le-rotte-statiche-non-descrivono-da-sole-una-rete-che-cambia">Le rotte statiche non descrivono da sole una rete che cambia</h2>
+<div class="section-intro">
+<p>Quando aumentano router, collegamenti e percorsi alternativi, configurare manualmente ogni destinazione diventa fragile. Un guasto può rendere obsolete molte scelte: i router devono rilevare la variazione, condividere informazioni attendibili e ricalcolare il cammino.</p>
+</div>
+</div>
+</div>
+<div class="cards cards-3">
+<div class="card accent-coral">
+<h5 class="card-tag" id="prima-di-ospf">PRIMA DI OSPF</h5>
+<h3 id="configurazione-difficile-da-mantenere">Configurazione difficile da mantenere</h3>
+<p>Le rotte statiche sono utili e prevedibili, ma non costruiscono autonomamente una visione completa della topologia e non reagiscono da sole a ogni guasto remoto.</p>
+</div>
+<div class="card accent-purple">
+<h5 class="card-tag" id="problema-distribuito">PROBLEMA DISTRIBUITO</h5>
+<h3 id="ogni-router-vede-soltanto-i-propri-link">Ogni router vede soltanto i propri link</h3>
+<p>Un’interfaccia locale rivela un collegamento direttamente connesso. Non spiega però quali reti esistano oltre il vicino né quali percorsi alternativi siano disponibili.</p>
+</div>
+<div class="card accent-green">
+<h5 class="card-tag" id="risposta-link-state">RISPOSTA LINK-STATE</h5>
+<h3 id="descrivere-i-collegamenti">Descrivere i collegamenti</h3>
+<p>I router diffondono Link State Advertisement (LSA), costruiscono una Link State Database (LSDB) coerente nell’area e calcolano localmente l’albero dei cammini più brevi.</p>
+</div>
+</div>
+<div class="insight">
+<p><strong>Open Shortest Path First (OSPF) non trasporta i dati del cliente.</strong><br />
+È un protocollo del control plane: prepara raggiungibilità e next hop che, dopo la selezione nella Routing Information Base (RIB), potranno alimentare la Forwarding Information Base (FIB).</p>
+</div>
+<h3 id="dove-si-colloca-ospf-fra-i-protocolli-dinamici">Dove si colloca OSPF fra i protocolli dinamici</h3>
+<div class="figure">
+  <div class="figure-title"><strong>Classificazione funzionale</strong><span>ambito operativo e famiglia algoritmica</span></div>
+  <div class="taxonomy" aria-label="Tassonomia dei protocolli di routing dinamico">
+    <div class="tax-root">Protocolli di routing dinamico</div>
+    <div class="tax-branch exterior"><b>Inter-domain · categoria EGP</b><span>Path-vector e policy</span><strong>BGP</strong><small>EGP storico: obsoleto</small></div>
+    <div class="tax-branch interior"><b>Intra-domain · categoria IGP</b><span>Link-state</span><strong>OSPF · IS-IS</strong><span>Distance-vector</span><strong>RIP · EIGRP*</strong><small>*EIGRP: distance-vector avanzato; IGRP obsoleto</small></div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> EGP = Exterior Gateway Protocol; BGP = Border Gateway Protocol; IGP = Interior Gateway Protocol; OSPF = Open Shortest Path First; IS-IS = Intermediate System to Intermediate System; RIP = Routing Information Protocol; EIGRP = Enhanced Interior Gateway Routing Protocol; IGRP = Interior Gateway Routing Protocol.</p>
+</div>
+<div class="callout">
+<p><strong>Questa è una classificazione funzionale, non la posizione nella pila di incapsulamento.</strong> Border Gateway Protocol controlla raggiungibilità di livello 3 ma scambia i messaggi mediante Transmission Control Protocol; OSPFv2, invece, è trasportato direttamente da Internet Protocol.</p>
+</div>
+</div>
+<div id="ruolo" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>02</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="ruolo-e-incapsulamento">Ruolo e incapsulamento</h5>
+<h2 id="ospf-è-un-interior-gateway-protocol-link-state">Open Shortest Path First (OSPF) è un Interior Gateway Protocol (IGP) link-state</h2>
+<div class="section-intro">
+<p>Open Shortest Path First version 2 (OSPFv2) opera all’interno di un singolo Autonomous System (AS) Internet Protocol version 4 (IPv4). Ogni router mantiene una Link State Database (LSDB) per area, deriva un albero Shortest Path First (SPF) con se stesso come radice e propone rotte alla tabella di routing.</p>
+</div>
+</div>
+</div>
+<div class="cards cards-3">
+<div class="card accent-purple">
+<h5 class="card-tag" id="ambito">AMBITO</h5>
+<h3 id="intra-domain">Intra-domain</h3>
+<p>OSPF costruisce raggiungibilità interna a un dominio amministrativo. Non applica le policy inter-domain tipiche di Border Gateway Protocol.</p>
+</div>
+<div class="card accent-cyan">
+<h5 class="card-tag" id="modello">MODELLO</h5>
+<h3 id="link-state">Link-state</h3>
+<p>Descrive router, link, reti multiaccess e raggiungibilità entro il perimetro previsto dal tipo di Link State Advertisement.</p>
+</div>
+<div class="card accent-green">
+<h5 class="card-tag" id="risultato">RISULTATO</h5>
+<h3 id="percorsi-calcolati-localmente">Percorsi calcolati localmente</h3>
+<p>I router con la stessa Link State Database e gli stessi costi calcolano una visione coerente, ciascuno dalla propria prospettiva.</p>
+</div>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Incapsulamento di un pacchetto OSPFv2</strong><span>non usa porte TCP o UDP</span></div>
+  <div class="encapsulation">
+    <div class="encap application"><b>Messaggio OSPF</b><span>Hello, Database Description, Link State Request, Link State Update o Link State Acknowledgment</span></div>
+    <div class="encap network"><b>IPv4</b><span>campo Protocol = 89 · TTL normalmente 1 sui collegamenti ordinari</span></div>
+    <div class="encap link"><b>Layer 2</b><span>per esempio una trama Ethernet sul collegamento locale</span></div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> OSPFv2 = Open Shortest Path First version 2; TCP = Transmission Control Protocol; UDP = User Datagram Protocol; IPv4 = Internet Protocol version 4; TTL = Time To Live; L2 = Layer 2.</p>
+</div>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Informazione</th>
+<th>Funzione</th>
+<th>Non va confusa con</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OSPF process ID Cisco</strong></td>
+<td>Distingue localmente un processo OSPF sul router</td>
+<td>Router ID o parametro che deve coincidere fra vicini</td>
+</tr>
+<tr>
+<td><strong>Router ID</strong></td>
+<td>Identifica il router nel dominio OSPF con un valore a 32 bit</td>
+<td>Indirizzo necessariamente raggiungibile</td>
+</tr>
+<tr>
+<td><strong>Area ID</strong></td>
+<td>Associa interfaccia, adiacenza e LSDB a un’area</td>
+<td>Process ID locale</td>
+</tr>
+<tr>
+<td><strong>IPv4 Protocol 89</strong></td>
+<td>Identifica OSPF come contenuto diretto di IPv4</td>
+<td>Porta TCP o UDP</td>
+</tr>
+</tbody>
+</table>
+<div class="callout">
+<p><strong>Correzione permanente:</strong> due router Cisco adiacenti possono usare process ID OSPF differenti. Devono invece essere compatibili i parametri che partecipano alla formazione del vicinato, come Area ID, timer, tipo di area, autenticazione e network type.</p>
+</div>
+</div>
+<div id="pacchetti" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>03</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="messaggi-di-controllo">Messaggi di controllo</h5>
+<h2 id="cinque-tipi-di-pacchetto-costruiscono-e-mantengono-ladiacenza">Cinque tipi di pacchetto costruiscono e mantengono l’adiacenza</h2>
+<div class="section-intro">
+<p>L’header Open Shortest Path First version 2 (OSPFv2) comune identifica versione, tipo, lunghezza, Router Identifier (Router ID) e Area Identifier (Area ID). Il payload dipende dal tipo di pacchetto e accompagna il passaggio dalla scoperta del vicino alla sincronizzazione della Link State Database (LSDB).</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Header comune OSPFv2</strong><span>seleziona un tipo di pacchetto</span></div>
+  <div class="button-row packet-buttons" role="group" aria-label="Tipi di pacchetto OSPF">
+    <button type="button" data-packet="hello" aria-pressed="true">1 · Hello</button>
+    <button type="button" data-packet="dbd">2 · Database Description</button>
+    <button type="button" data-packet="lsr">3 · Link State Request</button>
+    <button type="button" data-packet="lsu">4 · Link State Update</button>
+    <button type="button" data-packet="lsack">5 · Link State Acknowledgment</button>
+  </div>
+  <div class="ospf-header">
+    <span>Version<small>2</small></span><span>Type<small id="packetType">1</small></span><span>Packet Length</span>
+    <span class="wide">Router ID</span><span class="wide">Area ID</span>
+    <span>Checksum</span><span>AuType</span><span class="wide">Authentication</span>
+    <span class="payload">Payload specifico: <b id="packetPayload">parametri Hello e lista dei vicini conosciuti</b></span>
+  </div>
+  <div class="status-copy"><strong id="packetTitle">Hello: scoprire e mantenere i vicini.</strong><span id="packetText">Verifica la compatibilità di parametri essenziali, rende visibile la comunicazione bidirezionale e partecipa all'elezione di Designated Router e Backup Designated Router sui segmenti multiaccess.</span></div>
+  <p class="figure-note"><strong>Legenda:</strong> OSPFv2 = Open Shortest Path First version 2; ID = Identifier; AuType = Authentication Type; DR = Designated Router; BDR = Backup Designated Router.</p>
+</div>
+<div class="cards cards-5">
+<div class="mini-card">
+<p><strong>Hello</strong><br />
+Scoperta, mantenimento, parametri e lista dei neighbor visti.</p>
+</div>
+<div class="mini-card">
+<p><strong>Database Description</strong><br />
+Riassunto della LSDB durante la sincronizzazione.</p>
+</div>
+<div class="mini-card">
+<p><strong>Link State Request</strong><br />
+Richiesta delle LSA mancanti o più recenti.</p>
+</div>
+<div class="mini-card">
+<p><strong>Link State Update</strong><br />
+Trasporta una o più LSA complete.</p>
+</div>
+<div class="mini-card">
+<p><strong>Link State Acknowledgment</strong><br />
+Conferma la ricezione affidabile delle LSA.</p>
+</div>
+</div>
+</div>
+<div id="adiacenze" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>04</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="dal-vicino-alla-sincronizzazione">Dal vicino alla sincronizzazione</h5>
+<h2 id="neighbor-e-adiacenza-non-sono-sempre-sinonimi">Neighbor e adiacenza non sono sempre sinonimi</h2>
+<div class="section-intro">
+<p>Ricevere Hello compatibili crea una relazione di vicinato. L’adiacenza completa richiede anche la sincronizzazione delle informazioni link-state. Sui collegamenti point-to-point i vicini tendono a diventare completamente adiacenti; su Ethernet multiaccess il Designated Router (DR) e il Backup Designated Router (BDR) riducono il numero di adiacenze necessarie.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Macchina degli stati del neighbor</strong><span>seleziona uno stato</span></div>
+  <div class="state-path" aria-label="Stati principali di una relazione OSPF">
+    <button type="button" data-neighbor-state="down">DOWN</button>
+    <button type="button" data-neighbor-state="init">INIT</button>
+    <button type="button" data-neighbor-state="2way">2-WAY</button>
+    <button type="button" data-neighbor-state="exstart">EXSTART</button>
+    <button type="button" data-neighbor-state="exchange">EXCHANGE</button>
+    <button type="button" data-neighbor-state="loading">LOADING</button>
+    <button type="button" data-neighbor-state="full" aria-pressed="true">FULL</button>
+  </div>
+  <div class="status-copy"><strong id="neighborTitle">FULL: Link State Database sincronizzata.</strong><span id="neighborText">I router sono completamente adiacenti. Se le rotte attese mancano ancora, la diagnosi deve proseguire su LSDB, calcolo SPF, selezione nella RIB, filtri o installazione nella FIB.</span></div>
+</div>
+<div class="cards cards-3">
+<div class="card accent-cyan">
+<h5 class="card-tag" id="point-to-point">POINT-TO-POINT</h5>
+<h3 id="full-con-il-vicino">Full con il vicino</h3>
+<p>Non serve l’elezione di Designated Router e Backup Designated Router; i router cercano normalmente di sincronizzare completamente le proprie LSDB.</p>
+</div>
+<div class="card accent-purple">
+<h5 class="card-tag" id="broadcast-multiaccess">BROADCAST MULTIACCESS</h5>
+<h3 id="dr-e-bdr-riducono-le-adiacenze">DR e BDR riducono le adiacenze</h3>
+<p>I Designated Router Other diventano FULL con DR e BDR, ma possono restare correttamente 2-WAY fra loro.</p>
+</div>
+<div class="card accent-amber">
+<h5 class="card-tag" id="way-non-è-sempre-un-guasto">2-WAY NON È SEMPRE UN GUASTO</h5>
+<h3 id="interpretare-il-network-type">Interpretare il network type</h3>
+<p>Prima di correggere uno stato 2-WAY occorre capire il ruolo locale e remoto sul segmento.</p>
+</div>
+</div>
+<div class="callout">
+<p><strong>FULL descrive la sincronizzazione dell’adiacenza, non garantisce da solo la presenza di ogni rotta attesa.</strong> Una rotta può mancare perché la LSA non esiste, il prefisso non è annunciato, il calcolo non la seleziona oppure un’altra sorgente vince nella Routing Information Base.</p>
+</div>
+</div>
+<div id="lsa" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>05</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="flooding-e-database">Flooding e database</h5>
+<h2 id="le-lsa-descrivono-la-topologia-la-lsdb-ne-conserva-la-visione">Le Link State Advertisement (LSA) descrivono la topologia; la Link State Database (LSDB) ne conserva la visione</h2>
+<div class="section-intro">
+<p>Una Link State Advertisement è un oggetto informativo trasportato dentro un Link State Update. Il flooding distribuisce le LSA lungo le adiacenze ammissibili; numeri di sequenza, età e acknowledgment aiutano a riconoscere le versioni più recenti e a sincronizzare il database.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Flooding di una nuova Router-LSA nell'Area 0</strong><span>avanza per osservare la propagazione</span></div>
+  <div class="button-row">
+    <button type="button" data-flood-step="0" aria-pressed="true">0 · Stato stabile</button>
+    <button type="button" data-flood-step="1">1 · Origine R1</button>
+    <button type="button" data-flood-step="2">2 · Propagazione</button>
+    <button type="button" data-flood-step="3">3 · Database allineati</button>
+  </div>
+  <div class="flood-map">
+    <div class="router-node" data-router="r1"><b>R1</b><span>LSDB A0</span></div><div class="link-line" data-link="12"></div>
+    <div class="router-node" data-router="r2"><b>R2</b><span>LSDB A0</span></div><div class="link-line" data-link="23"></div>
+    <div class="router-node" data-router="r3"><b>R3</b><span>LSDB A0</span></div><div class="link-line" data-link="34"></div>
+    <div class="router-node" data-router="r4"><b>R4</b><span>LSDB A0</span></div>
+  </div>
+  <div class="status-copy"><strong id="floodTitle">Stato stabile.</strong><span id="floodText">Tutti i router possiedono la versione corrente delle LSA dell'area.</span></div>
+</div>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th>Tipo OSPFv2</th>
+<th>Nome</th>
+<th>Informazione principale</th>
+<th>Ambito essenziale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td>Router-LSA</td>
+<td>Link e costi del router nell’area</td>
+<td>Intra-area</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>Network-LSA</td>
+<td>Router collegati a una rete di transito multiaccess</td>
+<td>Intra-area; originata dal DR</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>Summary-LSA</td>
+<td>Prefissi raggiungibili in un’altra area</td>
+<td>Generata da Area Border Router</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>ASBR-summary-LSA</td>
+<td>Come raggiungere un Autonomous System Boundary Router</td>
+<td>Inter-area</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td>AS-external-LSA</td>
+<td>Destinazioni esterne redistribuite in OSPF</td>
+<td>Dominio OSPF, salvo aree che la escludono</td>
+</tr>
+<tr>
+<td><strong>7</strong></td>
+<td>NSSA-LSA</td>
+<td>Destinazioni esterne originate in una Not-So-Stubby Area</td>
+<td>Entro NSSA; può essere tradotta</td>
+</tr>
+</tbody>
+</table>
+<div class="callout">
+<p><strong>Pacchetto e LSA sono livelli concettuali distinti.</strong> Un Link State Update è un tipo di pacchetto OSPF; al suo interno può trasportare una o più Link State Advertisement.</p>
+</div>
+</div>
+<div id="spf" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>06</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="dalla-mappa-ai-percorsi">Dalla mappa ai percorsi</h5>
+<h2 id="spf-costruisce-un-albero-con-il-router-locale-come-radice">Shortest Path First (SPF) costruisce un albero con il router locale come radice</h2>
+<div class="section-intro">
+<p>La Link State Database (LSDB) è una mappa, non ancora una tabella di forwarding. L’algoritmo Shortest Path First (SPF) usa i costi Open Shortest Path First (OSPF) per determinare i cammini verso router e reti; il costo di un percorso è la somma dei costi delle interfacce di uscita attraversate secondo il modello OSPF.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Scelta del percorso da R1 alla rete 10.50.0.0/24</strong><span>modifica il costo R1–R3</span></div>
+  <div class="button-row"><button type="button" data-cost-mode="low" aria-pressed="true">Costo R1–R3 = 5</button><button type="button" data-cost-mode="high">Costo R1–R3 = 30</button></div>
+  <div class="spf-map">
+    <div class="spf-node root">R1<small>radice</small></div>
+    <div class="spf-path top" data-path="top"><span>10</span><i></i><div class="spf-node">R2</div><span>10</span><i></i></div>
+    <div class="spf-path bottom" data-path="bottom"><span id="r1r3Cost">5</span><i></i><div class="spf-node">R3</div><span>5</span><i></i></div>
+    <div class="spf-node destination">10.50.0.0/24</div>
+  </div>
+  <div class="status-copy"><strong id="spfTitle">Vince R1 → R3 → rete: costo 10.</strong><span id="spfText">Il percorso alternativo via R2 costa 20. OSPF propone il cammino metricamente minore; la Routing Information Base confronterà poi eventuali sorgenti diverse per lo stesso prefisso.</span></div>
+</div>
+<div class="pipeline">
+<div class="pipe-box">
+<p><strong>LSA ricevute</strong><br />
+Descrizioni di router, link e prefissi.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>LSDB per area</strong><br />
+Mappa topologica coerente.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>Algoritmo SPF</strong><br />
+Albero con radice locale.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>Rotte candidate</strong><br />
+Prefisso, costo e next hop.</p>
+</div>
+</div>
+<div class="callout">
+<p><strong>“Shortest” significa costo minore, non necessariamente meno hop o minore latenza.</strong> Il costo è una metrica amministrabile. Sui dispositivi Cisco il calcolo predefinito parte dalla banda di riferimento, che deve essere progettata coerentemente.</p>
+</div>
+</div>
+<div id="aree" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>07</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="scalabilità-gerarchica">Scalabilità gerarchica</h5>
+<h2 id="le-aree-limitano-il-dettaglio-e-area-0-collega-il-dominio">Le aree limitano il dettaglio e Area 0 collega il dominio</h2>
+<div class="section-intro">
+<p>Ogni area possiede una propria Link State Database (LSDB). Il backbone Open Shortest Path First (OSPF), Area Identifier (Area ID) 0.0.0.0, distribuisce la raggiungibilità fra aree; gli Area Border Router (ABR) partecipano al backbone e riassumono la topologia esterna a un’area in informazioni inter-area.</p>
+</div>
+</div>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Gerarchia OSPF semplificata</strong><span>le topologie dettagliate restano nelle rispettive aree</span></div>
+  <div class="area-map">
+    <div class="area area-10"><b>AREA 10</b><span>R1 · R2 · reti locali</span><small>LSDB Area 10</small></div>
+    <div class="abr"><b>ABR-A</b><span>Area 10 / Area 0</span></div>
+    <div class="area area-0"><b>AREA 0 · BACKBONE</b><span>collega gli Area Border Router</span><small>LSDB Area 0</small></div>
+    <div class="abr"><b>ABR-B</b><span>Area 0 / Area 20</span></div>
+    <div class="area area-20"><b>AREA 20</b><span>R7 · R8 · reti locali</span><small>LSDB Area 20</small></div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> OSPF = Open Shortest Path First; LSDB = Link State Database; ABR = Area Border Router.</p>
+</div>
+<div class="cards cards-3">
+<div class="card accent-cyan">
+<h5 class="card-tag" id="intra-area">INTRA-AREA</h5>
+<h3 id="dettaglio-della-propria-area">Dettaglio della propria area</h3>
+<p>Router-LSA e Network-LSA descrivono la topologia usata per calcolare i percorsi interni all’area.</p>
+</div>
+<div class="card accent-purple">
+<h5 class="card-tag" id="inter-area">INTER-AREA</h5>
+<h3 id="raggiungibilità-attraverso-il-backbone">Raggiungibilità attraverso il backbone</h3>
+<p>Gli Area Border Router annunciano nelle aree informazioni distillate sulle destinazioni esterne all’area.</p>
+</div>
+<div class="card accent-green">
+<h5 class="card-tag" id="beneficio">BENEFICIO</h5>
+<h3 id="minore-dominio-di-flooding-e-calcolo">Minore dominio di flooding e calcolo</h3>
+<p>Le variazioni interne a un’area non distribuiscono ovunque lo stesso dettaglio topologico.</p>
+</div>
+</div>
+<div class="callout">
+<p><strong>Le aree non sono Virtual Routing and Forwarding.</strong> Suddividono gerarchicamente un unico dominio OSPF; non creano automaticamente tabelle cliente separate e non costituiscono una Layer 3 Virtual Private Network.</p>
+</div>
+</div>
+<div id="tabelle" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>08</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="cooperazione-con-lunità-4">Cooperazione con l’Unità 4</h5>
+<h2 id="ospf-propone-rotte-rib-e-fib-decidono-e-inoltrano">Open Shortest Path First (OSPF) propone rotte; Routing Information Base (RIB) e Forwarding Information Base (FIB) decidono e inoltrano</h2>
+<div class="section-intro">
+<p>Dopo il calcolo Shortest Path First (SPF), OSPF produce candidati con prefisso, costo, next hop e interfaccia. La RIB applica le regole locali di selezione; la FIB riceve il risultato risolto per il data plane.</p>
+</div>
+</div>
+</div>
+<div class="pipeline pipeline-long">
+<div class="pipe-box">
+<p><strong>Hello e adiacenze</strong><br />
+Scoprono vicini compatibili.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>LSA e LSDB</strong><br />
+Sincronizzano la mappa.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>SPF</strong><br />
+Calcola costo e next hop.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>RIB</strong><br />
+Seleziona fra sorgenti.</p>
+</div>
+<div class="pipe-arrow">
+<p>→</p>
+</div>
+<div class="pipe-box">
+<p><strong>FIB + adiacenza L2</strong><br />
+Programmano l’inoltro.</p>
+</div>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Due corsie che non vanno confuse</strong><span>control plane e traffico cliente</span></div>
+  <div class="two-lanes">
+    <div class="lane control"><b>CONTROL PLANE</b><span>Pacchetti OSPF · IPv4 Protocol 89</span><i>Hello → LSA → LSDB → SPF → RIB/FIB</i></div>
+    <div class="lane data"><b>DATA PLANE</b><span>Datagrammi del cliente</span><i>IP destinazione → lookup FIB → next hop → nuova trama</i></div>
+  </div>
+  <p class="figure-note"><strong>Legenda:</strong> OSPF = Open Shortest Path First; IPv4 = Internet Protocol version 4; LSA = Link State Advertisement; LSDB = Link State Database; SPF = Shortest Path First; RIB = Routing Information Base; FIB = Forwarding Information Base; IP = Internet Protocol.</p>
+</div>
+<div class="insight">
+<p><strong>Se OSPF si arresta, i pacchetti cliente non diventano pacchetti OSPF.</strong><br />
+Il data plane può continuare temporaneamente a usare le informazioni già programmate; senza aggiornamenti del control plane, però, quelle informazioni possono diventare obsolete dopo una variazione topologica.</p>
+</div>
+</div>
+<div id="troubleshooting" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>09</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="diagnosi-operativa">Diagnosi operativa</h5>
+<h2 id="lo-stato-del-neighbor-determina-il-prossimo-controllo">Lo stato del neighbor determina il prossimo controllo</h2>
+<div class="section-intro">
+<p>Una checklist efficace parte dal livello fisico e dai parametri dell’interfaccia, osserva poi lo stato dell’adiacenza e soltanto dopo verifica database e rotte. Ogni controllo va eseguito su entrambi i lati del collegamento.</p>
+</div>
+</div>
+</div>
+<div class="figure interactive">
+  <div class="figure-title"><strong>Diagnosi guidata dallo stato osservato</strong><span>scegli l'esito di show ip ospf neighbor</span></div>
+  <div class="button-row troubleshoot-buttons">
+    <button type="button" data-trouble="none" aria-pressed="true">Assente / DOWN</button>
+    <button type="button" data-trouble="init">INIT</button>
+    <button type="button" data-trouble="2way">2-WAY</button>
+    <button type="button" data-trouble="exstart">EXSTART / EXCHANGE</button>
+    <button type="button" data-trouble="loading">LOADING</button>
+    <button type="button" data-trouble="full">FULL ma rotta assente</button>
+  </div>
+  <div class="trouble-panel">
+    <div><small>Interpretazione</small><strong id="troubleMeaning">Nessun Hello OSPF valido è stato ricevuto dal neighbor atteso.</strong></div>
+    <div><small>Controlli prioritari</small><span id="troubleChecks">Interfaccia e line protocol; OSPF abilitato sull'interfaccia; passive-interface; Area ID; timer; autenticazione; network type; ACL o firewall; raggiungibilità multicast sul link.</span></div>
+    <div><small>Comandi iniziali</small><code id="troubleCommands">show ip interface brief<br>show ip ospf interface<br>show ip ospf neighbor</code></div>
+  </div>
+</div>
+<h3 id="checklist-completa-nellordine-corretto">Checklist completa, nell’ordine corretto</h3>
+<ol type="1">
+<li>Verificare stato e indirizzamento con <code>show ip interface brief</code> su entrambi i router.</li>
+<li>Leggere i parametri effettivi con <code>show ip ospf interface</code>.</li>
+<li>Controllare presenza, Router ID, ruolo e stato mediante <code>show ip ospf neighbor</code>.</li>
+<li>Confrontare Area ID, Hello Timer, Dead Timer e opzioni stub.</li>
+<li>Confrontare autenticazione, metodo e chiavi.</li>
+<li>Verificare la Maximum Transmission Unit, soprattutto se lo stato resta EXSTART o EXCHANGE.</li>
+<li>Verificare che i Router ID siano univoci.</li>
+<li>Controllare <code>passive-interface</code> e OSPF network type.</li>
+<li>Verificare Access Control List e firewall: OSPFv2 usa direttamente IPv4 Protocol 89, non una porta Transmission Control Protocol o User Datagram Protocol.</li>
+<li>Con adiacenza FULL, passare a <code>show ip ospf database</code>, <code>show ip route ospf</code> e <code>show logging</code>.</li>
+</ol>
+<div class="cards cards-3">
+<div class="card accent-coral">
+<h5 class="card-tag" id="problema-di-vicinato">PROBLEMA DI VICINATO</h5>
+<h3 id="hello-assente-o-incompatibile">Hello assente o incompatibile</h3>
+<p>La diagnosi resta su interfaccia, abilitazione OSPF, parametri comuni, autenticazione, rete multiaccess e filtri.</p>
+</div>
+<div class="card accent-amber">
+<h5 class="card-tag" id="problema-di-sincronizzazione">PROBLEMA DI SINCRONIZZAZIONE</h5>
+<h3 id="exstart-exchange-o-loading">EXSTART, EXCHANGE o LOADING</h3>
+<p>I router si sono visti, ma lo scambio non termina: Maximum Transmission Unit, negoziazione Database Description, sequenze o LSA richieste meritano attenzione.</p>
+</div>
+<div class="card accent-green">
+<h5 class="card-tag" id="problema-di-rotta">PROBLEMA DI ROTTA</h5>
+<h3 id="full-ma-destinazione-assente">FULL ma destinazione assente</h3>
+<p>Il vicinato è completo: verificare LSA nella LSDB, annuncio del prefisso, area, costo, calcolo SPF, distanza amministrativa e installazione nella RIB/FIB.</p>
+</div>
+</div>
+<div class="callout">
+<p><strong>Non iniziare modificando il process ID OSPF.</strong> È locale al router e non deve coincidere con quello del vicino. Cambiare parametri senza partire dallo stato osservato può interrompere un’adiacenza corretta e nascondere la causa reale.</p>
+</div>
+</div>
+<div id="limiti" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>10</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="collocazione-e-limiti">Collocazione e limiti</h5>
+<h2 id="ospf-conosce-linterno-non-sostituisce-tutti-gli-altri-piani">Open Shortest Path First (OSPF) conosce l’interno; non sostituisce tutti gli altri piani</h2>
+<div class="section-intro">
+<p>Open Shortest Path First (OSPF) risolve il problema della raggiungibilità dinamica intra-domain. Non offre affidabilità applicativa, non separa clienti e non sostituisce i protocolli orientati alle policy fra Autonomous System (AS).</p>
+</div>
+</div>
+</div>
+<div class="cards cards-4">
+<div class="card accent-green">
+<h5 class="card-tag" id="ospf-fa">OSPF FA</h5>
+<h3 id="topologia-e-percorsi-interni">Topologia e percorsi interni</h3>
+<p>Forma adiacenze, distribuisce LSA, mantiene LSDB per area, calcola cammini e propone rotte.</p>
+</div>
+<div class="card accent-coral">
+<h5 class="card-tag" id="ospf-non-fa">OSPF NON FA</h5>
+<h3 id="trasporto-dei-dati">Trasporto dei dati</h3>
+<p>I datagrammi cliente sono inoltrati dal data plane mediante la FIB; OSPF prepara le informazioni.</p>
+</div>
+<div class="card accent-coral">
+<h5 class="card-tag" id="ospf-non-fa-1">OSPF NON FA</h5>
+<h3 id="separazione-dei-clienti">Separazione dei clienti</h3>
+<p>Aree e processi non equivalgono automaticamente a Virtual Routing and Forwarding o Virtual Private Network.</p>
+</div>
+<div class="card accent-coral">
+<h5 class="card-tag" id="ospf-non-fa-2">OSPF NON FA</h5>
+<h3 id="policy-inter-domain">Policy inter-domain</h3>
+<p>Border Gateway Protocol usa attributi e policy per la raggiungibilità fra Autonomous System.</p>
+</div>
+</div>
+<h3 id="cenno-a-intermediate-system-to-intermediate-system">Cenno a Intermediate System to Intermediate System</h3>
+<p>Intermediate System to Intermediate System è un altro Interior Gateway Protocol link-state, molto diffuso nei backbone dei Service Provider. Condivide con OSPF l’idea di una base topologica e di un calcolo Shortest Path First, ma usa terminologia, incapsulamento e organizzazione gerarchica differenti. In questa unità serve come riferimento comparativo, non come deviazione dal percorso principale.</p>
+</div>
+<div id="glossario" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>11</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="glossario-cumulativo">Glossario cumulativo</h5>
+<h2 id="sigle-disponibili-fino-allunità-5">Sigle disponibili fino all’Unità 5</h2>
+<div class="section-intro">
+<p>Le nuove voci descrivono il control plane link-state e si aggiungono ai termini di inoltro consolidati nell’Unità 4.</p>
+</div>
+</div>
+</div>
+<div class="glossary">
+<dl>
+<dt>OSPF</dt>
+<dd>
+<strong>Open Shortest Path First</strong> — Interior Gateway Protocol link-state.
+</dd>
+<dt>IGP / EGP</dt>
+<dd>
+<strong>Interior Gateway Protocol / Exterior Gateway Protocol</strong> — categorie per routing intra-domain e inter-domain.
+</dd>
+<dt>LSA</dt>
+<dd>
+<strong>Link State Advertisement</strong> — oggetto informativo che descrive topologia o raggiungibilità OSPF.
+</dd>
+<dt>LSDB</dt>
+<dd>
+<strong>Link State Database</strong> — raccolta delle LSA mantenuta per area.
+</dd>
+<dt>SPF</dt>
+<dd>
+<strong>Shortest Path First</strong> — algoritmo che costruisce l’albero dei cammini a costo minore.
+</dd>
+<dt>RID</dt>
+<dd>
+<strong>Router ID</strong> — identificatore OSPF a 32 bit del router.
+</dd>
+<dt>DR / BDR / DROTHER</dt>
+<dd>
+<strong>Designated Router / Backup Designated Router / Designated Router Other</strong> — ruoli sulle reti multiaccess.
+</dd>
+<dt>DBD</dt>
+<dd>
+<strong>Database Description</strong> — pacchetto che riassume la LSDB durante la sincronizzazione.
+</dd>
+<dt>LSR / LSU / LSAck</dt>
+<dd>
+<strong>Link State Request / Link State Update / Link State Acknowledgment</strong> — richiesta, trasporto e conferma delle informazioni link-state.
+</dd>
+<dt>ABR / ASBR</dt>
+<dd>
+<strong>Area Border Router / Autonomous System Boundary Router</strong> — router fra aree e router che introduce raggiungibilità esterna.
+</dd>
+<dt>NSSA</dt>
+<dd>
+<strong>Not-So-Stubby Area</strong> — area che può originare LSA esterne di tipo 7.
+</dd>
+<dt>IS-IS</dt>
+<dd>
+<strong>Intermediate System to Intermediate System</strong> — IGP link-state alternativo.
+</dd>
+<dt>RIB / FIB</dt>
+<dd>
+<strong>Routing Information Base / Forwarding Information Base</strong> — scelta di routing e struttura di inoltro.
+</dd>
+<dt>CEF / dCEF</dt>
+<dd>
+<strong>Cisco Express Forwarding / Distributed Cisco Express Forwarding</strong> — forwarding Cisco centralizzato o distribuito.
+</dd>
+<dt>LPM / ECMP</dt>
+<dd>
+<strong>Longest-Prefix Match / Equal-Cost Multi-Path</strong> — prefisso più specifico e percorsi equivalenti.
+</dd>
+<dt>IP / IPv4 / IPv6</dt>
+<dd>
+<strong>Internet Protocol / version 4 / version 6</strong> — indirizzamento e inoltro fra reti.
+</dd>
+<dt>TCP / UDP</dt>
+<dd>
+<strong>Transmission Control Protocol / User Datagram Protocol</strong> — protocolli di trasporto; OSPFv2 non usa le loro porte.
+</dd>
+<dt>MTU</dt>
+<dd>
+<strong>Maximum Transmission Unit</strong> — dimensione massima trasportabile sul collegamento.
+</dd>
+<dt>MAC / FCS / VLAN</dt>
+<dd>
+<strong>Media Access Control / Frame Check Sequence / Virtual Local Area Network</strong> — elementi del collegamento.
+</dd>
+<dt>VRF / MPLS</dt>
+<dd>
+<strong>Virtual Routing and Forwarding / Multiprotocol Label Switching</strong> — contesto separato e inoltro mediante label.
+</dd>
+<dt>CE / PE / P</dt>
+<dd>
+<strong>Customer Edge / Provider Edge / Provider</strong> — ruoli dei router cliente e provider.
+</dd>
+</dl>
+</div>
+</div>
+<div id="verifica" class="unit-section">
+<div class="section-head">
+<div class="section-number">
+<p>12</p>
+</div>
+<div class="section-copy">
+<h5 class="section-kicker" id="autoverifica">Autoverifica</h5>
+<h2 id="domande-di-orientamento">Domande di orientamento</h2>
+<div class="section-intro">
+<p>Rispondi prima di aprire ogni scheda. Le domande verificano relazioni e sequenze, non soltanto definizioni.</p>
+</div>
+</div>
+</div>
+<div class="quiz">
+<details><summary>1. Perché due router della stessa area dovrebbero avere Link State Database coerenti?</summary><p>Perché il calcolo SPF è locale: una base topologica coerente permette di derivare percorsi compatibili. Gli alberi non sono identici, poiché ciascun router usa se stesso come radice.</p></details>
+<details><summary>2. Un pacchetto OSPFv2 usa una porta UDP o TCP?</summary><p>No. È trasportato direttamente da IPv4 con valore Protocol 89. Il numero di protocollo IP non è una porta.</p></details>
+<details><summary>3. Qual è la differenza fra Link State Update e Link State Advertisement?</summary><p>Link State Update è un tipo di pacchetto OSPF. Il payload può contenere una o più Link State Advertisement.</p></details>
+<details><summary>4. Perché due DROTHER possono rimanere correttamente 2-WAY su Ethernet?</summary><p>Perché sulle reti broadcast multiaccess diventano normalmente FULL con DR e BDR; non occorre una piena adiacenza fra ogni coppia di DROTHER.</p></details>
+<details><summary>5. FULL garantisce che tutte le rotte OSPF attese siano nella RIB?</summary><p>No. FULL indica sincronizzazione dell'adiacenza. Occorre ancora verificare LSA, calcolo SPF, annuncio del prefisso e selezione nella RIB.</p></details>
+<details><summary>6. Che cosa suggerisce uno stato persistente EXSTART o EXCHANGE?</summary><p>La scoperta bidirezionale è avvenuta, ma la sincronizzazione Database Description non termina. MTU, negoziazione, Router ID duplicati o sequenze inattese sono controlli pertinenti.</p></details>
+<details><summary>7. Il process ID OSPF Cisco deve coincidere fra vicini?</summary><p>No. È localmente significativo. Area ID e altri parametri dell'interfaccia devono invece essere compatibili.</p></details>
+<details><summary>8. “Percorso più breve” significa sempre minor numero di router?</summary><p>No. SPF minimizza il costo OSPF totale; il costo non coincide necessariamente con hop count o latenza reale.</p></details>
+<details><summary>9. In quale ordine essenziale OSPF arriva al forwarding?</summary><p>Adiacenze → LSA/LSDB → SPF → rotte candidate → RIB → FIB e adiacenze Layer 2.</p></details>
+<details><summary>10. Le aree OSPF separano automaticamente i clienti come una VRF?</summary><p>No. Le aree suddividono gerarchicamente il dominio link-state; una VRF crea un contesto separato di routing e forwarding.</p></details>
+</div>
+</div>
+<div class="closing">
+<h5 class="section-kicker" id="punto-di-arrivo-dellunità-5">Punto di arrivo dell’Unità 5</h5>
+<h2 id="ospf-distribuisce-la-mappa-ogni-router-calcola-il-proprio-percorso.">Open Shortest Path First (OSPF) distribuisce la mappa; ogni router calcola il proprio percorso.</h2>
+<p>Ora possiamo seguire l’intera catena: Hello e adiacenze, pacchetti di sincronizzazione, flooding delle LSA, Link State Database per area, albero Shortest Path First, rotte candidate, Routing Information Base e Forwarding Information Base. L’Unità 6 aggiungerà Multiprotocol Label Switching e mostrerà perché un backbone può inoltrare mediante label pur conservando un underlay IP costruito dall’Interior Gateway Protocol.</p>
+</div>
+<div class="sources">
+<p><strong>Riferimenti essenziali:</strong><br />
+<a href="https://www.rfc-editor.org/info/rfc2328">RFC 2328 — OSPF Version 2</a> · <a href="https://www.iana.org/assignments/protocol-numbers/">IANA — Protocol Numbers</a> · <a href="https://www.cisco.com/c/en/us/support/docs/ip/open-shortest-path-first-ospf/13685-13.html">Cisco — Understand OSPF Neighbor States</a> · <a href="https://www.cisco.com/c/en/us/support/docs/ip/open-shortest-path-first-ospf/13699-29.html">Cisco — Troubleshoot OSPF Neighbor Problems</a> · <a href="https://www.cisco.com/c/en/us/support/docs/ip/open-shortest-path-first-ospf/13684-12.html">Cisco — OSPF Exstart/Exchange and MTU</a></p>
+</div>
+    </main>
+
+    <footer>
+      <span>NETWORKING ACADEMY · UNITÀ 5 · DRAFT 1</span>
+      <span>Dal dato del cliente al backbone del Service Provider</span>
+    </footer>
+  </div>
+  <script src="assets/unita-05.js"></script>
+</body>
+</html>

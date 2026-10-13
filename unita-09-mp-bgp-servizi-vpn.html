@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Unità 9: Multiprotocol BGP, VRF, Route Distinguisher, Route Target, VPNv4 e doppia label nei servizi MPLS Layer 3 VPN del provider.">
+  <title>Unità 9 — Multiprotocol BGP e servizi VPN del provider</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/corso.css">
+  <link rel="stylesheet" href="assets/unita-09.css?v=1">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">M9</span> NETWORKING ACADEMY</div>
+      <div class="topbar-tools">
+        <div class="progress">UNITÀ 9 · SERVICE PLANE</div>
+        <label class="theme-switch" for="themeToggle">
+          <span class="theme-icon" aria-hidden="true">☼</span><span class="theme-label">Tema</span>
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span></span></span><span class="theme-current" id="themeCurrent">Scuro</span>
+        </label>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="hero-heading">
+        <p class="kicker">Unità 9 · control plane e service plane <span class="draft">PERCORSO PRINCIPALE</span></p>
+        <h1>Multiprotocol BGP: <span>molti clienti, un solo backbone.</span></h1>
+      </div>
+      <div class="u9-hero-figure" role="img" aria-label="Il cliente Blu e il cliente Ambra usano entrambi il prefisso 10.10.10.0/24. Le VRF sui Provider Edge mantengono separati i due contesti mentre il backbone MPLS è condiviso.">
+        <p class="u9-eyebrow">Stesso prefisso IPv4, contesti di servizio differenti</p>
+        <div class="u9-hero-grid">
+          <div class="u9-customer u9-blue"><b>CLIENTE BLU</b><span>10.10.10.0/24</span><small>VRF BLU · RD 65000:101</small></div>
+          <span class="u9-hero-arrow" aria-hidden="true">→</span>
+          <div class="u9-provider"><b>PE-A · P · PE-B</b><span>backbone MPLS condiviso</span><small>rotte e forwarding restano separati</small></div>
+          <span class="u9-hero-arrow u9-arrow-back" aria-hidden="true">←</span>
+          <div class="u9-customer u9-amber"><b>CLIENTE AMBRA</b><span>10.10.10.0/24</span><small>VRF AMBRA · RD 65000:201</small></div>
+        </div>
+        <p class="u9-hero-legend"><b>Legenda:</b> VRF = Virtual Routing and Forwarding; RD = Route Distinguisher; PE = Provider Edge; P = Provider; MPLS = Multiprotocol Label Switching. Prefissi, Route Distinguisher e label dell’unità sono esempi didattici.</p>
+      </div>
+      <div class="hero-summary">
+        <p class="hero-lead"><strong>Domanda guida:</strong> come può un unico backbone trasportare reti appartenenti a clienti differenti senza mescolarle?</p>
+        <div class="learning-strip"><span><b>Prerequisiti</b> Unità 4–8</span><span><b>Obiettivo</b> Distinguere VRF, RD, RT e label</span><span><b>Tempo indicativo</b> 75 minuti</span></div>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell’unità">
+      <a href="#problema">Problema</a><a href="#architettura">Architettura</a><a href="#vrf">VRF</a>
+      <a href="#rd-rt">RD e RT</a><a href="#mp-bgp">MP-BGP</a><a href="#rotta">Viaggio della rotta</a>
+      <a href="#label">Label VPN</a><a href="#dataplane">Doppia label</a><a href="#core">Core BGP-free</a>
+      <a href="#confronto">L3VPN / L2VPN</a><a href="#operativita">Verifica</a><a href="#limiti">Limiti</a>
+      <a href="#glossario">Glossario</a><a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+      <section id="problema" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>01</p></div><div class="section-copy"><h5 class="section-kicker">Il problema originario</h5><h2>Condividere l’infrastruttura senza condividere le rotte</h2><div class="section-intro"><p>I circuiti dedicati separavano fisicamente i clienti, ma moltiplicavano apparati, collegamenti e costi. Una rete Internet Protocol / Multiprotocol Label Switching (IP/MPLS) permette invece al Service Provider di condividere il backbone. La condivisione introduce però due problemi: clienti differenti possono usare gli stessi prefissi privati e non devono apprendere le rotte gli uni degli altri.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">SOVRAPPOSIZIONE</h5><h3>Lo stesso indirizzo può essere corretto due volte</h3><p><code>10.10.10.0/24</code> può appartenere sia al Cliente Blu sia al Cliente Ambra. Una sola tabella globale non saprebbe distinguere i due significati.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">DISTRIBUZIONE</h5><h3>Le sedi remote devono scambiarsi raggiungibilità</h3><p>I Provider Edge (PE) devono distribuire le rotte dei siti autorizzati, mantenendo identità e policy del servizio.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">SCALA</h5><h3>Il core non deve conoscere ogni rete cliente</h3><p>I router Provider (P) devono continuare a inoltrare mediante label di trasporto, senza una Virtual Routing and Forwarding per ciascun cliente.</p></article>
+        </div>
+        <div class="insight"><p><strong>La VPN nasce dalla cooperazione di più meccanismi.</strong><br>Virtual Routing and Forwarding (VRF) separa localmente i contesti; Multiprotocol Border Gateway Protocol (MP-BGP) distribuisce rotte VPN e label di servizio; l’underlay rende raggiungibili i PE; Multiprotocol Label Switching (MPLS) trasporta i pacchetti nel core.</p></div>
+        <div class="callout"><p><strong>Che cosa significa underlay?</strong> È la rete di trasporto sottostante del provider: comprende collegamenti, indirizzi infrastrutturali e rotte apprese tramite un Interior Gateway Protocol (IGP), grazie alle quali i router P e PE possono raggiungersi. In particolare, deve esistere un percorso verso la loopback del PE remoto, usata come next hop dalle rotte VPN. L’underlay non stabilisce a quale VPN appartiene un cliente e non decide quali rotte importare in una VRF: offre la connettività comune sulla quale MP-BGP e il trasporto MPLS costruiscono il servizio. In breve, l’underlay risponde a «come raggiungo l’altro PE?»; la VPN risponde a «quale traffico cliente può usare quel percorso?».</p></div>
+      </section>
+
+      <section id="architettura" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>02</p></div><div class="section-copy"><h5 class="section-kicker">Contesto e ruoli</h5><h2>L’intelligenza del servizio vive ai bordi</h2><div class="section-intro"><p>Le BGP/MPLS Internet Protocol Virtual Private Network descritte nella Request for Comments (RFC) 4364 collocano le funzioni del servizio cliente sui Provider Edge. I Customer Edge (CE) scambiano normali rotte IP con il provider; i Provider (P) interni trasportano pacchetti MPLS. Questa separazione ha reso possibile offrire molti servizi logici sulla stessa infrastruttura fisica.</p></div></div></div>
+        <div class="u9-role-grid">
+          <article><b>CE · Customer Edge</b><span>Router al confine del cliente. Conosce le proprie rotte IP e un collegamento verso il provider; nel modello base non deve conoscere MP-BGP né le label del core.</span></article>
+          <article><b>PE · Provider Edge</b><span>Termina il collegamento cliente, associa l’ingresso a una VRF, apprende rotte CE, partecipa a MP-BGP e impone o rimuove lo stack MPLS.</span></article>
+          <article><b>P · Provider</b><span>Router interno del provider. Conosce l’underlay e la Label Forwarding Information Base (LFIB); normalmente non mantiene VRF o rotte dei clienti.</span></article>
+        </div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th>Informazione</th><th>CE</th><th>PE</th><th>P</th></tr></thead><tbody>
+          <tr><th>Rotte IPv4 del sito</th><td>Sì, nel contesto cliente</td><td>Sì, nella VRF corretta</td><td>No, nel modello BGP-free core</td></tr>
+          <tr><th>Rotte VPNv4 e Route Target</th><td>No</td><td>Sì, tramite MP-BGP</td><td>No</td></tr>
+          <tr><th>Raggiungibilità delle loopback PE</th><td>Non necessaria</td><td>Sì, tramite underlay</td><td>Sì, tramite Interior Gateway Protocol</td></tr>
+          <tr><th>Label di trasporto</th><td>No nel modello base</td><td>Imposta o rimuove</td><td>Consulta e scambia/rimuove</td></tr>
+        </tbody></table></div>
+        <div class="u9-plane-grid">
+          <div><b>CONTROL PLANE</b><p>L’Interior Gateway Protocol (IGP) rende raggiungibili link e loopback dei Provider Edge all’interno del backbone. Label Distribution Protocol (LDP), Resource Reservation Protocol - Traffic Engineering (RSVP-TE) o Segment Routing con data plane MPLS (SR-MPLS) preparano il trasporto a label verso il PE remoto. Multiprotocol Border Gateway Protocol (MP-BGP) distribuisce fra i PE le rotte VPN, i relativi attributi e la label di servizio. Questi protocolli non trasportano il dato del cliente: preparano tabelle e percorsi che il data plane userà in seguito.</p></div>
+          <div><b>SERVICE PLANE</b><p>VRF, Route Distinguisher (RD) e Route Target (RT) descrivono separazione e appartenenza delle rotte al servizio.</p></div>
+          <div><b>DATA PLANE</b><p>Il PE classifica il pacchetto nella VRF; lo stack MPLS conduce al PE remoto e alla corretta azione di uscita.</p></div>
+        </div>
+      </section>
+
+      <section id="vrf" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>03</p></div><div class="section-copy"><h5 class="section-kicker">Separazione locale</h5><h2>Una VRF dà un significato al prefisso</h2><div class="section-intro"><p>Virtual Routing and Forwarding (VRF) è un contesto separato di routing e forwarding sul Provider Edge. L’interfaccia o subinterfaccia di accesso identifica la VRF d’ingresso; il lookup del datagramma cliente avviene nella tabella di quel contesto, non nella tabella globale né nella VRF di un altro cliente.</p></div></div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>Tre tabelle sullo stesso PE</strong><span>lo stesso prefisso può produrre next hop differenti</span></div>
+          <div class="u9-vrf-rack" role="img" aria-label="Il Provider Edge contiene una tabella globale, una VRF Blu e una VRF Ambra. Le due VRF contengono entrambe 10.10.10.0/24 ma con uscite differenti.">
+            <div><b>TABELLA GLOBALE</b><span>192.0.2.2/32 → core</span><small>underlay e infrastruttura</small></div>
+            <div class="u9-blue"><b>VRF BLU</b><span>10.10.10.0/24 → CE Blu</span><small>contesto cliente Blu</small></div>
+            <div class="u9-amber"><b>VRF AMBRA</b><span>10.10.10.0/24 → CE Ambra</span><small>contesto cliente Ambra</small></div>
+          </div>
+          <p class="figure-note">Legenda: PE = Provider Edge; VRF = Virtual Routing and Forwarding. Il prefisso da solo non basta: anche il contesto d’ingresso partecipa alla decisione.</p>
+        </div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">INGRESSO</h5><h3>L’interfaccia seleziona il contesto</h3><p>Una trama ricevuta dal CE viene decapsulata; il datagramma IP è classificato nella VRF associata al collegamento.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">ROUTING</h5><h3>Ogni VRF ha le proprie candidate</h3><p>Rotte connesse, statiche o apprese dal protocollo PE–CE competono dentro il contesto appropriato.</p></article>
+          <article class="card accent-green"><h5 class="card-tag">FORWARDING</h5><h3>La decisione alimenta strutture per-VRF</h3><p>Le rotte installate preparano le azioni di inoltro: verso un CE locale oppure verso un PE remoto con una label di servizio.</p></article>
+        </div>
+        <div class="callout"><p><strong>VRF non significa automaticamente VPN completa:</strong> crea la separazione locale sul PE. Per collegare sedi su PE differenti servono distribuzione delle rotte, policy di importazione e un data plane capace di raggiungere il bordo remoto.</p></div>
+      </section>
+
+      <section id="rd-rt" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>04</p></div><div class="section-copy"><h5 class="section-kicker">Identità e policy</h5><h2>RD rende distinguibile; RT decide dove importare</h2><div class="section-intro"><p>Route Distinguisher (RD) e Route Target (RT) possono apparire entrambi come <code>65000:100</code>, ma risolvono problemi differenti. Il RD, lungo 8 ottetti, viene anteposto al prefisso IPv4 per formare una rotta VPNv4 distinta. Il RT è una BGP Extended Community usata dalle policy di esportazione e importazione delle VRF.</p></div></div></div>
+        <div class="u9-community-context">
+          <div><b>1 · COMMUNITY BGP</b><p>Una community è un attributo associato a una rotta BGP: funziona come un metadato che la classifica. Non modifica da sola il best path e non produce automaticamente un’azione; una policy deve riconoscerne il valore e stabilire che cosa fare.</p></div>
+          <i aria-hidden="true">→</i>
+          <div><b>2 · EXTENDED COMMUNITY</b><p>Le Extended Community ampliano questo meccanismo con valori strutturati di 8 ottetti, nei quali tipo e sottotipo indicano come interpretare l’informazione. Possono accompagnare la rotta mentre MP-BGP la distribuisce fra i Provider Edge.</p></div>
+          <i aria-hidden="true">→</i>
+          <div><b>3 · ROUTE TARGET</b><p>Il Route Target è un tipo specifico di Extended Community. Sul PE di origine la policy di export lo aggiunge alla rotta; sul PE remoto la policy di import confronta quel valore con quelli accettati dalla VRF.</p></div>
+        </div>
+        <div class="callout"><p><strong>Community BGP e label MPLS appartengono a piani differenti:</strong> la community accompagna la rotta nell’UPDATE del control plane e viene interpretata dalle policy. La label MPLS viene invece imposta sul pacchetto nel data plane. Il Route Target non entra né nell’indirizzo IP del cliente né nello stack di label.</p></div>
+        <div class="u9-rd-rt-compare">
+          <article><h3>Route Distinguisher</h3><p class="u9-token-example"><code>RD 65000:101 + 10.10.10.0/24</code></p><ul><li>rende univoca la Network Layer Reachability Information VPNv4;</li><li>una rotta porta un solo RD;</li><li>non autorizza da solo l’importazione in una VRF;</li><li>non viene inserito nel datagramma cliente.</li></ul></article>
+          <article><h3>Route Target</h3><p class="u9-token-example"><code>RT 65000:100</code></p><ul><li>classifica la rotta per la policy del servizio;</li><li>una rotta può portare più RT;</li><li>la VRF importa i Route Target configurati;</li><li>non rende univoco un prefisso sovrapposto.</li></ul></article>
+        </div>
+        <div class="figure">
+          <div class="figure-title"><strong>Laboratorio di importazione</strong><span>il Route Target costruisce la topologia logica del servizio</span></div>
+          <div class="button-row" role="group" aria-label="Scenario di importazione Route Target">
+            <button type="button" data-u9-policy="isolated" aria-pressed="true">VPN ISOLATE</button>
+            <button type="button" data-u9-policy="extranet" aria-pressed="false">EXTRANET CONTROLLATA</button>
+          </div>
+          <div class="u9-policy-map" id="u9PolicyMap" data-mode="isolated" role="img" aria-label="Le VRF Blu e Ambra importano Route Target differenti e restano isolate.">
+            <div class="u9-policy-vrf u9-blue"><b>VRF BLU</b><span>export/import 65000:100</span><small class="u9-shared-note">nessuna rotta Ambra</small></div>
+            <div class="u9-policy-center"><b>MP-BGP</b><span>rotte VPNv4 + RT</span><small>distribuisce; non decide da solo l’import</small></div>
+            <div class="u9-policy-vrf u9-amber"><b>VRF AMBRA</b><span>export/import 65000:200</span><small class="u9-shared-note">nessuna rotta Blu</small></div>
+          </div>
+          <div class="status-copy" aria-live="polite"><strong id="u9PolicyTitle">Isolamento: ogni VRF importa il proprio RT</strong><span id="u9PolicyText">Le rotte Blu portano RT 65000:100; le rotte Ambra portano RT 65000:200. La presenza nello stesso MP-BGP non implica importazione reciproca.</span></div>
+          <p class="figure-note">Legenda: VRF = Virtual Routing and Forwarding; RT = Route Target; MP-BGP = Multiprotocol Border Gateway Protocol. Un’extranet è una scelta di policy esplicita, non una conseguenza del Route Distinguisher.</p>
+        </div>
+      </section>
+
+      <section id="mp-bgp" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>05</p></div><div class="section-copy"><h5 class="section-kicker">BGP oltre IPv4 unicast</h5><h2>MP-BGP distingue le famiglie di raggiungibilità</h2><div class="section-intro"><p>Multiprotocol Border Gateway Protocol (MP-BGP) conserva sessione, messaggi e procedura di base di Border Gateway Protocol (BGP), ma negozia capacità per scambiare famiglie differenti. La coppia Address Family Identifier / Subsequent Address Family Identifier (AFI/SAFI) identifica la semantica della Network Layer Reachability Information (NLRI). Per le rotte VPN-IPv4 con label, la famiglia usa AFI 1 e SAFI 128.</p></div></div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>UPDATE multiprotocol concettuale</strong><span>la figura mostra significato e relazioni, non tutti i bit sul filo</span></div>
+          <div class="u9-mp-update">
+            <div><b>MP_REACH_NLRI</b><span>AFI 1 · SAFI 128</span><small>next hop + rotte VPNv4 raggiungibili</small></div>
+            <div><b>NLRI ETICHETTATA</b><span>label VPN + RD + prefisso IPv4</span><small>esempio: 24001 · 65000:102 · 10.20.20.0/24</small></div>
+            <div><b>PATH ATTRIBUTES</b><span>ORIGIN · AS_PATH · LOCAL_PREF · RT</span><small>il Route Target è una Extended Community</small></div>
+          </div>
+          <p class="figure-note">MP_REACH_NLRI = Multiprotocol Reachable Network Layer Reachability Information; AFI = Address Family Identifier; SAFI = Subsequent Address Family Identifier; RD = Route Distinguisher; RT = Route Target. MP_UNREACH_NLRI ritira raggiungibilità della stessa famiglia.</p>
+        </div>
+        <div class="u9-two-lanes">
+          <div><b>STESSA SESSIONE DI CONTROLLO</b><p>I peer continuano a usare Transmission Control Protocol (TCP) porta 179, OPEN, KEEPALIVE, UPDATE e NOTIFICATION. La capability multiprotocol viene negoziata nell’OPEN.</p></div>
+          <div><b>NUOVA SEMANTICA DELLA NLRI</b><p>MP_REACH_NLRI porta next hop e destinazioni raggiungibili per una coppia AFI/SAFI; MP_UNREACH_NLRI porta le destinazioni ritirate.</p></div>
+        </div>
+        <div class="callout"><p><strong>MP-BGP non crea VRF e non trasporta i datagrammi cliente.</strong> Distribuisce informazioni di controllo tra PE o Route Reflector. È la configurazione locale a stabilire VRF e policy; è il data plane MPLS a trasportare il traffico.</p></div>
+      </section>
+
+      <section id="rotta" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>06</p></div><div class="section-copy"><h5 class="section-kicker">Dal CE alla VRF remota</h5><h2>La rotta cambia forma, non destinazione</h2><div class="section-intro"><p>Seguiamo la rete <code>10.20.20.0/24</code> del Cliente Blu. Il Provider Edge di uscita PE-B la apprende dal Customer Edge CE-B nella VRF BLU, le associa informazioni di servizio e la annuncia come rotta VPNv4. Il Provider Edge PE-A la importa nuovamente come rotta IPv4 soltanto nella propria VRF BLU.</p></div></div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>Stepper della rotta Blu</strong><span>control plane, da destra verso sinistra rispetto al traffico successivo</span></div>
+          <div class="button-row" role="group" aria-label="Fase della distribuzione della rotta">
+            <button type="button" data-u9-route="learn" aria-pressed="true">1 · APPRENDI</button>
+            <button type="button" data-u9-route="vpnize" aria-pressed="false">2 · VPNv4</button>
+            <button type="button" data-u9-route="advertise" aria-pressed="false">3 · ANNUNCIA</button>
+            <button type="button" data-u9-route="import" aria-pressed="false">4 · IMPORTA</button>
+            <button type="button" data-u9-route="install" aria-pressed="false">5 · INSTALLA</button>
+          </div>
+          <div class="u9-route-flow" id="u9RouteFlow" data-step="learn" role="img" aria-label="PE-B apprende 10.20.20.0/24 da CE-B nella VRF Blu.">
+            <div data-u9-route-node="learn"><b>CE-B → PE-B</b><span>IPv4 10.20.20.0/24</span><small>VRF BLU</small></div><i aria-hidden="true">→</i>
+            <div data-u9-route-node="vpnize"><b>PE-B</b><span>RD + RT + label 24001</span><small>rotta VPNv4 distinta</small></div><i aria-hidden="true">→</i>
+            <div data-u9-route-node="advertise"><b>MP-BGP / RR</b><span>next hop PE-B</span><small>control plane del provider</small></div><i aria-hidden="true">→</i>
+            <div data-u9-route-node="import"><b>PE-A</b><span>match RT 65000:100</span><small>import nella VRF BLU</small></div><i aria-hidden="true">→</i>
+            <div data-u9-route-node="install"><b>VRF BLU</b><span>10.20.20.0/24</span><small>via PE-B · label 24001</small></div>
+          </div>
+          <div class="status-copy" aria-live="polite"><strong id="u9RouteTitle">1 · PE-B apprende la rotta dal CE-B</strong><span id="u9RouteText">Il protocollo PE–CE o una rotta statica inserisce 10.20.20.0/24 nella VRF BLU. Non esiste ancora una rotta VPNv4 da distribuire.</span></div>
+          <p class="figure-note">Legenda: CE = Customer Edge; PE = Provider Edge; VRF = Virtual Routing and Forwarding; RD = Route Distinguisher; RT = Route Target; RR = Route Reflector; MP-BGP = Multiprotocol Border Gateway Protocol. Il protocollo PE–CE resta volutamente generico.</p>
+        </div>
+        <div class="insight"><p><strong>Direzione opposta, scopi complementari.</strong><br>PE-B pubblicizza la rotta e la propria label verso PE-A; più tardi il datagramma destinato a <code>10.20.20.77</code> viaggerà da PE-A verso PE-B usando quelle informazioni.</p></div>
+      </section>
+
+      <section id="label" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>07</p></div><div class="section-copy"><h5 class="section-kicker">Binding fra rotta e azione</h5><h2>Il PE di uscita pubblicizza la label di servizio</h2><div class="section-intro"><p>Il Provider Edge PE-B alloca localmente una label Multiprotocol Label Switching (MPLS) e la associa alla rotta o al contesto di forwarding. Multiprotocol BGP (MP-BGP) pubblicizza il binding fra label, prefisso VPNv4 e next hop. Dire che «MP-BGP assegna la label» sarebbe impreciso: MP-BGP la trasporta dopo che il PE l’ha scelta.</p></div></div></div>
+        <div class="u9-label-contract">
+          <div><b>CHI CREA IL SIGNIFICATO</b><span>PE-B alloca <strong>24001</strong> e programma l’azione locale</span></div>
+          <i aria-hidden="true">→</i>
+          <div><b>CHI LO DISTRIBUISCE</b><span>MP-BGP annuncia <strong>label + RD + prefisso</strong></span></div>
+          <i aria-hidden="true">→</i>
+          <div><b>CHI LO USA</b><span>PE-A impone <strong>24001</strong> sotto la label di trasporto</span></div>
+        </div>
+        <div class="cards cards-3">
+          <article class="card accent-purple"><h5 class="card-tag">GRANULARITÀ</h5><h3>La label non indica sempre soltanto la VRF</h3><p>Secondo piattaforma e modalità di allocazione, può identificare una rotta, un next hop, una VRF o un’altra azione equivalente di forwarding sul PE di uscita.</p></article>
+          <article class="card accent-cyan"><h5 class="card-tag">LOCALITÀ</h5><h3>Il valore appartiene al PE che lo riceve</h3><p>Come ogni label MPLS, <code>24001</code> ha significato locale per il downstream che l’ha annunciata. Non è un identificatore globale del cliente.</p></article>
+          <article class="card accent-green"><h5 class="card-tag">NEXT HOP</h5><h3>L’underlay deve raggiungere PE-B</h3><p>La rotta VPNv4 può essere valida soltanto se il next hop BGP è risolvibile. IGP e label di trasporto costruiscono il percorso verso quella loopback.</p></article>
+        </div>
+      </section>
+
+      <section id="dataplane" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>08</p></div><div class="section-copy"><h5 class="section-kicker">Il pacchetto nel core</h5><h2>La label esterna porta al PE; quella interna porta al servizio</h2><div class="section-intro"><p>Il Provider Edge PE-A esegue il lookup nella Virtual Routing and Forwarding BLU e impone uno stack. La label esterna di trasporto conduce al Provider Edge PE-B; la label interna di servizio, annunciata con la rotta VPNv4, descrive l’azione da eseguire su PE-B. L’esempio conserva la catena delle Unità 6–7: <code>18 → 27 → pop</code>.</p></div></div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>Viaggio dello stack MPLS</strong><span>seleziona il dispositivo che sta elaborando il pacchetto</span></div>
+          <div class="button-row" role="group" aria-label="Dispositivo nel percorso MPLS">
+            <button type="button" data-u9-hop="ingress" aria-pressed="true">PE-A · PUSH</button>
+            <button type="button" data-u9-hop="p1" aria-pressed="false">P1 · SWAP</button>
+            <button type="button" data-u9-hop="p2" aria-pressed="false">P2 · PHP</button>
+            <button type="button" data-u9-hop="egress" aria-pressed="false">PE-B · SERVIZIO</button>
+          </div>
+          <div class="u9-core-path" id="u9CorePath" data-hop="ingress" role="img" aria-label="PE-A impone la label esterna 18 e la label interna 24001 sul datagramma cliente.">
+            <div data-u9-hop-node="ingress"><b>PE-A</b><span>push 24001, poi 18</span></div><i><span>18 / 24001</span></i>
+            <div data-u9-hop-node="p1"><b>P1</b><span>swap 18 → 27</span></div><i><span>27 / 24001</span></i>
+            <div data-u9-hop-node="p2"><b>P2</b><span>pop 27 · PHP</span></div><i><span>24001</span></i>
+            <div data-u9-hop-node="egress"><b>PE-B</b><span>usa 24001</span></div>
+          </div>
+          <div class="u9-packet-stack" id="u9PacketStack" data-hop="ingress" aria-label="Stack al PE-A: trama Ethernet, label esterna 18, label interna 24001, datagramma IP cliente e dati.">
+            <div class="u9-frame"><b>TRAMA L2</b><span>link corrente</span></div>
+            <div class="u9-transport"><b id="u9TransportLabel">LABEL 18</b><span id="u9TransportText">trasporto verso PE-B</span></div>
+            <div class="u9-service"><b>LABEL 24001</b><span>servizio annunciato da PE-B</span></div>
+            <div class="u9-ip"><b>IP CLIENTE</b><span>dst 10.20.20.77</span></div>
+            <div class="u9-data"><b>DATI</b><span>payload invariato</span></div>
+          </div>
+          <div class="status-copy" aria-live="polite"><strong id="u9HopTitle">PE-A: due push dopo il lookup nella VRF</strong><span id="u9HopText">PE-A mantiene 24001 come label interna e aggiunge sopra 18, ricevuta dal proprio next hop per raggiungere PE-B. Una nuova trama Layer 2 trasporta lo stack sul primo link del core.</span></div>
+          <p class="figure-note">Legenda: L2 = Layer 2; IP = Internet Protocol; MPLS = Multiprotocol Label Switching; PHP = Penultimate Hop Popping. I valori sono locali e illustrativi. La trama di collegamento viene ricostruita a ogni hop.</p>
+        </div>
+        <div class="u9-vocab"><b>Che cosa cambia e che cosa resta</b><p>La <strong>trama</strong> cambia a ogni link; la label esterna viene scambiata o rimossa; la label interna resta invariata in questo esempio fino a PE-B; il <strong>datagramma IP cliente</strong> conserva gli indirizzi end-to-end, salvo funzioni estranee allo scenario; il <strong>dato applicativo</strong> non diventa un attributo BGP.</p></div>
+      </section>
+
+      <section id="core" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>09</p></div><div class="section-copy"><h5 class="section-kicker">Scalabilità del backbone</h5><h2>BGP-free core non significa core senza control plane</h2><div class="section-intro"><p>Nel modello classico, i router Provider (P) non partecipano alla famiglia VPNv4 e non mantengono le rotte cliente. Possiedono però un Interior Gateway Protocol (IGP), informazioni Multiprotocol Label Switching (MPLS) e una Label Forwarding Information Base (LFIB) per raggiungere le loopback dei Provider Edge.</p></div></div></div>
+        <div class="u9-formula" role="img" aria-label="MP-BGP indica quale PE possiede la rete cliente; IGP indica come raggiungere il PE; MPLS trasporta il pacchetto; VRF mantiene separato il contesto.">
+          <div><b>MP-BGP</b><span>quale PE possiede la rotta cliente</span></div>
+          <div><b>IGP</b><span>come raggiungere la loopback di quel PE</span></div>
+          <div><b>MPLS</b><span>come trasportare il pacchetto nel core</span></div>
+          <div><b>VRF</b><span>in quale contesto eseguire il lookup</span></div>
+        </div>
+        <div class="u9-two-lanes">
+          <div><b>CHE COSA LEGGE P1</b><p>P1 consulta la label superiore 18, trova l’azione LFIB e la sostituisce con 27. La label 24001 è presente sotto, ma P1 non deve interpretarla per questa decisione.</p></div>
+          <div><b>CHE COSA NON CONSERVA P1</b><p>Nessuna rotta <code>10.20.20.0/24</code> del Cliente Blu, nessun RD o RT e nessuna VRF cliente. Questo limita la crescita dello stato nel core.</p></div>
+        </div>
+        <div class="callout"><p><strong>Precisazione:</strong> dire che un router P «non vede mai» la label interna è troppo forte. La label è fisicamente nello stack; il P inoltra normalmente usando soltanto quella superiore. Dopo Penultimate Hop Popping, la label di servizio può diventare la superiore sul tratto finale verso PE-B.</p></div>
+      </section>
+
+      <section id="confronto" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>10</p></div><div class="section-copy"><h5 class="section-kicker">Due categorie di servizio</h5><h2>L3VPN instrada pacchetti; L2VPN estende un servizio di collegamento</h2><div class="section-intro"><p>Layer 3 Virtual Private Network (L3VPN) e Layer 2 Virtual Private Network (L2VPN) condividono l’obiettivo di offrire isolamento su un’infrastruttura comune, ma espongono servizi differenti al cliente. Il confronto resta introduttivo: protocolli e data plane specifici delle L2VPN saranno trattati più avanti.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u9-compare-table"><thead><tr><th>Domanda</th><th>L3VPN · Layer 3 VPN</th><th>L2VPN · Layer 2 VPN</th></tr></thead><tbody>
+          <tr><th>Che cosa consegna il CE al provider?</th><td>Datagrammi IP e, spesso, rotte tramite un protocollo PE–CE o configurazione statica.</td><td>Trame del servizio Layer 2; il cliente conserva maggior controllo sul routing fra sedi.</td></tr>
+          <tr><th>Il PE esegue lookup IP cliente?</th><td>Sì, dentro una VRF.</td><td>Non come funzione primaria del servizio; inoltra secondo il modello L2 adottato.</td></tr>
+          <tr><th>Che cosa viene separato?</th><td>Routing e forwarding di livello 3 per cliente.</td><td>Domini o servizi di collegamento di livello 2.</td></tr>
+          <tr><th>La VPN implica cifratura?</th><td>No.</td><td>No.</td></tr>
+          <tr><th>Tecnologia studiata qui</th><td>BGP/MPLS IP VPN con VPNv4, RD, RT e label di servizio.</td><td>Solo il concetto; pseudowire, Virtual Private LAN Service ed Ethernet VPN sono fuori ambito.</td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section id="operativita" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>11</p></div><div class="section-copy"><h5 class="section-kicker">Verifica operativa concettuale</h5><h2>Controllare il servizio seguendo la dipendenza</h2><div class="section-intro"><p>Quando una sede non raggiunge una rete remota, partire dall’accesso e seguire il percorso della rotta. Saltare subito alla Label Forwarding Information Base può nascondere un errore precedente di Virtual Routing and Forwarding, Route Target o Multiprotocol Border Gateway Protocol. I comandi seguenti sono esempi Cisco IOS XE e possono variare con piattaforma e release.</p></div></div></div>
+        <div class="check-chain">
+          <div class="check-step"><span>1</span><div><b>VRF e interfaccia di accesso</b><p>Conferma che il collegamento CE sia nella VRF prevista e che indirizzamento e stato siano corretti: <code>show vrf</code>, <code>show ip interface brief vrf BLU</code>.</p></div></div>
+          <div class="check-step"><span>2</span><div><b>Rotta cliente nella VRF</b><p>Verifica il prefisso locale o remoto senza confonderlo con la tabella globale: <code>show ip route vrf BLU 10.20.20.0</code>.</p></div></div>
+          <div class="check-step"><span>3</span><div><b>Famiglia VPNv4 e attributi</b><p>Controlla RD, RT, next hop e label pubblicizzata: <code>show bgp vpnv4 unicast vrf BLU 10.20.20.0/24</code>.</p></div></div>
+          <div class="check-step"><span>4</span><div><b>Policy di importazione</b><p>Se la rotta esiste nella tabella VPNv4 ma non nella VRF, confronta gli RT della rotta con gli import RT configurati sulla VRF.</p></div></div>
+          <div class="check-step"><span>5</span><div><b>Next hop e trasporto MPLS</b><p>Verifica che la loopback del PE remoto sia raggiungibile e disponga di una catena di label: <code>show ip route 192.0.2.2</code>, <code>show mpls forwarding-table</code>.</p></div></div>
+          <div class="check-step"><span>6</span><div><b>Data plane nel contesto corretto</b><p>Prova dal source appropriato e osserva contatori o traceroute consapevole della VRF: un test nella tabella globale non prova il servizio cliente.</p></div></div>
+        </div>
+        <div class="u9-cli-wrap"><pre class="u9-cli"><code>PE-A# show bgp vpnv4 unicast vrf BLU 10.20.20.0/24
+Route Distinguisher: 65000:101
+  10.20.20.0/24  via 192.0.2.2
+  Extended Community: RT:65000:100
+  MPLS label: 24001
+
+# Output abbreviato e illustrativo: forma e campi cambiano per release.</code></pre></div>
+      </section>
+
+      <section id="limiti" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>12</p></div><div class="section-copy"><h5 class="section-kicker">Che cosa non risolve</h5><h2>Separazione logica non significa sicurezza completa</h2><div class="section-intro"><p>Una BGP/MPLS Layer 3 Virtual Private Network (L3VPN) separa routing e forwarding, ma dipende da configurazione, capacità del backbone e controllo operativo. La parola «privata» non deve essere interpretata come sinonimo automatico di cifratura, autenticazione o banda garantita.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">POLICY</h5><h3>Un RT errato può creare una route leak</h3><p>L’importazione indesiderata espone raggiungibilità a una VRF non prevista. Template, validazione e limiti di prefissi riducono il rischio, ma non eliminano la necessità di controllo.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">RISERVATEZZA</h5><h3>MPLS VPN non cifra il payload</h3><p>Chi richiede confidenzialità crittografica deve aggiungere meccanismi appropriati, per esempio Internet Protocol Security, secondo architettura e minacce.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">CAPACITÀ</h5><h3>Le label non riservano banda</h3><p>Qualità del servizio, Traffic Engineering, protezione e convergenza sono problemi correlati ma distinti. Una VPN raggiungibile può comunque subire congestione.</p></article>
+        </div>
+        <div class="u9-two-lanes">
+          <div><b>CONTROL PLANE COERENTE, DATA PLANE ROTTO</b><p>La rotta VPNv4 può essere importata correttamente mentre manca una label di trasporto verso il next hop o la Maximum Transmission Unit non ammette l’overhead dello stack.</p></div>
+          <div><b>DATA PLANE PRONTO, ROTTA ASSENTE</b><p>Il Label Switched Path verso PE-B può funzionare mentre un RT sbagliato o una sessione MP-BGP inattiva impedisce l’installazione della rotta cliente.</p></div>
+        </div>
+      </section>
+
+      <section id="glossario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>13</p></div><div class="section-copy"><h5 class="section-kicker">Glossario cumulativo</h5><h2>Le sigle dell’Unità 9 e del percorso precedente</h2><div class="section-intro"><p>Le nuove sigle restano accanto a quelle necessarie per collegare service plane, control plane e data plane.</p></div></div></div>
+        <dl class="glossary">
+          <dt>MP-BGP — Multiprotocol Border Gateway Protocol</dt><dd>Estensioni di BGP che permettono di scambiare famiglie di NLRI differenti, tra cui rotte VPNv4 etichettate.</dd>
+          <dt>VRF — Virtual Routing and Forwarding</dt><dd>Contesto separato di routing e forwarding sul PE; dà significato locale ai prefissi del cliente.</dd>
+          <dt>RD — Route Distinguisher</dt><dd>Valore di 8 ottetti che rende distinguibili rotte VPN con prefissi IPv4 sovrapposti; non esprime policy di importazione.</dd>
+          <dt>RT — Route Target</dt><dd>BGP Extended Community usata per le policy di esportazione e importazione delle rotte nelle VRF.</dd>
+          <dt>VPNv4 — Virtual Private Network IPv4</dt><dd>Famiglia di rotte che combina Route Distinguisher e prefisso IPv4; nelle L3VPN viene distribuita con una label MPLS.</dd>
+          <dt>AFI / SAFI — Address Family Identifier / Subsequent Address Family Identifier</dt><dd>Coppia che identifica la famiglia e la semantica della NLRI in MP-BGP.</dd>
+          <dt>MP_REACH_NLRI / MP_UNREACH_NLRI</dt><dd>Attributi BGP multiprotocol che annunciano, con next hop, o ritirano raggiungibilità di una famiglia.</dd>
+          <dt>L3VPN — Layer 3 Virtual Private Network</dt><dd>Servizio VPN nel quale il provider esegue routing IP cliente in contesti separati.</dd>
+          <dt>L2VPN — Layer 2 Virtual Private Network</dt><dd>Servizio VPN che offre connettività di collegamento e trasporta trame secondo il modello L2 adottato.</dd>
+          <dt>CE / PE / P — Customer Edge / Provider Edge / Provider</dt><dd>Router del cliente al confine / router di bordo del provider / router interno del backbone.</dd>
+          <dt>VPN — Virtual Private Network</dt><dd>Servizio che separa logicamente connettività e informazioni di uno o più gruppi su un’infrastruttura condivisa.</dd>
+          <dt>NLRI — Network Layer Reachability Information</dt><dd>Informazione di raggiungibilità annunciata da BGP; il significato dipende dalla famiglia AFI/SAFI.</dd>
+          <dt>BGP — Border Gateway Protocol</dt><dd>Protocollo di control plane che scambia raggiungibilità e attributi fra peer.</dd>
+          <dt>RR — Route Reflector</dt><dd>Peer iBGP che riflette rotte ai client e riduce il full mesh; può trasportare anche la famiglia VPNv4.</dd>
+          <dt>eBGP / iBGP — External / Internal Border Gateway Protocol</dt><dd>Sessioni BGP fra Autonomous System differenti / entro lo stesso Autonomous System.</dd>
+          <dt>AS — Autonomous System</dt><dd>Dominio amministrativo identificato da un numero e governato da una politica di routing comune.</dd>
+          <dt>AS_PATH — Autonomous System Path</dt><dd>Attributo BGP con la sequenza di AS associata a un annuncio.</dd>
+          <dt>NEXT_HOP — Next Hop</dt><dd>Indirizzo che deve essere raggiungibile per usare una rotta BGP o MP-BGP.</dd>
+          <dt>LOCAL_PREF — Local Preference</dt><dd>Attributo BGP usato all’interno di un AS per preferire una rotta.</dd>
+          <dt>MED — Multi-Exit Discriminator</dt><dd>Attributo BGP facoltativo che suggerisce un punto d’ingresso a un AS vicino.</dd>
+          <dt>COMMUNITIES — BGP Communities Attribute</dt><dd>Valori associati alle rotte per applicare policy; i Route Target sono una categoria di Extended Community.</dd>
+          <dt>TCP — Transmission Control Protocol</dt><dd>Protocollo di trasporto orientato alla connessione; trasporta la sessione BGP sulla porta 179.</dd>
+          <dt>IP / IPv4 / IPv6 — Internet Protocol</dt><dd>Protocollo di rete e sue versioni 4 e 6; il datagramma cliente resta distinto dalle rotte VPN distribuite.</dd>
+          <dt>MPLS — Multiprotocol Label Switching</dt><dd>Inoltro mediante label; nel servizio L3VPN usa tipicamente una label di trasporto e una di servizio.</dd>
+          <dt>Label di trasporto / label di servizio</dt><dd>Label esterna che conduce al PE remoto / label interna che seleziona un’azione di forwarding sul PE di uscita.</dd>
+          <dt>IGP — Interior Gateway Protocol</dt><dd>Famiglia di protocolli che rende raggiungibili link e loopback all’interno del dominio provider.</dd>
+          <dt>OSPF — Open Shortest Path First</dt><dd>IGP link-state studiato nell’Unità 5; può essere usato nell’underlay o, con regole specifiche, fra PE e CE.</dd>
+          <dt>IS-IS — Intermediate System to Intermediate System</dt><dd>IGP link-state alternativo diffuso nei backbone dei provider.</dd>
+          <dt>RIB / FIB — Routing / Forwarding Information Base</dt><dd>Informazioni del control plane sulle rotte / strutture pronte per il lookup nel data plane.</dd>
+          <dt>LIB / LFIB — Label / Label Forwarding Information Base</dt><dd>Associazioni di controllo delle label / azioni pronte per inoltrare pacchetti MPLS.</dd>
+          <dt>FEC — Forwarding Equivalence Class</dt><dd>Classe di pacchetti che riceve lo stesso trattamento di inoltro MPLS.</dd>
+          <dt>LSP — Label Switched Path</dt><dd>Percorso unidirezionale seguito tramite operazioni sulle label.</dd>
+          <dt>LDP — Label Distribution Protocol</dt><dd>Protocollo che distribuisce binding di label seguendo normalmente i next hop dell’IGP.</dd>
+          <dt>RSVP-TE — Resource Reservation Protocol - Traffic Engineering</dt><dd>Segnalazione di LSP con percorsi, vincoli e prenotazione di risorse.</dd>
+          <dt>SR-MPLS — Segment Routing with the MPLS Data Plane</dt><dd>Segment Routing realizzato con uno stack di label MPLS.</dd>
+          <dt>PHP — Penultimate Hop Popping</dt><dd>Rimozione della label di trasporto sul penultimo router prima del PE di uscita.</dd>
+          <dt>MTU — Maximum Transmission Unit</dt><dd>Dimensione massima dell’unità dati su un collegamento; lo stack MPLS aggiunge overhead.</dd>
+          <dt>MAC — Media Access Control</dt><dd>Indirizzo o sottolivello usato per la consegna della trama sul collegamento locale.</dd>
+          <dt>PDU — Protocol Data Unit</dt><dd>Termine generale per l’unità dati di un protocollo a uno specifico livello.</dd>
+          <dt>CEF — Cisco Express Forwarding</dt><dd>Implementazione Cisco del forwarding ottimizzato basata anche su FIB e adiacenze.</dd>
+          <dt>BFD — Bidirectional Forwarding Detection</dt><dd>Meccanismo per rilevare rapidamente guasti del percorso di forwarding.</dd>
+          <dt>RFC — Request for Comments</dt><dd>Serie di documenti tecnici che comprende le specifiche di MP-BGP e BGP/MPLS IP VPN.</dd>
+        </dl>
+      </section>
+
+      <section id="autoverifica" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>14</p></div><div class="section-copy"><h5 class="section-kicker">Verifica finale</h5><h2>Domande di orientamento</h2><div class="section-intro"><p>Rispondi prima di aprire la spiegazione. Ogni domanda collega almeno due componenti dell’architettura.</p></div></div></div>
+        <div class="quiz">
+          <details><summary>1. Perché due clienti possono usare entrambi <code>10.10.10.0/24</code> sullo stesso PE?</summary><p>Le interfacce sono associate a VRF differenti. Il lookup avviene nel contesto selezionato all’ingresso, quindi lo stesso prefisso può avere next hop e significati diversi.</p></details>
+          <details><summary>2. Il Route Distinguisher decide quali VRF importano una rotta?</summary><p>No. Il RD rende distinguibile la rotta VPNv4. Sono i Route Target e le policy di importazione a decidere in quali VRF la rotta può entrare.</p></details>
+          <details><summary>3. Perché RD e RT non sono intercambiabili anche se possono essere scritti entrambi come <code>65000:100</code>?</summary><p>La notazione simile non cambia la funzione: il RD fa parte della chiave VPNv4 che disambigua il prefisso; il RT è una Extended Community interpretata dalla policy.</p></details>
+          <details><summary>4. Quale informazione aggiunge MP-BGP rispetto a un annuncio IPv4 unicast ordinario in questo servizio?</summary><p>Distribuisce una NLRI della famiglia VPNv4, che include RD e prefisso ed è legata a una label MPLS; porta inoltre il Route Target fra gli attributi e un next hop PE.</p></details>
+          <details><summary>5. MP-BGP crea automaticamente la VRF BLU sui PE?</summary><p>No. La VRF e le sue policy sono configurazioni locali. MP-BGP distribuisce rotte e attributi; la VRF importa soltanto ciò che la propria policy ammette.</p></details>
+          <details><summary>6. Chi sceglie la label di servizio 24001 e chi la annuncia?</summary><p>Il PE di uscita la alloca e le associa un’azione locale; MP-BGP pubblicizza il binding insieme alla rotta VPNv4 e al next hop.</p></details>
+          <details><summary>7. Perché servono due label nel core dell’esempio?</summary><p>La label esterna porta il pacchetto fino al PE remoto seguendo l’underlay MPLS. Quella interna conserva l’informazione di servizio necessaria al PE di uscita.</p></details>
+          <details><summary>8. P1 deve conoscere <code>10.20.20.0/24</code> per fare swap 18 → 27?</summary><p>No. P1 consulta la label esterna nella LFIB. La rotta cliente resta sui PE; è questo il principio del core BGP-free.</p></details>
+          <details><summary>9. P1 può materialmente ricevere nello stack la label interna senza usarla?</summary><p>Sì. La label 24001 è sotto quella di trasporto. P1 decide sulla label superiore; non deve interpretare la label interna per inoltrare il pacchetto.</p></details>
+          <details><summary>10. Che cosa accade con Penultimate Hop Popping sul P2?</summary><p>P2 rimuove la label esterna 27 prima dell’uscita. Sul link finale verso PE-B resta superiore la label di servizio 24001, che PE-B può interpretare.</p></details>
+          <details><summary>11. Una rotta VPNv4 è presente su PE-A ma non nella VRF BLU. Qual è il primo confronto di policy?</summary><p>Confrontare i Route Target della rotta con gli import RT della VRF BLU, oltre a eventuali filtri. La presenza nella tabella VPNv4 non garantisce l’importazione.</p></details>
+          <details><summary>12. Perché una rotta correttamente importata può ancora non inoltrare traffico?</summary><p>Il next hop PE può essere irraggiungibile, la catena MPLS di trasporto può mancare, la FIB/LFIB può non essere programmata oppure il link di accesso può essere guasto.</p></details>
+          <details><summary>13. Un Route Target condiviso fra Blu e Ambra distrugge necessariamente tutto l’isolamento?</summary><p>No: può realizzare un’extranet controllata per rotte specifiche. Diventa un problema se la condivisione è involontaria o più ampia della policy prevista.</p></details>
+          <details><summary>14. Qual è la differenza essenziale fra L3VPN e L2VPN per il cliente?</summary><p>Nella L3VPN il PE instrada datagrammi IP in una VRF e può scambiare rotte con il CE. Una L2VPN offre invece un servizio di collegamento che trasporta trame secondo il modello adottato.</p></details>
+          <details><summary>15. MPLS L3VPN protegge il contenuto con cifratura?</summary><p>No. Fornisce separazione logica di routing e forwarding. La riservatezza crittografica richiede meccanismi aggiuntivi quando prevista dai requisiti.</p></details>
+          <details><summary>16. Quali quattro frasi riassumono la cooperazione dei componenti?</summary><p>MP-BGP indica quale PE possiede la rotta cliente; l’IGP rende raggiungibile quel PE; MPLS trasporta il pacchetto; la VRF mantiene separato il contesto.</p></details>
+        </div>
+      </section>
+
+      <div class="closing"><h5 class="section-kicker">Punto di arrivo dell’Unità 9</h5><h2>La separazione nasce al bordo e attraversa il core come uno stack.</h2><p>La VRF separa le tabelle, il Route Distinguisher rende univoche le rotte sovrapposte e il Route Target governa l’importazione. MP-BGP distribuisce fra i PE la rotta VPNv4, gli attributi e la label di servizio; l’underlay raggiunge il next hop e la label esterna trasporta il pacchetto. I router P restano indipendenti dalle rotte cliente. Nell’Unità 10 seguiremo l’intero datagramma da host a host, campo per campo e dispositivo per dispositivo.</p></div>
+      <div class="sources"><p><strong>Riferimenti essenziali:</strong><br><a href="https://www.rfc-editor.org/rfc/rfc4364.html">RFC 4364 — BGP/MPLS IP Virtual Private Networks</a> · <a href="https://www.rfc-editor.org/rfc/rfc4760.html">RFC 4760 — Multiprotocol Extensions for BGP-4</a> · <a href="https://www.rfc-editor.org/rfc/rfc8277.html">RFC 8277 — Using BGP to Bind MPLS Labels to Address Prefixes</a> · <a href="https://www.rfc-editor.org/rfc/rfc4360.html">RFC 4360 — BGP Extended Communities</a> · <a href="https://www.rfc-editor.org/rfc/rfc3031.html">RFC 3031 — Multiprotocol Label Switching Architecture</a> · <a href="https://www.rfc-editor.org/rfc/rfc4026.html">RFC 4026 — Provider Provisioned Virtual Private Network Terminology</a> · <a href="https://www.cisco.com/c/en/us/td/docs/routers/asr9000/software/26xx/l3vpn/configuration/guide/b-l3vpn-cg-asr9000-26xx.html">Cisco IOS XR — MPLS Layer 3 VPN Configuration Guide</a></p></div>
+    </main>
+    <footer><span>NETWORKING ACADEMY · UNITÀ 9</span><span>Dal dato del cliente al backbone del Service Provider</span></footer>
+  </div>
+  <script src="assets/unita-09.js?v=1"></script>
+</body>
+</html>

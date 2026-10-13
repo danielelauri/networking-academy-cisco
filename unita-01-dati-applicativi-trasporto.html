@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>Unità 1 — Dati applicativi e protocolli di trasporto</title>
+  <link rel="stylesheet" href="assets/corso.css">
+  <link rel="stylesheet" href="assets/unita-01.css">
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand"><span class="brand-mark">N1</span> Networking Academy</div>
+      <div class="progress-label">Unità 1 di 12</div>
+    </div>
+
+    <header class="hero">
+      <div>
+        <p class="kicker">Dal dato del cliente al backbone del Service Provider</p>
+        <h1>Dal dato al <span>trasporto</span></h1>
+        <p class="hero-lead"><strong>Domanda guida:</strong> che cosa consegna l'applicazione alla rete e come viene preparato per il trasporto? Seguiremo 4.000 byte dall'applicazione fino al datagramma Internet Protocol, senza chiamare “pacchetto” qualsiasi cosa.</p>
+      </div>
+
+      <div class="hero-flow" aria-label="Percorso dal dato applicativo al datagramma IP">
+        <div class="flow-title">Prima discesa nello stack</div>
+        <div class="flow-step"><span class="flow-index">01</span><div class="flow-bar f-app">Dati applicativi<small>byte prodotti o consumati dal programma</small></div></div>
+        <div class="flow-step"><span class="flow-index">02</span><div class="flow-bar f-socket">Socket + endpoint<small>protocollo, indirizzi Internet Protocol e porte</small></div></div>
+        <div class="flow-step"><span class="flow-index">03</span><div class="flow-bar f-transport">Transmission Control Protocol (TCP) oppure User Datagram Protocol (UDP)<small>segmento TCP o datagramma UDP</small></div></div>
+        <div class="flow-step"><span class="flow-index">04</span><div class="flow-bar f-ip">Internet Protocol (IP)<small>datagramma IP da consegnare alla rete</small></div></div>
+      </div>
+    </header>
+
+    <nav class="quick-nav" aria-label="Indice dell'unità">
+      <a href="#problema">01 · Problema</a>
+      <a href="#estremi">02 · Estremi</a>
+      <a href="#tcp">03 · TCP</a>
+      <a href="#udp">04 · UDP</a>
+      <a href="#dimensioni">05 · Dimensioni</a>
+      <a href="#affidabilita">06 · Affidabilità</a>
+      <a href="#rete">07 · Nella rete</a>
+      <a href="#glossario">08 · Glossario</a>
+      <a href="#verifica">09 · Verifica</a>
+    </nav>
+
+    <main>
+      <section id="problema">
+        <div class="section-head">
+          <div class="section-number">01</div>
+          <div>
+            <p class="section-kicker">Problema originario</p>
+            <h2>Un indirizzo di host non basta</h2>
+            <p class="section-intro">Internet Protocol può portare un datagramma all'host giusto. Sullo stesso host, però, browser, Domain Name System (DNS), telefonia e trasferimento file devono ricevere i dati destinati proprio a loro.</p>
+          </div>
+        </div>
+
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">{ }</div><h3>Quale processo?</h3><p>L'indirizzo Internet Protocol identifica un'interfaccia o un nodo logico. La <strong>porta</strong> consente al trasporto di consegnare i dati al processo corretto.</p><div class="token-list"><span class="token">porta sorgente</span><span class="token">porta destinazione</span></div></article>
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">1→2</div><h3>Quale ordine?</h3><p>La rete può perdere, duplicare o riordinare datagrammi. Alcune applicazioni richiedono che i byte riemergano integri e nello stesso ordine.</p><div class="token-list"><span class="token">sequenza</span><span class="token">riscontro</span><span class="token">ritrasmissione</span></div></article>
+          <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">⌁</div><h3>Quale compromesso?</h3><p>Altre applicazioni preferiscono poco overhead e controllo proprio dei tempi, accettando di gestire perdite e ritardi a un livello superiore.</p><div class="token-list"><span class="token">semplicità</span><span class="token">latenza</span><span class="token">controllo applicativo</span></div></article>
+        </div>
+
+        <div class="core-insight"><strong>Il livello di trasporto risolve la comunicazione fra processi.</strong><br>Transmission Control Protocol e User Datagram Protocol usano entrambi le porte, ma offrono servizi differenti all'applicazione. Non scelgono il percorso nel backbone e non sostituiscono Internet Protocol.</div>
+
+        <div class="cards-2">
+          <article class="protocol-card" style="--accent: var(--green)"><div class="card-icon">TCP</div><h3>Transmission Control Protocol</h3><p>Offre un flusso di byte affidabile, ordinato, full-duplex e orientato alla connessione. Mantiene stato agli estremi e controlla sia il ricevitore sia la congestione della rete.</p></article>
+          <article class="protocol-card" style="--accent: var(--amber)"><div class="card-icon">UDP</div><h3>User Datagram Protocol</h3><p>Offre datagrammi indipendenti con porte e checksum, senza stabilire una connessione e senza garantire consegna, ordine o assenza di duplicati.</p></article>
+        </div>
+      </section>
+
+      <section id="estremi">
+        <div class="section-head">
+          <div class="section-number">02</div>
+          <div>
+            <p class="section-kicker">Dall'applicazione al protocollo</p>
+            <h2>Socket, indirizzi, porte e connessioni non sono sinonimi</h2>
+            <p class="section-intro">Il socket è un oggetto software creato e gestito dal sistema operativo; l'applicazione lo usa tramite un'Application Programming Interface (API). Quando gli estremi sono definiti, collega protocollo di trasporto, indirizzi Internet Protocol e porte.</p>
+          </div>
+        </div>
+
+        <div class="pipeline-wrap">
+          <div class="figure-title"><strong>Consegna fra due processi</strong><span>il router non è un estremo TCP ordinario</span></div>
+          <div class="pipeline" aria-label="Applicazione socket porta TCP IP e host remoto">
+            <div class="pipe-node" style="--node-color: var(--purple)"><b>FileZilla</b><small>dati applicativi</small></div>
+            <div class="pipe-node" style="--node-color: var(--cyan)"><b>socket</b><small>gestito dal sistema operativo: Windows, macOS o Linux</small></div>
+            <div class="pipe-node" style="--node-color: var(--green)"><b>TCP :49152</b><small>porta locale d'esempio</small></div>
+            <div class="pipe-node" style="--node-color: var(--blue)"><b>IP</b><small>host A → host B</small></div>
+            <div class="pipe-node" style="--node-color: var(--blue)"><b>rete</b><small>router e collegamenti</small></div>
+            <div class="pipe-node" style="--node-color: var(--green)"><b>TCP :21</b><small>porta servizio d'esempio</small></div>
+            <div class="pipe-node" style="--node-color: var(--purple)"><b>server File Transfer Protocol (FTP)</b><small>processo ricevente</small></div>
+          </div>
+          <div class="callout"><strong>FTP come esempio, non come regola universale.</strong> File Transfer Protocol in modalità passiva usa una connessione TCP di controllo e una connessione TCP dati distinta. “Sessione applicativa” può quindi comprendere più connessioni TCP; una connessione TCP, a sua volta, trasporta molti segmenti.</div>
+        </div>
+
+        <div class="lab">
+          <div class="figure-title"><strong>I due endpoint della connessione</strong><span>valori d'esempio, non indirizzi pubblici reali</span></div>
+          <div class="endpoint-path" aria-label="Connessione TCP fra endpoint locale 192.0.2.10 porta 49152 ed endpoint remoto 198.51.100.20 porta 21">
+            <div class="endpoint-card" style="--endpoint-color: var(--cyan)">
+              <span class="endpoint-role">Endpoint locale · client</span>
+              <div class="endpoint-app">FileZilla</div>
+              <div class="endpoint-address"><span class="ip-value">192.0.2.10</span><span class="port-value">:49152</span></div>
+              <small>L'indirizzo sorgente può essere scelto dal sistema operativo in base all'uscita; la porta client è normalmente effimera.</small>
+            </div>
+            <div class="endpoint-link">protocollo<strong>TCP →</strong>connessione</div>
+            <div class="endpoint-card" style="--endpoint-color: var(--purple)">
+              <span class="endpoint-role">Endpoint remoto · server</span>
+              <div class="endpoint-app">Servizio File Transfer Protocol</div>
+              <div class="endpoint-address"><span class="ip-value">198.51.100.20</span><span class="port-value">:21</span></div>
+              <small>L'applicazione può partire da un nome; la risoluzione Domain Name System restituisce uno o più indirizzi utilizzabili.</small>
+            </div>
+          </div>
+
+          <div class="tuple-strip" aria-label="Cinque elementi che identificano il flusso TCP d'esempio">
+            <div class="tuple-field" style="--tuple-color: var(--amber)"><b>TCP</b><small>protocollo</small></div>
+            <div class="tuple-field" style="--tuple-color: var(--blue)"><b>192.0.2.10</b><small>indirizzo IP sorgente</small></div>
+            <div class="tuple-field" style="--tuple-color: var(--green)"><b>49152</b><small>porta sorgente</small></div>
+            <div class="tuple-field" style="--tuple-color: var(--blue)"><b>198.51.100.20</b><small>indirizzo IP destinazione</small></div>
+            <div class="tuple-field" style="--tuple-color: var(--green)"><b>21</b><small>porta destinazione</small></div>
+          </div>
+          <p class="tuple-note"><strong>5-tupla didattica:</strong> protocollo + quattro valori dei due endpoint. Per una connessione TCP, dato per implicito il protocollo TCP, si parla spesso di 4-tupla: indirizzo e porta locali, indirizzo e porta remoti.</p>
+        </div>
+
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--cyan)"><div class="card-icon">1</div><h3>Creazione</h3><p>L'applicazione chiede al sistema operativo di creare un socket tramite le sue API. Indica almeno la famiglia di indirizzi e il tipo di trasporto; Windows, macOS o Linux crea la struttura e la mantiene nel proprio stack di rete.</p></article>
+          <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">2</div><h3>Associazione</h3><p>Un server usa normalmente <code>bind()</code> per dichiarare indirizzo e porta locali. Un client indica la destinazione con <code>connect()</code>; se non ha eseguito un bind esplicito, il sistema operativo può scegliere indirizzo sorgente e porta effimera.</p></article>
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">3</div><h3>Trasmissione</h3><p>Gli indirizzi diventano campi dell'header Internet Protocol e le porte campi dell'header TCP o UDP. Il socket resta invece una struttura locale del sistema operativo: non viene inserito nella trama o nel datagramma.</p></article>
+        </div>
+
+        <div class="pipeline-wrap" id="chi-sceglie-le-porte">
+          <div class="figure-title"><strong>Chi sceglie le porte?</strong><span>server fisso, client effimero</span></div>
+          <div class="compare-table" aria-label="Chi sceglie le porte di server, client e dispositivi intermedi">
+            <div class="table-head">Porta</div><div class="table-head">Chi la sceglie</div><div class="table-head">Valori tipici</div>
+            <div class="table-cell"><strong>Porta di ascolto del server</strong></div><div class="table-cell">Chi configura l'applicazione server, con <code>bind()</code>. Per convenzione si usa la porta registrata presso l'Internet Assigned Numbers Authority (IANA), così il client sa dove rivolgersi senza doverlo chiedere.</div><div class="table-cell">Hypertext Transfer Protocol (HTTP) TCP 80; HTTP Secure (HTTPS) TCP 443, e UDP 443 con HTTP/3; FTP TCP 21 per i comandi; Session Initiation Protocol (SIP) 5060 su UDP o TCP, 5061 con Transport Layer Security (TLS). È una convenzione, non un obbligo: un server web può ascoltare anche su 8080.</div>
+            <div class="table-cell"><strong>Porta sorgente del client</strong></div><div class="table-cell">Il sistema operativo del client, in automatico, quando l'applicazione chiama <code>connect()</code> senza un <code>bind()</code> esplicito. È una porta effimera, valida solo per quella connessione.</div><div class="table-cell">Intervallo IANA 49152–65535, usato di default anche da Windows e macOS; Linux usa di default 32768–60999.</div>
+            <div class="table-cell"><strong>Porta dopo Network Address Translation (NAT)</strong></div><div class="table-cell">Il dispositivo che esegue Port Address Translation (PAT), spesso il Customer Edge: riscrive indirizzo e porta sorgente del client e ricorda l'associazione per tradurre le risposte.</div><div class="table-cell">Una porta scelta dal dispositivo NAT; il server vede indirizzo e porta del router, non quelli originali dell'host.</div>
+            <div class="table-cell"><strong>Porte dinamiche aggiuntive</strong></div><div class="table-cell">Gli estremi stessi, negoziandole dentro la connessione di controllo.</div><div class="table-cell">Dati FTP: in modalità passiva una porta del server comunicata con il comando PASV; in modalità attiva il server si collega al client partendo dalla porta 20. Voce su SIP: porte Real-time Transport Protocol (RTP) concordate con il Session Description Protocol (SDP), sui gateway Cisco tipicamente fra 16384 e 32767.</div>
+          </div>
+          <div class="callout"><strong>La porta fissa del server non crea conflitti.</strong> Il server risponde dalla propria porta di ascolto verso la porta effimera del client: mille browser possono usare contemporaneamente la porta 443 dello stesso server, perché ogni connessione è distinta dalla 4-tupla. Quando invece un protocollo annuncia porte dinamiche dentro la propria segnalazione, come FTP o SIP, firewall e NAT devono leggere quella segnalazione per aprire o tradurre le porte giuste: è il compito delle Application Layer Gateway (ALG).</div>
+        </div>
+
+        <div class="callout"><strong>Anche UDP possiede endpoint.</strong> Un socket UDP può essere associato a un indirizzo e a una porta locali e può anche usare <code>connect()</code> per fissare un peer predefinito. Questo non trasforma User Datagram Protocol in un servizio affidabile o orientato alla connessione come TCP.</div>
+
+        <div class="compare-table" aria-label="Distinzione fra dati applicativi socket porta connessione e unità di trasporto">
+          <div class="table-head">Concetto</div><div class="table-head">Che cos'è</div><div class="table-head">Che cosa non è</div>
+          <div class="table-cell"><strong>Dati applicativi</strong></div><div class="table-cell">Il contenuto che il programma vuole scambiare: per esempio un messaggio, un comando, una richiesta, una risposta, un file o una sua porzione, un record oppure dati audio/video.</div><div class="table-cell">Non hanno ancora un header TCP o UDP; per lo stack di rete sono byte da trasportare, non il loro significato applicativo.</div>
+          <div class="table-cell"><strong>Socket</strong></div><div class="table-cell">Un oggetto creato e gestito dallo stack di rete del sistema operativo — per esempio Windows, macOS o Linux — su richiesta dell'applicazione tramite API. Conserva protocollo e, quando assegnati, endpoint locale e remoto.</div><div class="table-cell">Non è un campo trasmesso nella rete. L'applicazione ne controlla il ciclo di vita tramite API, ma non manipola direttamente la struttura interna mantenuta dal sistema operativo.</div>
+          <div class="table-cell"><strong>Endpoint</strong></div><div class="table-cell">La coppia indirizzo Internet Protocol + porta a un estremo della comunicazione.</div><div class="table-cell">Non coincide con il solo host o con la sola porta.</div>
+          <div class="table-cell"><strong>Porta</strong></div><div class="table-cell">Un identificatore a 16 bit presente nell'header TCP o UDP.</div><div class="table-cell">Non identifica da sola una connessione completa.</div>
+          <div class="table-cell"><strong>Connessione TCP</strong></div><div class="table-cell">Stato identificato dai due endpoint; con il protocollo esplicito forma la 5-tupla.</div><div class="table-cell">Non coincide con un singolo segmento.</div>
+          <div class="table-cell"><strong>Segmento / datagramma</strong></div><div class="table-cell">Una singola Protocol Data Unit del trasporto.</div><div class="table-cell">Non coincide necessariamente con un messaggio applicativo.</div>
+        </div>
+      </section>
+
+      <section id="tcp">
+        <div class="section-head">
+          <div class="section-number">03</div>
+          <div>
+            <p class="section-kicker">Trasporto affidabile</p>
+            <h2>TCP vede un flusso di byte</h2>
+            <p class="section-intro">Transmission Control Protocol offre all'applicazione un flusso ordinato di byte. Il TCP mittente preleva porzioni del flusso e le inserisce come payload in segmenti; il TCP ricevente usa le posizioni dei byte per ricostruire un flusso continuo, non i messaggi applicativi originari.</p>
+          </div>
+        </div>
+
+        <div class="lab">
+          <div class="figure-title"><strong>Anatomia funzionale dell'header TCP</strong><span>seleziona un gruppo di campi</span></div>
+          <div class="button-row" role="group" aria-label="Gruppi di campi TCP">
+            <button type="button" data-header="ports" aria-pressed="true">Porte</button>
+            <button type="button" data-header="sequence" aria-pressed="false">Sequenza e riscontro</button>
+            <button type="button" data-header="control" aria-pressed="false">Controllo</button>
+            <button type="button" data-header="check" aria-pressed="false">Checksum</button>
+          </div>
+          <div class="header-strip" aria-label="Header TCP semplificato e payload">
+            <div class="field field-port">porta sorgente<small>16 bit</small></div>
+            <div class="field field-port">porta destinazione<small>16 bit</small></div>
+            <div class="field field-seq">sequence number<small>32 bit</small></div>
+            <div class="field field-seq">acknowledgment number<small>32 bit</small></div>
+            <div class="field field-control">offset + flag + window<small>controllo</small></div>
+            <div class="field field-check">checksum + urgent pointer<small>integrità e controllo</small></div>
+            <div class="field field-control">opzioni<small>lunghezza variabile</small></div>
+            <div class="field field-data">dati applicativi<small>payload TCP</small></div>
+          </div>
+          <div class="header-explanation"><strong id="headerTitle">Porte sorgente e destinazione</strong><span id="headerText">Permettono al sistema operativo di associare il segmento ai processi corretti. La porta sorgente è spesso effimera; la destinazione può essere una porta nota del servizio, ma il numero da solo non descrive l'intera connessione.</span></div>
+        </div>
+
+        <div class="pipeline-wrap">
+          <div class="figure-title"><strong>Tre operazioni da non confondere</strong><span>selezione, ricomposizione e interpretazione</span></div>
+          <div class="cards-3">
+            <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">5T</div><h3>1 · Demultiplexing</h3><p>Protocollo, indirizzi Internet Protocol e porte — la 5-tupla — permettono al sistema operativo di individuare il socket a cui appartiene il traffico.</p></article>
+            <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">SEQ</div><h3>2 · Sequence Number (SEQ)</h3><p>Il Sequence Number indica la posizione nel flusso del primo byte del payload. La lunghezza del payload determina l'intervallo occupato dal segmento.</p></article>
+            <article class="info-card" style="--accent: var(--green)"><div class="card-icon">APP</div><h3>3 · Applicazione (APP)</h3><p>Il protocollo applicativo interpreta il flusso e riconosce messaggi, comandi o record usando delimitatori, campi lunghezza o altre proprie regole.</p></article>
+          </div>
+
+          <div class="math-line" aria-label="Esempio di intervalli del flusso TCP per 4000 byte applicativi">
+            <span class="math-token">flusso: 4.000 byte</span><span>→</span>
+            <span class="math-token hot">SEQ 1 · 1.460 B</span><span>→</span>
+            <span class="math-token hot">SEQ 1.461 · 1.460 B</span><span>→</span>
+            <span class="math-token hot">SEQ 2.921 · 1.080 B</span><span>→</span>
+            <span class="math-token">Acknowledgment (ACK) 4.001</span>
+          </div>
+          <div class="callout"><strong>Il Sequence Number non è il numero progressivo del segmento.</strong> Nell'esempio, semplificato ponendo a 1 la posizione del primo byte applicativo, i tre segmenti occupano rispettivamente gli intervalli 1–1.460, 1.461–2.920 e 2.921–4.000. Nell'header viene trasmessa la posizione del primo byte, non un numero separato accanto a ciascun byte. Il valore è a 32 bit e procede modulo 2<sup>32</sup>.</div>
+        </div>
+
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">#</div><h3>Ordine e affidabilità</h3><p>Ogni byte occupa logicamente una posizione nello spazio di sequenza. Il Sequence Number del segmento identifica il primo byte del payload; il riscontro indica normalmente la posizione del prossimo byte atteso.</p></article>
+          <article class="info-card" style="--accent: var(--cyan)"><div class="card-icon">↔</div><h3>Controllo di flusso</h3><p>La finestra annunciata limita quanti dati il mittente può avere in volo rispetto alla capacità dichiarata dal ricevitore.</p></article>
+          <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">⇣</div><h3>Controllo di congestione</h3><p>Meccanismi del mittente limitano il traffico in base ai segnali della rete. La congestion window non è un campo dell'header.</p></article>
+        </div>
+
+        <div class="core-insight"><strong>Affidabile non significa infallibile né istantaneo.</strong><br>TCP rileva perdite e corruzioni, ritrasmette e consegna in ordine oppure segnala un errore all'applicazione. Non può garantire che il server sia corretto, che la rete non si interrompa definitivamente o che una scadenza real-time venga rispettata.</div>
+      </section>
+
+      <section id="udp">
+        <div class="section-head">
+          <div class="section-number">04</div>
+          <div>
+            <p class="section-kicker">Trasporto minimale</p>
+            <h2>UDP conserva i confini dei datagrammi</h2>
+            <p class="section-intro">User Datagram Protocol aggiunge soltanto multiplexing tramite porte, lunghezza e controllo d'integrità. Ogni invio dell'applicazione produce un datagramma distinto.</p>
+          </div>
+        </div>
+
+        <div class="lab">
+          <div class="figure-title"><strong>Anatomia del datagramma UDP</strong><span>header fisso di 8 byte</span></div>
+          <div class="header-strip" style="min-width: 660px" aria-label="Header UDP e payload">
+            <div class="field field-port">porta sorgente<small>16 bit</small></div>
+            <div class="field field-port">porta destinazione<small>16 bit</small></div>
+            <div class="field field-control">lunghezza<small>header + dati</small></div>
+            <div class="field field-check">checksum<small>integrità</small></div>
+            <div class="field field-data">dati applicativi<small>un messaggio</small></div>
+          </div>
+          <div class="callout"><strong>Assenza di garanzie non significa assenza di controllo.</strong> L'applicazione può aggiungere propri numeri di sequenza, ritrasmissioni, correzione d'errore o cifratura. UDP semplicemente non impone questi comportamenti nel protocollo di trasporto. In IPv4 il valore zero può indicare checksum UDP non calcolato; in IPv6 il checksum UDP è normalmente obbligatorio.</div>
+        </div>
+
+        <div class="compare-table" aria-label="Confronto funzionale fra TCP e UDP">
+          <div class="table-head">Domanda</div><div class="table-head">TCP</div><div class="table-head">UDP</div>
+          <div class="table-cell"><strong>Prima di inviare?</strong></div><div class="table-cell">Stabilisce stato con un handshake.</div><div class="table-cell">Non stabilisce una connessione.</div>
+          <div class="table-cell"><strong>Unità vista dall'app?</strong></div><div class="table-cell">Flusso continuo di byte.</div><div class="table-cell">Datagrammi con confini conservati.</div>
+          <div class="table-cell"><strong>Perdita o riordino?</strong></div><div class="table-cell">Rilevazione, ritrasmissione e consegna ordinata.</div><div class="table-cell">Nessuna correzione fornita da UDP.</div>
+          <div class="table-cell"><strong>Regola il mittente?</strong></div><div class="table-cell">Controllo di flusso e congestione.</div><div class="table-cell">La responsabilità è dell'applicazione.</div>
+          <div class="table-cell"><strong>Overhead minimo?</strong></div><div class="table-cell">Header base di 20 byte, spesso con opzioni.</div><div class="table-cell">Header fisso di 8 byte.</div>
+          <div class="table-cell"><strong>Esempi tipici?</strong></div><div class="table-cell">Web tradizionale, posta, trasferimento file.</div><div class="table-cell">DNS, voce/video, telemetria; protocolli moderni possono aggiungere affidabilità sopra UDP.</div>
+        </div>
+
+        <div class="core-insight"><strong>La scelta non è “sicuro contro veloce”.</strong><br>È una scelta di servizio: flusso affidabile gestito dal sistema operativo oppure datagrammi indipendenti controllati dall'applicazione. Prestazioni e sicurezza dipendono anche dal protocollo applicativo, dalla rete e dall'implementazione.</div>
+      </section>
+
+      <section id="dimensioni">
+        <div class="section-head">
+          <div class="section-number">05</div>
+          <div>
+            <p class="section-kicker">Caso pratico · 4.000 byte</p>
+            <h2>Due limiti diversi per segmento e datagramma</h2>
+            <p class="section-intro">Maximum Transmission Unit (MTU) limita la dimensione del datagramma Internet Protocol su un collegamento. Maximum Segment Size (MSS) indica quanti byte di dati TCP l'estremo è disposto a ricevere in un singolo segmento. I calcoli usano Internet Protocol version 4 (IPv4).</p>
+          </div>
+        </div>
+
+        <div class="lab">
+          <div class="figure-title"><strong>Laboratorio di segmentazione TCP</strong><span>ipotesi: IPv4 e TCP senza opzioni</span></div>
+          <div class="segment-controls">
+            <label for="mssRange">Modifica la Maximum Segment Size: <strong><span id="mssValue">1460</span> byte</strong><input id="mssRange" type="range" min="500" max="1460" step="20" value="1460"></label>
+            <div class="metric" id="segmentCount">3 segmenti TCP</div>
+          </div>
+          <div class="math-line" aria-label="Calcolo MSS standard dell'esempio">
+            <span class="math-token">MTU 1.500</span><span>−</span><span class="math-token">IPv4 20</span><span>−</span><span class="math-token">TCP 20</span><span>=</span><span class="math-token hot">MSS 1.460 byte</span>
+          </div>
+          <div class="segment-track" id="segmentTrack" aria-live="polite"></div>
+          <div class="header-explanation"><strong id="segmentTitle">Con MSS 1.460: tre segmenti</strong><span id="segmentText">I payload sono 1.460 + 1.460 + 1.080 byte. Aggiungendo 20 byte TCP e 20 byte IPv4, i datagrammi IP misurano 1.500 + 1.500 + 1.120 byte.</span></div>
+        </div>
+
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">MTU</div><h3>Maximum Transmission Unit</h3><p>Ogni collegamento o interfaccia ha una MTU; la Path MTU è il minimo lungo il percorso. Nell'esempio Ethernet vale 1.500 byte per il datagramma IP.</p></article>
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">MSS</div><h3>Maximum Segment Size</h3><p>È un'opzione TCP annunciata durante l'handshake. Riguarda solo i byte di payload TCP, non gli header TCP e IP.</p></article>
+          <article class="info-card" style="--accent: var(--coral)"><div class="card-icon">⋮</div><h3>Frammentazione IP</h3><p>Non è segmentazione TCP. Spezza un datagramma IP dopo che il trasporto lo ha costruito; la perdita di un solo frammento compromette l'intero datagramma.</p></article>
+        </div>
+
+        <div class="callout"><strong>Lo stesso contenuto con UDP.</strong> Un unico payload UDP da 4.000 byte produrrebbe, con IPv4, un datagramma IP di 4.028 byte: troppo grande per la MTU 1.500 dell'esempio. L'applicazione può suddividerlo in payload fino a 1.472 byte (1.500 − 20 IPv4 − 8 UDP), ottenendo 1.472 + 1.472 + 1.056 byte, oppure rischiare la frammentazione IPv4. UDP non effettua autonomamente la segmentazione applicativa.</div>
+      </section>
+
+      <section id="affidabilita">
+        <div class="section-head">
+          <div class="section-number">06</div>
+          <div>
+            <p class="section-kicker">Sequence e acknowledgment</p>
+            <h2>TCP conferma byte, non “pacchetti”</h2>
+            <p class="section-intro">La seguente sequenza semplificata mostra perché un acknowledgment cumulativo può confermare più dati e come una perdita provochi una ritrasmissione.</p>
+          </div>
+        </div>
+
+        <div class="lab">
+          <div class="figure-title"><strong>Mini-simulazione di consegna affidabile</strong><span>SEQ = Sequence Number · LEN = Length · ACK = Acknowledgment</span></div>
+          <div class="button-row" role="group" aria-label="Passi della simulazione TCP">
+            <button type="button" data-seq-step="0" aria-pressed="true">1 · primo segmento</button>
+            <button type="button" data-seq-step="1" aria-pressed="false">2 · riscontro</button>
+            <button type="button" data-seq-step="2" aria-pressed="false">3 · perdita</button>
+            <button type="button" data-seq-step="3" aria-pressed="false">4 · ritrasmissione</button>
+            <button type="button" data-seq-step="4" aria-pressed="false">5 · ACK cumulativo</button>
+          </div>
+          <div class="sequence-stage">
+            <div class="endpoint"><b>Host A</b><small>mittente TCP</small></div>
+            <div class="wire">
+              <div class="message right" data-message="0">SEQ 1 · LEN 1.460</div>
+              <div class="message left" data-message="1">ACK 1.461</div>
+              <div class="message right lost" data-message="2">SEQ 1.461 · LEN 1.460 · perso</div>
+              <div class="message right" data-message="3">SEQ 1.461 · LEN 1.460 · ritrasmesso</div>
+              <div class="message left" data-message="4">ACK 2.921</div>
+            </div>
+            <div class="endpoint"><b>Host B</b><small>ricevitore TCP</small></div>
+          </div>
+          <div class="sequence-status"><strong id="sequenceTitle">Il primo segmento trasporta i byte 1–1.460</strong><span id="sequenceText">Il sequence number identifica il primo byte del payload contenuto nel segmento.</span></div>
+        </div>
+
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">3×</div><h3>Handshake</h3><p>Il flag Synchronize (SYN), la risposta SYN-ACK e l'ACK finale sincronizzano i numeri iniziali e negoziano opzioni. La connessione esiste logicamente fra i due stack TCP.</p></article>
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">ACK</div><h3>Riscontri cumulativi</h3><p>ACK 2.921 significa: “ho ricevuto in ordine tutto fino al byte 2.920; ora attendo 2.921”.</p></article>
+          <article class="info-card" style="--accent: var(--coral)"><div class="card-icon">↻</div><h3>Ritrasmissione</h3><p>Il Retransmission Timeout (RTO) e i riscontri duplicati possono indicare una perdita. I dettagli esatti dipendono dagli algoritmi TCP implementati.</p></article>
+        </div>
+      </section>
+
+      <section id="rete">
+        <div class="section-head">
+          <div class="section-number">07</div>
+          <div>
+            <p class="section-kicker">Data plane end-to-end</p>
+            <h2>Chi legge davvero le porte?</h2>
+            <p class="section-intro">TCP e UDP sono elaborati principalmente dagli host finali. I router ordinari inoltrano in base a Internet Protocol o alle label Multiprotocol Label Switching (MPLS), senza ricostruire la connessione di trasporto.</p>
+          </div>
+        </div>
+
+        <div class="pipeline-wrap">
+          <div class="figure-title"><strong>Scenario comune dell'intero corso</strong><span>verde: estremi del trasporto</span></div>
+          <div class="scope-topology" aria-label="Host A Switch CE-A PE-A P1 P2 PE-B CE-B Switch Host B">
+            <div class="scope-node endpoint-node"><b>Host A</b>TCP/UDP</div>
+            <div class="scope-node"><b>Switch</b>Layer 2</div>
+            <div class="scope-node"><b>CE-A</b>Customer Edge</div>
+            <div class="scope-node"><b>PE-A</b>Provider Edge</div>
+            <div class="scope-node"><b>P1</b>Provider</div>
+            <div class="scope-node"><b>P2</b>Provider</div>
+            <div class="scope-node"><b>PE-B</b>Provider Edge</div>
+            <div class="scope-node"><b>CE-B</b>Customer Edge</div>
+            <div class="scope-node"><b>Switch</b>Layer 2</div>
+            <div class="scope-node endpoint-node"><b>Host B</b>TCP/UDP</div>
+          </div>
+          <div class="plane-band"><strong>DATA PLANE</strong><p>I segmenti TCP e i datagrammi UDP trasportano direttamente dati del cliente. Il control plane non li crea per preparare le rotte: Open Shortest Path First (OSPF) e Border Gateway Protocol (BGP) svolgono un lavoro distinto.</p></div>
+        </div>
+
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--green)"><div class="card-icon">HOST</div><h3>Host finali</h3><p>Gestiscono porte, socket, stato TCP, checksum, segmentazione e consegna all'applicazione.</p></article>
+          <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">↪</div><h3>Router ordinari</h3><p>Inoltrano il datagramma o il pacchetto labeled. Possono leggere il campo Protocol di Internet Protocol, ma non agiscono come endpoint TCP.</p></article>
+          <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">◇</div><h3>Middlebox</h3><p>Firewall, Network Address Translation (NAT), bilanciatori e apparati di sicurezza possono ispezionare o modificare porte e stato. Sono un'importante eccezione operativa.</p></article>
+        </div>
+
+        <div class="pipeline-wrap" id="tcp-end-to-end">
+          <div class="figure-title"><strong>Chi governa davvero una connessione TCP?</strong><span>gli estremi, non la rete</span></div>
+          <div class="cards-3">
+            <article class="info-card" style="--accent: var(--green)"><div class="card-icon">2×</div><h3>Due estremi, non solo il client</h3><p>TCP lavora su entrambi gli endpoint: chi apre la connessione e chi la accetta. Entrambi numerano i byte, inviano riscontri, ritrasmettono e regolano la velocità di invio. La connessione è concordata fra i due stack con l'handshake SYN, SYN-ACK, ACK.</p></article>
+            <article class="info-card" style="--accent: var(--cyan)"><div class="card-icon">OS</div><h3>Il sistema operativo, non l'applicazione</h3><p>L'applicazione chiede soltanto, tramite il socket, di aprire una connessione o di inviare dati. Segmentazione, riscontri, ritrasmissioni, controllo di flusso e di congestione sono svolti dallo stack TCP di Windows, macOS o Linux.</p></article>
+            <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">~</div><h3>La rete influenza, non comanda</h3><p>Perdite, ritardi e marcature Explicit Congestion Notification (ECN) sono segnali che gli estremi interpretano per rallentare o ritrasmettere. I router non aprono, non chiudono e non ritrasmettono i segmenti del cliente.</p></article>
+          </div>
+          <div class="callout"><strong>Quando un router diventa estremo TCP.</strong> Un router che scambia Border Gateway Protocol (porta 179) o Label Distribution Protocol (LDP, porta 646) è esso stesso un endpoint TCP: in quel caso TCP trasporta messaggi del control plane, non traffico del cliente. Un router può anche modificare un campo TCP in transito senza diventare estremo: con il comando Cisco <code>ip tcp adjust-mss</code> riduce l'opzione Maximum Segment Size negli handshake che attraversano l'interfaccia, per adattarla a una MTU ridotta da tunnel o label MPLS.</div>
+        </div>
+
+        <div class="core-insight"><strong>Trasporto end-to-end, involucro hop-by-hop.</strong><br>Il segmento TCP o il datagramma UDP rimane normalmente dentro il datagramma Internet Protocol lungo il percorso. Nell'Unità 2 vedremo invece che la trama Ethernet viene terminata e ricostruita a ogni hop instradato.</div>
+      </section>
+
+      <section id="glossario">
+        <div class="section-head">
+          <div class="section-number">08</div>
+          <div>
+            <p class="section-kicker">Memoria assistita</p>
+            <h2>Glossario cumulativo · Unità 1</h2>
+            <p class="section-intro">Il glossario conserva le sigle dell'Unità 0 e aggiunge i concetti di trasporto introdotti qui.</p>
+          </div>
+        </div>
+
+        <dl class="glossary">
+          <div class="gloss-item"><dt>PDU</dt><dd>Protocol Data Unit — unità dati manipolata da un protocollo.</dd></div>
+          <div class="gloss-item"><dt>TCP</dt><dd>Transmission Control Protocol — trasporto affidabile e orientato alla connessione.</dd></div>
+          <div class="gloss-item"><dt>UDP</dt><dd>User Datagram Protocol — trasporto a datagrammi senza garanzie di consegna.</dd></div>
+          <div class="gloss-item"><dt>IP</dt><dd>Internet Protocol — indirizzamento e inoltro attraverso reti differenti.</dd></div>
+          <div class="gloss-item"><dt>IPv4</dt><dd>Internet Protocol version 4 — versione di IP usata nei calcoli dell'unità.</dd></div>
+          <div class="gloss-item"><dt>MSS</dt><dd>Maximum Segment Size — massimo payload TCP annunciato dall'estremo.</dd></div>
+          <div class="gloss-item"><dt>MTU</dt><dd>Maximum Transmission Unit — massima PDU di livello superiore trasportabile sul collegamento.</dd></div>
+          <div class="gloss-item"><dt>ACK</dt><dd>Acknowledgment — riscontro; in TCP indica il prossimo numero di sequenza atteso.</dd></div>
+          <div class="gloss-item"><dt>SYN</dt><dd>Synchronize — flag TCP usato per avviare una connessione e sincronizzare i numeri di sequenza.</dd></div>
+          <div class="gloss-item"><dt>RTO</dt><dd>Retransmission Timeout — scadenza oltre la quale TCP può ritrasmettere dati non confermati.</dd></div>
+          <div class="gloss-item"><dt>DNS</dt><dd>Domain Name System — sistema distribuito di risoluzione dei nomi; spesso usa UDP, ma può usare anche TCP.</dd></div>
+          <div class="gloss-item"><dt>FTP</dt><dd>File Transfer Protocol — protocollo applicativo di trasferimento file basato su TCP.</dd></div>
+          <div class="gloss-item"><dt>API</dt><dd>Application Programming Interface — interfaccia software; le API dei socket collegano applicazione e stack di rete.</dd></div>
+          <div class="gloss-item"><dt>NAT</dt><dd>Network Address Translation — traduzione di indirizzi e spesso porte eseguita da un middlebox.</dd></div>
+          <div class="gloss-item"><dt>PAT</dt><dd>Port Address Translation — forma di NAT che traduce anche le porte, permettendo a molti host di condividere un indirizzo.</dd></div>
+          <div class="gloss-item"><dt>ALG</dt><dd>Application Layer Gateway — funzione di firewall o NAT che legge la segnalazione applicativa per gestire porte dinamiche.</dd></div>
+          <div class="gloss-item"><dt>IANA</dt><dd>Internet Assigned Numbers Authority — ente che registra, fra l'altro, i numeri di porta dei servizi.</dd></div>
+          <div class="gloss-item"><dt>HTTP / HTTPS</dt><dd>Hypertext Transfer Protocol / HTTP Secure — protocollo del web, in chiaro o protetto con TLS.</dd></div>
+          <div class="gloss-item"><dt>TLS</dt><dd>Transport Layer Security — protocollo di cifratura e autenticazione sopra il trasporto.</dd></div>
+          <div class="gloss-item"><dt>SIP</dt><dd>Session Initiation Protocol — segnalazione per stabilire sessioni di voce e video.</dd></div>
+          <div class="gloss-item"><dt>RTP</dt><dd>Real-time Transport Protocol — trasporto dei flussi audio e video, normalmente su UDP.</dd></div>
+          <div class="gloss-item"><dt>SDP</dt><dd>Session Description Protocol — descrizione della sessione multimediale, comprese le porte RTP concordate.</dd></div>
+          <div class="gloss-item"><dt>ECN</dt><dd>Explicit Congestion Notification — marcatura con cui la rete segnala congestione agli estremi senza scartare il pacchetto.</dd></div>
+          <div class="gloss-item"><dt>LDP</dt><dd>Label Distribution Protocol — protocollo del control plane MPLS che usa TCP sulla porta 646.</dd></div>
+          <div class="gloss-item"><dt>MPLS</dt><dd>Multiprotocol Label Switching — inoltro basato su label nel backbone.</dd></div>
+          <div class="gloss-item"><dt>OSPF</dt><dd>Open Shortest Path First — protocollo link-state del control plane.</dd></div>
+          <div class="gloss-item"><dt>BGP</dt><dd>Border Gateway Protocol — protocollo di raggiungibilità e policy.</dd></div>
+          <div class="gloss-item"><dt>RIB</dt><dd>Routing Information Base — base informativa delle rotte.</dd></div>
+          <div class="gloss-item"><dt>FIB</dt><dd>Forwarding Information Base — tabella operativa per l'inoltro IP.</dd></div>
+          <div class="gloss-item"><dt>LFIB</dt><dd>Label Forwarding Information Base — tabella operativa per l'inoltro MPLS.</dd></div>
+          <div class="gloss-item"><dt>CE</dt><dd>Customer Edge — router al margine della rete del cliente.</dd></div>
+          <div class="gloss-item"><dt>PE</dt><dd>Provider Edge — router del provider che termina i servizi dei clienti.</dd></div>
+          <div class="gloss-item"><dt>P</dt><dd>Provider — router interno al core del provider.</dd></div>
+        </dl>
+      </section>
+
+      <section id="verifica">
+        <div class="section-head">
+          <div class="section-number">09</div>
+          <div>
+            <p class="section-kicker">Autoverifica</p>
+            <h2>Domande di orientamento</h2>
+            <p class="section-intro">Formula prima la risposta, poi apri il riquadro. Le domande verificano relazioni e scelte, non soltanto definizioni.</p>
+          </div>
+        </div>
+
+        <div class="quiz">
+          <details><summary>1. Perché una porta non identifica da sola una connessione TCP?</summary><p>Per distinguere il flusso servono protocollo, indirizzi e porte dei due estremi: la 5-tupla. Se TCP è già implicito, i quattro valori degli endpoint formano la 4-tupla della connessione. La stessa porta del server può partecipare contemporaneamente a molte connessioni con client differenti.</p></details>
+          <details><summary>2. Il socket viene trasmesso dentro il datagramma Internet Protocol?</summary><p>No. Il socket è una struttura locale del sistema operativo. Sulla rete viaggiano invece i valori che lo stack scrive nei rispettivi header: indirizzi nell'header Internet Protocol, porte nell'header TCP o UDP.</p></details>
+          <details><summary>3. Un'applicazione invia due blocchi a TCP: il ricevitore farà esattamente due letture corrispondenti?</summary><p>Non necessariamente. TCP offre un flusso di byte e non conserva i confini delle scritture applicative. Il protocollo applicativo deve delimitare i propri messaggi.</p></details>
+          <details><summary>4. Con MTU 1.500, IPv4 20 byte e TCP 20 byte, perché la MSS vale 1.460?</summary><p>La MTU limita l'intero datagramma IPv4: 1.500 − 20 byte di header IPv4 − 20 byte di header TCP = 1.460 byte disponibili per il payload TCP.</p></details>
+          <details><summary>5. Perché 4.000 byte in un solo datagramma UDP sono problematici sullo stesso percorso?</summary><p>Con 8 byte UDP e 20 byte IPv4 il datagramma misura 4.028 byte, oltre la MTU 1.500. Occorre suddivisione applicativa oppure frammentazione IPv4, con i relativi rischi.</p></details>
+          <details><summary>6. ACK 2.921 conferma il segmento numero 2.921?</summary><p>No. I segmenti non ricevono un numero progressivo di questo tipo. ACK 2.921 indica che le posizioni del flusso fino a 2.920 sono state ricevute in ordine e che il prossimo byte atteso occupa la posizione 2.921.</p></details>
+          <details><summary>7. I router P del core MPLS devono mantenere lo stato della connessione TCP del cliente?</summary><p>No, non per l'inoltro ordinario. I router core inoltrano usando label MPLS o informazioni IP. Gli estremi TCP mantengono lo stato; middlebox specifici possono costituire eccezioni.</p></details>
+          <details><summary>8. Usare <code>connect()</code> su un socket UDP rende UDP equivalente a TCP?</summary><p>No. Fissa un peer predefinito e consente al sistema operativo di filtrare o associare più comodamente i datagrammi, ma non introduce handshake TCP, flusso affidabile, ordine, riscontri o ritrasmissioni.</p></details>
+          <details><summary>9. Un segmento TCP viene perso nel backbone MPLS: chi decide di ritrasmetterlo?</summary><p>Lo stack TCP dell'host mittente, quando riscontri duplicati o la scadenza del Retransmission Timeout indicano la perdita. I router P e PE non ritrasmettono i segmenti del cliente: la rete offre un servizio best effort e l'affidabilità si realizza agli estremi.</p></details>
+          <details><summary>10. Chi sceglie la porta sorgente quando un browser si collega alla porta 443 di un server?</summary><p>Il sistema operativo del client, che assegna una porta effimera libera al momento del <code>connect()</code>. La porta 443 è invece fissata da chi configura il server. Se lungo il percorso un Customer Edge esegue PAT, il server vedrà la porta scelta dal dispositivo NAT, non quella originale.</p></details>
+        </div>
+      </section>
+
+      <div class="closing">
+        <p class="section-kicker">Punto di arrivo dell'Unità 1</p>
+        <h2>Il trasporto collega processi; IP collega host e reti.</h2>
+        <p>TCP trasforma dati applicativi in un flusso affidabile segmentato; UDP conserva datagrammi indipendenti. Entrambi affidano le proprie unità a Internet Protocol. La prossima domanda sarà locale e concreta: come raggiunge il datagramma il prossimo dispositivo fisicamente collegato? È il compito di Ethernet.</p>
+      </div>
+
+      <div class="sources">
+        <strong>Riferimenti essenziali:</strong>
+        <a href="https://www.rfc-editor.org/info/rfc9293">RFC 9293 — Transmission Control Protocol</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc768">RFC 768 — User Datagram Protocol</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc1122">RFC 1122 — Requirements for Internet Hosts</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc6691">RFC 6691 — TCP Options and Maximum Segment Size</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc7323">RFC 7323 — TCP Extensions for High Performance</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc8200">RFC 8200 — Internet Protocol, Version 6</a> ·
+        <a href="https://www.rfc-editor.org/info/rfc5737">RFC 5737 — IPv4 Address Blocks for Documentation</a>
+      </div>
+    </main>
+
+    <footer>
+      <span>NETWORKING ACADEMY · UNITÀ 1</span>
+      <span>Dal dato del cliente al backbone del Service Provider</span>
+    </footer>
+  </div>
+
+  <script src="assets/unita-01.js"></script>
+</body>
+</html>

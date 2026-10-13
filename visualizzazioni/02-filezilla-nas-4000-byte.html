@@ -1,0 +1,530 @@
+<div id="file-transfer-chain">
+  <style>
+    #file-transfer-chain {
+      width: 100%;
+      color: var(--foreground);
+    }
+    #file-transfer-chain .ft-assumptions {
+      margin-bottom: 12px;
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-stage-controls,
+    #file-transfer-chain .ft-segment-controls {
+      margin-bottom: 14px;
+    }
+    #file-transfer-chain .ft-route {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      align-items: center;
+      gap: 5px;
+      margin: 10px 0 14px;
+    }
+    #file-transfer-chain .ft-route-node {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6px 4px;
+      border-bottom: 3px solid var(--border);
+      color: var(--muted-foreground);
+      transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+    }
+    #file-transfer-chain .ft-route-node.is-active {
+      background: var(--accent);
+      color: var(--accent-foreground);
+      border-bottom-color: var(--viz-series-1);
+    }
+    #file-transfer-chain .ft-state {
+      display: grid;
+      grid-template-columns: minmax(150px, 0.8fr) minmax(250px, 2fr);
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    #file-transfer-chain .ft-state strong {
+      font-weight: 500;
+    }
+    #file-transfer-chain .ft-heading {
+      margin: 0 0 12px;
+      font-weight: 500;
+    }
+    #file-transfer-chain .ft-session-shell {
+      border-left: 3px solid var(--viz-series-1);
+      padding-left: 14px;
+    }
+    #file-transfer-chain .ft-session-meta {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    #file-transfer-chain .ft-meta-item {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #file-transfer-chain .ft-meta-item span {
+      display: block;
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-lanes {
+      display: grid;
+      gap: 12px;
+    }
+    #file-transfer-chain .ft-lane {
+      display: grid;
+      grid-template-columns: minmax(140px, 0.8fr) minmax(240px, 2fr) minmax(120px, 0.8fr);
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    #file-transfer-chain .ft-lane-name {
+      font-weight: 500;
+    }
+    #file-transfer-chain .ft-lane-line {
+      position: relative;
+      text-align: center;
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-lane-line::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      border-top: 2px solid var(--border);
+    }
+    #file-transfer-chain .ft-lane-line span {
+      position: relative;
+      padding: 0 8px;
+      background: var(--background);
+    }
+    #file-transfer-chain .ft-lane-value {
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-byte-scale {
+      display: grid;
+      grid-template-columns: 1.46fr 1.46fr 1.08fr;
+      gap: 3px;
+      margin: 14px 0 10px;
+    }
+    #file-transfer-chain .ft-file-part {
+      min-height: 76px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 7px;
+      background: color-mix(in srgb, var(--viz-series-6) 22%, var(--card));
+      border-bottom: 3px solid transparent;
+      transition: border-color 180ms ease, background 180ms ease;
+    }
+    #file-transfer-chain .ft-file-part.is-selected {
+      border-bottom-color: var(--viz-series-1);
+      background: color-mix(in srgb, var(--viz-series-6) 34%, var(--card));
+    }
+    #file-transfer-chain .ft-file-part span {
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-equation {
+      text-align: center;
+      margin: 10px 0;
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-envelope {
+      display: flex;
+      align-items: stretch;
+      gap: 3px;
+      margin: 18px 0 10px;
+      min-height: 96px;
+    }
+    #file-transfer-chain .ft-field {
+      flex: 1 1 110px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 8px 5px;
+    }
+    #file-transfer-chain .ft-field strong {
+      font-weight: 500;
+    }
+    #file-transfer-chain .ft-field span {
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-eth { background: color-mix(in srgb, var(--viz-series-1) 22%, var(--card)); }
+    #file-transfer-chain .ft-mpls-t { background: color-mix(in srgb, var(--viz-series-2) 28%, var(--card)); }
+    #file-transfer-chain .ft-mpls-v { background: color-mix(in srgb, var(--viz-series-3) 28%, var(--card)); }
+    #file-transfer-chain .ft-ip { background: color-mix(in srgb, var(--viz-series-4) 26%, var(--card)); }
+    #file-transfer-chain .ft-tcp { background: color-mix(in srgb, var(--viz-series-5) 26%, var(--card)); }
+    #file-transfer-chain .ft-data { background: color-mix(in srgb, var(--viz-series-6) 24%, var(--card)); flex-grow: 2.2; }
+    #file-transfer-chain .ft-size-line {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 16px;
+      margin-top: 8px;
+    }
+    #file-transfer-chain .ft-size-line strong {
+      font-weight: 500;
+    }
+    #file-transfer-chain .ft-hop-chain {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 5px;
+      margin: 12px 0 18px;
+      align-items: stretch;
+    }
+    #file-transfer-chain .ft-hop {
+      padding: 10px 5px;
+      text-align: center;
+      border-bottom: 2px solid var(--border);
+    }
+    #file-transfer-chain .ft-hop.is-core {
+      background: color-mix(in srgb, var(--viz-series-2) 12%, transparent);
+      border-bottom-color: var(--viz-series-2);
+    }
+    #file-transfer-chain .ft-hop span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted-foreground);
+    }
+    #file-transfer-chain .ft-protocol-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+    #file-transfer-chain .ft-protocol-item {
+      padding-top: 8px;
+      border-top: 2px solid var(--border);
+    }
+    #file-transfer-chain .ft-protocol-item strong,
+    #file-transfer-chain .ft-protocol-item span {
+      display: block;
+    }
+    #file-transfer-chain .ft-protocol-item strong {
+      font-weight: 500;
+    }
+    #file-transfer-chain .ft-protocol-item span {
+      color: var(--muted-foreground);
+      margin-top: 4px;
+    }
+    #file-transfer-chain .ft-reassembly {
+      display: grid;
+      grid-template-columns: 1.46fr 1.46fr 1.08fr;
+      gap: 3px;
+      margin: 18px 0 8px;
+    }
+    #file-transfer-chain .ft-reassembly-part {
+      padding: 14px 5px;
+      text-align: center;
+      background: color-mix(in srgb, var(--viz-series-5) 22%, var(--card));
+    }
+    #file-transfer-chain .ft-file-result {
+      padding: 14px 8px;
+      text-align: center;
+      background: color-mix(in srgb, var(--viz-series-6) 28%, var(--card));
+      border-bottom: 3px solid var(--viz-series-1);
+      margin-top: 3px;
+    }
+    #file-transfer-chain .ft-hidden {
+      display: none !important;
+    }
+    @media (max-width: 650px) {
+      #file-transfer-chain .ft-route {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+      #file-transfer-chain .ft-route-node {
+        min-height: 34px;
+      }
+      #file-transfer-chain .ft-state,
+      #file-transfer-chain .ft-session-meta,
+      #file-transfer-chain .ft-lane,
+      #file-transfer-chain .ft-protocol-strip {
+        grid-template-columns: 1fr;
+      }
+      #file-transfer-chain .ft-lane {
+        gap: 4px;
+      }
+      #file-transfer-chain .ft-lane-line {
+        text-align: left;
+      }
+      #file-transfer-chain .ft-lane-line::before {
+        display: none;
+      }
+      #file-transfer-chain .ft-lane-line span {
+        padding: 0;
+      }
+      #file-transfer-chain .ft-envelope {
+        flex-wrap: wrap;
+      }
+      #file-transfer-chain .ft-field {
+        min-width: 92px;
+      }
+      #file-transfer-chain .ft-hop-chain {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #file-transfer-chain * { transition: none !important; }
+    }
+  </style>
+
+  <div class="ft-assumptions text-small">
+    Ipotesi didattica: FTP (File Transfer Protocol) passivo · IPv4 (Internet Protocol version 4) · MTU (Maximum Transmission Unit) 1.500 byte · header senza opzioni · percorso MPLS (Multiprotocol Label Switching)
+  </div>
+
+  <div class="viz-controls ft-stage-controls" role="group" aria-label="Fase della trasmissione">
+    <button type="button" class="btn btn-primary" data-stage="0" aria-pressed="true">1 · Sessione</button>
+    <button type="button" class="btn" data-stage="1" aria-pressed="false">2 · Connessioni</button>
+    <button type="button" class="btn" data-stage="2" aria-pressed="false">3 · Segmentazione</button>
+    <button type="button" class="btn" data-stage="3" aria-pressed="false">4 · Pacchetto</button>
+    <button type="button" class="btn" data-stage="4" aria-pressed="false">5 · Frame</button>
+    <button type="button" class="btn" data-stage="5" aria-pressed="false">6 · Core provider</button>
+    <button type="button" class="btn" data-stage="6" aria-pressed="false">7 · Arrivo</button>
+  </div>
+
+  <div class="ft-route text-small" role="img" aria-label="Percorso da FileZilla allo storage remoto">
+    <div class="ft-route-node is-active" data-route="0">FileZilla<br>Archivio.zip</div>
+    <div class="ft-route-node" data-route="1">Sessione e connessioni</div>
+    <div class="ft-route-node" data-route="2">Segmenti</div>
+    <div class="ft-route-node" data-route="3">Pacchetti e frame</div>
+    <div class="ft-route-node" data-route="4">Router cliente</div>
+    <div class="ft-route-node" data-route="5">Core MPLS (Multiprotocol Label Switching)</div>
+    <div class="ft-route-node" data-route="6">NAS (Network Attached Storage)</div>
+  </div>
+
+  <div class="card ft-state" aria-live="polite">
+    <strong id="ft-state-title">Una sessione, due connessioni</strong>
+    <span id="ft-state-detail">La sessione applicativa conserva identità e contesto; una connessione trasporta i comandi e una seconda trasporta i 4.000 byte del file.</span>
+  </div>
+
+  <div class="viz-controls ft-segment-controls ft-hidden" id="ft-segment-controls" role="group" aria-label="Blocco del file osservato">
+    <span>Blocco osservato:</span>
+    <button type="button" class="btn btn-primary" data-segment="0" aria-pressed="true">1 · 1.460 byte</button>
+    <button type="button" class="btn" data-segment="1" aria-pressed="false">2 · 1.460 byte</button>
+    <button type="button" class="btn" data-segment="2" aria-pressed="false">3 · 1.080 byte</button>
+  </div>
+
+  <div class="ft-content" id="ft-content" aria-live="polite"></div>
+
+  <template data-template="0">
+    <div class="ft-session-shell">
+      <div class="ft-heading">Sessione FTP (File Transfer Protocol)</div>
+      <div class="ft-session-meta">
+        <div class="ft-meta-item"><span>Client</span>FileZilla</div>
+        <div class="ft-meta-item"><span>Identità</span>utente autenticato</div>
+        <div class="ft-meta-item"><span>Stato</span>directory corrente + modalità binaria</div>
+      </div>
+      <div class="ft-equation">Livello 5 concettuale del modello OSI (Open Systems Interconnection); nella suite Internet lo stato è gestito dall’applicazione.</div>
+      <div class="ft-lanes">
+        <div class="ft-lane">
+          <div class="ft-lane-name">Connessione di controllo</div>
+          <div class="ft-lane-line"><span>login → modalità passiva → richiesta di upload</span></div>
+          <div class="ft-lane-value text-small">porta server 21 · resta aperta</div>
+        </div>
+        <div class="ft-lane">
+          <div class="ft-lane-name">Connessione dati</div>
+          <div class="ft-lane-line"><span>Archivio.zip · 4.000 byte</span></div>
+          <div class="ft-lane-value text-small">porta passiva · aperta per il trasferimento</div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template data-template="1">
+    <div class="ft-heading">Le connessioni appartengono alla stessa sessione applicativa</div>
+    <div class="ft-lanes">
+      <div class="ft-lane">
+        <div class="ft-lane-name">Controllo</div>
+        <div class="ft-lane-line"><span>FileZilla: porta effimera → server: porta 21</span></div>
+        <div class="ft-lane-value text-small">TCP (Transmission Control Protocol)</div>
+      </div>
+      <div class="ft-lane">
+        <div class="ft-lane-name">Dati</div>
+        <div class="ft-lane-line"><span>FileZilla: nuova porta effimera → porta passiva del server</span></div>
+        <div class="ft-lane-value text-small">TCP (Transmission Control Protocol)</div>
+      </div>
+    </div>
+    <div class="ft-equation">handshake a tre vie → trasferimento affidabile → chiusura della connessione dati</div>
+  </template>
+
+  <template data-template="2">
+    <div class="ft-heading">TCP (Transmission Control Protocol) divide il flusso di 4.000 byte</div>
+    <div class="ft-byte-scale" role="img" aria-label="File diviso in tre porzioni da 1460, 1460 e 1080 byte">
+      <div class="ft-file-part" data-part="0"><strong>Segmento 1</strong><span>1.460 byte del file</span></div>
+      <div class="ft-file-part" data-part="1"><strong>Segmento 2</strong><span>1.460 byte del file</span></div>
+      <div class="ft-file-part" data-part="2"><strong>Segmento 3</strong><span>1.080 byte del file</span></div>
+    </div>
+    <div class="ft-equation">MSS (Maximum Segment Size) = 1.500 − 20 byte IPv4 (Internet Protocol version 4) − 20 byte TCP (Transmission Control Protocol) = 1.460 byte</div>
+    <div class="ft-size-line text-small">
+      <span>File totale: <strong>4.000 byte</strong></span>
+      <span>Dati di controllo e riscontri: <strong>non inclusi</strong></span>
+      <span>Ultimo segmento: <strong>più piccolo</strong></span>
+    </div>
+  </template>
+
+  <template data-template="3">
+    <div class="ft-heading">Il segmento diventa il payload del pacchetto IPv4 (Internet Protocol version 4)</div>
+    <div class="ft-envelope" role="img" aria-label="Pacchetto con header Internet Protocol, header Transmission Control Protocol e dati del file">
+      <div class="ft-field ft-ip"><strong>Header IPv4 (Internet Protocol version 4)</strong><span>20 byte</span></div>
+      <div class="ft-field ft-tcp"><strong>Header TCP (Transmission Control Protocol)</strong><span>20 byte</span></div>
+      <div class="ft-field ft-data"><strong>Archivio.zip</strong><span data-value="file">1.460 byte</span></div>
+    </div>
+    <div class="ft-size-line">
+      <span>Segmento TCP (Transmission Control Protocol): <strong data-value="tcp">1.480 byte</strong></span>
+      <span>Pacchetto IPv4 (Internet Protocol version 4): <strong data-value="ip">1.500 byte</strong></span>
+    </div>
+  </template>
+
+  <template data-template="4">
+    <div class="ft-heading">Sul collegamento locale il pacchetto viene racchiuso in un frame Ethernet</div>
+    <div class="ft-envelope" role="img" aria-label="Frame Ethernet con header, pacchetto Internet Protocol e Frame Check Sequence">
+      <div class="ft-field ft-eth"><strong>Header Ethernet</strong><span>14 byte</span></div>
+      <div class="ft-field ft-ip"><strong>Header IPv4 (Internet Protocol version 4)</strong><span>20 byte</span></div>
+      <div class="ft-field ft-tcp"><strong>Header TCP (Transmission Control Protocol)</strong><span>20 byte</span></div>
+      <div class="ft-field ft-data"><strong>Archivio.zip</strong><span data-value="file">1.460 byte</span></div>
+      <div class="ft-field ft-eth"><strong>FCS (Frame Check Sequence)</strong><span>4 byte</span></div>
+    </div>
+    <div class="ft-size-line">
+      <span>Pacchetto IPv4 (Internet Protocol version 4): <strong data-value="ip">1.500 byte</strong></span>
+      <span>Frame Ethernet: <strong data-value="frame">1.518 byte</strong></span>
+    </div>
+    <div class="ft-equation text-small">A ogni salto Ethernet cambiano gli indirizzi fisici e viene calcolata una nuova FCS (Frame Check Sequence).</div>
+  </template>
+
+  <template data-template="5">
+    <div class="ft-hop-chain" role="img" aria-label="Attraversamento del core Multiprotocol Label Switching">
+      <div class="ft-hop">Router cliente A<span>inoltro IPv4 (Internet Protocol version 4)</span></div>
+      <div class="ft-hop is-core">Bordo provider ingresso<span>aggiunge due label</span></div>
+      <div class="ft-hop is-core">Router del core<span>sostituisce label trasporto</span></div>
+      <div class="ft-hop is-core">Bordo provider uscita<span>rimuove le label</span></div>
+      <div class="ft-hop">Router cliente B<span>inoltro verso lo storage</span></div>
+    </div>
+    <div class="ft-envelope" role="img" aria-label="Frame del core con due label Multiprotocol Label Switching">
+      <div class="ft-field ft-eth"><strong>Ethernet</strong><span>14 byte</span></div>
+      <div class="ft-field ft-mpls-t"><strong>Label trasporto</strong><span>4 byte</span></div>
+      <div class="ft-field ft-mpls-v"><strong>Label VPN (Virtual Private Network)</strong><span>4 byte</span></div>
+      <div class="ft-field ft-ip"><strong>Pacchetto IPv4 (Internet Protocol version 4)</strong><span data-value="ip">1.500 byte</span></div>
+      <div class="ft-field ft-eth"><strong>FCS (Frame Check Sequence)</strong><span>4 byte</span></div>
+    </div>
+    <div class="ft-size-line">
+      <span>Payload Ethernet nel core: <strong data-value="mplsPayload">1.508 byte</strong></span>
+      <span>Frame Ethernet nel core: <strong data-value="mplsFrame">1.526 byte</strong></span>
+      <span>MTU (Maximum Transmission Unit) richiesta nel core: <strong data-value="mplsPayload">1.508 byte</strong></span>
+    </div>
+    <div class="ft-protocol-strip text-small">
+      <div class="ft-protocol-item"><strong>OSPF (Open Shortest Path First) oppure IS-IS (Intermediate System to Intermediate System)</strong><span>IGP (Interior Gateway Protocol): raggiungibilità del core</span></div>
+      <div class="ft-protocol-item"><strong>LDP (Label Distribution Protocol) oppure SR-MPLS (Segment Routing over Multiprotocol Label Switching)</strong><span>label di trasporto</span></div>
+      <div class="ft-protocol-item"><strong>MP-BGP (Multiprotocol Border Gateway Protocol) tramite iBGP (Internal Border Gateway Protocol)</strong><span>rotta cliente e label VPN (Virtual Private Network)</span></div>
+    </div>
+  </template>
+
+  <template data-template="6">
+    <div class="ft-heading">Il NAS (Network Attached Storage) ricompone il flusso e consegna il file al servizio applicativo</div>
+    <div class="ft-reassembly" role="img" aria-label="Tre porzioni riordinate per ricostruire il file">
+      <div class="ft-reassembly-part">sequenza 1<br>1.460 byte</div>
+      <div class="ft-reassembly-part">sequenza 2<br>1.460 byte</div>
+      <div class="ft-reassembly-part">sequenza 3<br>1.080 byte</div>
+    </div>
+    <div class="ft-file-result"><strong>Archivio.zip · 4.000 byte</strong><br><span class="text-small">byte ordinati, verificati e scritti nello storage remoto</span></div>
+    <div class="ft-lanes" style="margin-top: 16px;">
+      <div class="ft-lane">
+        <div class="ft-lane-name">Connessione dati</div>
+        <div class="ft-lane-line"><span>fine del flusso → chiusura</span></div>
+        <div class="ft-lane-value text-small">TCP (Transmission Control Protocol)</div>
+      </div>
+      <div class="ft-lane">
+        <div class="ft-lane-name">Sessione applicativa</div>
+        <div class="ft-lane-line"><span>risposta “226 Transfer complete”</span></div>
+        <div class="ft-lane-value text-small">FTP (File Transfer Protocol)</div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    (() => {
+      const root = document.getElementById('file-transfer-chain');
+      const content = root.querySelector('#ft-content');
+      const stateTitle = root.querySelector('#ft-state-title');
+      const stateDetail = root.querySelector('#ft-state-detail');
+      const stageButtons = Array.from(root.querySelectorAll('[data-stage]'));
+      const segmentButtons = Array.from(root.querySelectorAll('[data-segment]'));
+      const routeNodes = Array.from(root.querySelectorAll('[data-route]'));
+      const segmentControls = root.querySelector('#ft-segment-controls');
+
+      const stages = [
+        ['Una sessione, due connessioni', 'La sessione applicativa conserva identità e contesto; una connessione trasporta i comandi e una seconda trasporta i 4.000 byte del file.'],
+        ['Due canali di trasporto indipendenti', 'La connessione di controllo resta aperta, mentre FileZilla apre una connessione dati separata verso la porta passiva comunicata dal server.'],
+        ['Il flusso viene segmentato', 'Con MSS (Maximum Segment Size) di 1.460 byte, il file viene suddiviso in due blocchi pieni e un ultimo blocco da 1.080 byte.'],
+        ['Il segmento entra nel pacchetto', 'L’header TCP (Transmission Control Protocol) viene aggiunto ai dati; tutto il segmento diventa payload di IPv4 (Internet Protocol version 4).'],
+        ['Il pacchetto entra nel frame', 'Ethernet aggiunge indirizzi fisici e controllo d’errore per il singolo collegamento; il frame viene ricreato a ogni salto di livello 2.'],
+        ['Nel core vengono aggiunte due label', 'La label esterna porta il traffico al bordo provider remoto; quella interna identifica la VPN (Virtual Private Network) e il contesto di routing del cliente.'],
+        ['Decapsulamento e ricomposizione', 'Lo storage remoto rimuove gli header, riordina i byte e mantiene la sessione applicativa fino alla conferma del trasferimento.']
+      ];
+
+      const segments = [
+        { file: 1460, tcp: 1480, ip: 1500, frame: 1518, mplsPayload: 1508, mplsFrame: 1526 },
+        { file: 1460, tcp: 1480, ip: 1500, frame: 1518, mplsPayload: 1508, mplsFrame: 1526 },
+        { file: 1080, tcp: 1100, ip: 1120, frame: 1138, mplsPayload: 1128, mplsFrame: 1146 }
+      ];
+
+      let selectedStage = 0;
+      let selectedSegment = 0;
+
+      const formatBytes = value => `${value.toLocaleString('it-IT')} byte`;
+
+      function updateValues() {
+        const values = segments[selectedSegment];
+        content.querySelectorAll('[data-value]').forEach(element => {
+          const key = element.dataset.value;
+          element.textContent = formatBytes(values[key]);
+        });
+        content.querySelectorAll('[data-part]').forEach(element => {
+          element.classList.toggle('is-selected', Number(element.dataset.part) === selectedSegment);
+        });
+      }
+
+      function renderStage() {
+        const template = root.querySelector(`template[data-template='${selectedStage}']`);
+        content.replaceChildren(template.content.cloneNode(true));
+        stateTitle.textContent = stages[selectedStage][0];
+        stateDetail.textContent = stages[selectedStage][1];
+        stageButtons.forEach(button => {
+          const active = Number(button.dataset.stage) === selectedStage;
+          button.classList.toggle('btn-primary', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+        routeNodes.forEach((node, index) => {
+          const routeStage = [0, 1, 2, 3, 4, 5, 6][selectedStage];
+          node.classList.toggle('is-active', index === routeStage);
+        });
+        segmentControls.classList.toggle('ft-hidden', selectedStage < 2 || selectedStage > 5);
+        updateValues();
+      }
+
+      function selectSegment(index) {
+        selectedSegment = index;
+        segmentButtons.forEach(button => {
+          const active = Number(button.dataset.segment) === selectedSegment;
+          button.classList.toggle('btn-primary', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+        updateValues();
+      }
+
+      stageButtons.forEach(button => button.addEventListener('click', () => {
+        selectedStage = Number(button.dataset.stage);
+        renderStage();
+      }));
+      segmentButtons.forEach(button => button.addEventListener('click', () => selectSegment(Number(button.dataset.segment))));
+      renderStage();
+    })();
+  </script>
+</div>
