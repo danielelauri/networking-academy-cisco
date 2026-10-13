@@ -75,6 +75,9 @@ section { scroll-margin-top: 78px; padding: 72px 0; border-bottom: 1px solid var
 .gloss-item dd { margin: 0; color: var(--muted); font-size: 13px; }
 summary { padding: 17px 20px; cursor: pointer; font-weight: 750; }
 
+/* Nota di non affiliazione sotto il footer di ogni pagina. */
+.legal-note { margin: 0 0 28px; color: var(--muted); font: 10px/1.6 var(--mono); opacity: .8; }
+
 /* Varianti responsive e di stampa delle parti comuni: in fondo, per prevalere sulle regole di base. */
 @media (max-width: 700px) { .topbar { align-items: flex-start; gap: 10px; } .progress { font-size: 8px; } .progress::before { width: 24px; } .progress-topic { display: none; } .topbar-tools { align-items: flex-end; flex-direction: column; gap: 8px; } .theme-label { display: none; } .theme-switch { gap: 5px; } }
 @media print { .theme-switch { display: none; } }
