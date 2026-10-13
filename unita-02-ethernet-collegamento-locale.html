@@ -1,19 +1,32 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark light">
   <title>Unità 2 — Ethernet: la consegna sul collegamento locale</title>
-  <link rel="stylesheet" href="assets/corso.css">
-  <link rel="stylesheet" href="assets/unita-02.css">
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/corso.css?v=2">
+  <link rel="stylesheet" href="assets/unita-02.css?v=2">
 </head>
 <body>
   <div class="page">
-    <div class="topbar">
-      <div class="brand"><span class="brand-mark">N2</span> Networking Academy</div>
-      <div class="progress-label">Unità 2 di 12</div>
-    </div>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">02</span> NETWORKING ACADEMY</div>
+      <div class="topbar-tools">
+        <div class="progress" style="--progress: 23.1%">UNITÀ 2 DI 12<span class="progress-topic"> · COLLEGAMENTO LOCALE</span></div>
+        <label class="theme-switch" for="themeToggle">
+          <span class="theme-icon" aria-hidden="true">☼</span><span class="theme-label">Tema</span>
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span></span></span><span class="theme-current" id="themeCurrent">Scuro</span>
+        </label>
+      </div>
+    </header>
 
     <header class="hero">
       <div>
@@ -358,6 +371,8 @@
     </footer>
   </div>
 
-  <script src="assets/unita-02.js"></script>
+  <script src="assets/tema.js?v=2"></script>
+
+  <script src="assets/unita-02.js?v=2"></script>
 </body>
 </html>

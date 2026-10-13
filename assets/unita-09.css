@@ -1,7 +1,6 @@
-@import url("unita-08.css");
+@import url("unita-08.css?v=2");
 
 /* Tutte le componenti proprie dell'Unità 9 hanno prefisso u9-. */
-.progress::before { background: linear-gradient(90deg,var(--cyan) 90%,var(--line) 90%); }
 .hero { grid-template-columns: minmax(0,1fr); }
 .hero-heading,.hero-summary,.u9-hero-figure { min-width: 0; }
 

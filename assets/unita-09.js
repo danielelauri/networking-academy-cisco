@@ -1,23 +1,4 @@
 (() => {
-  const themeToggle = document.getElementById("themeToggle");
-  const themeCurrent = document.getElementById("themeCurrent");
-
-  const applyTheme = (theme, persist = true) => {
-    const light = theme === "light";
-    document.documentElement.dataset.theme = light ? "light" : "dark";
-    document.documentElement.style.colorScheme = light ? "light" : "dark";
-    themeToggle.checked = light;
-    themeToggle.setAttribute("aria-checked", String(light));
-    themeToggle.setAttribute("aria-label", light ? "Attiva il tema scuro" : "Attiva il tema chiaro");
-    themeCurrent.textContent = light ? "Chiaro" : "Scuro";
-    if (persist) {
-      try { localStorage.setItem("network-academy-theme", light ? "light" : "dark"); } catch (_) {}
-    }
-  };
-
-  applyTheme(document.documentElement.dataset.theme || "dark", false);
-  themeToggle.addEventListener("change", () => applyTheme(themeToggle.checked ? "light" : "dark"));
-
   const setPressed = (selector, selected, dataKey) => {
     document.querySelectorAll(selector).forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset[dataKey] === selected));

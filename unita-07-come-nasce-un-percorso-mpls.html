@@ -12,21 +12,19 @@
       if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
     } catch (_) {}
   </script>
-  <link rel="stylesheet" href="assets/corso.css">
-  <link rel="stylesheet" href="assets/unita-07.css?v=7">
+  <link rel="stylesheet" href="assets/corso.css?v=2">
+  <link rel="stylesheet" href="assets/unita-07.css?v=2">
 </head>
 <body>
   <div class="page">
     <header class="topbar">
-      <div class="brand"><span class="brand-mark">M7</span> NETWORKING ACADEMY</div>
+      <div class="brand"><span class="brand-mark">07</span> NETWORKING ACADEMY</div>
       <div class="topbar-tools">
-      <div class="progress">UNITÀ 7 · CONTROL PLANE</div>
+        <div class="progress" style="--progress: 61.5%">UNITÀ 7 DI 12<span class="progress-topic"> · CONTROL PLANE MPLS</span></div>
         <label class="theme-switch" for="themeToggle">
-          <span class="theme-icon" aria-hidden="true">☼</span>
-          <span class="theme-label">Tema</span>
+          <span class="theme-icon" aria-hidden="true">☼</span><span class="theme-label">Tema</span>
           <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
-          <span class="switch-track" aria-hidden="true"><span></span></span>
-          <span class="theme-current" id="themeCurrent">Scuro</span>
+          <span class="switch-track" aria-hidden="true"><span></span></span><span class="theme-current" id="themeCurrent">Scuro</span>
         </label>
       </div>
     </header>
@@ -326,6 +324,7 @@
 
     <footer><span>NETWORKING ACADEMY · UNITÀ 7</span><span>Dal dato del cliente al backbone del Service Provider</span></footer>
   </div>
-  <script src="assets/unita-07.js?v=1"></script>
+  <script src="assets/tema.js?v=2"></script>
+  <script src="assets/unita-07.js?v=2"></script>
 </body>
 </html>

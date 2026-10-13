@@ -1,7 +1,6 @@
-@import url("unita-07.css");
+@import url("unita-07.css?v=2");
 
 /* Tutte le nuove componenti dell'Unità 8 hanno il prefisso u8- per evitare collisioni con le unità precedenti. */
-.progress::before { background: linear-gradient(90deg,var(--cyan) 80%,var(--line) 80%); }
 .hero { grid-template-columns: minmax(0,1fr); }
 .hero-heading, .hero-summary, .u8-hero-figure { min-width: 0; }
 .u8-hero-figure { width: 100%; padding: clamp(18px,3vw,32px); border: 1px solid var(--line); border-radius: 26px; background: linear-gradient(145deg,var(--surface-2),var(--surface)); box-shadow: var(--shadow); }
