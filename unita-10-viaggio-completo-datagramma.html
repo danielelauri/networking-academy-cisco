@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Unità 10: il viaggio completo di un datagramma cliente da Host A a Host B attraverso switch, Customer Edge, Provider Edge, router Provider e servizio MPLS Layer 3 VPN, campo per campo.">
+  <title>Unità 10 — Il viaggio completo di un datagramma cliente</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/corso.css?v=3">
+  <link rel="stylesheet" href="assets/unita-10.css?v=1">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">10</span> NETWORKING ACADEMY</div>
+      <div class="topbar-tools">
+        <div class="progress" style="--progress: 84.6%">UNITÀ 10 DI 12<span class="progress-topic"> · VIAGGIO END-TO-END</span></div>
+        <label class="theme-switch" for="themeToggle">
+          <span class="theme-icon" aria-hidden="true">☼</span><span class="theme-label">Tema</span>
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span></span></span><span class="theme-current" id="themeCurrent">Scuro</span>
+        </label>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="hero-heading">
+        <p class="kicker">Unità 10 · data plane, control plane e service plane insieme <span class="draft">PERCORSO PRINCIPALE</span></p>
+        <h1>Un datagramma, <span>dieci dispositivi.</span></h1>
+      </div>
+      <div class="u10-hero-figure" role="img" aria-label="Il datagramma parte da Host A nel sito A del Cliente Blu, attraversa Switch A e CE-A, entra nel backbone del provider da PE-A, passa per P1 e P2, esce da PE-B e raggiunge Host B attraverso CE-B e Switch B.">
+        <p class="u10-eyebrow">Lo scenario comune del percorso, finalmente completo</p>
+        <div class="u10-hero-zones">
+          <div class="u10-zone u10-zone-site"><b>SITO A · CLIENTE BLU</b><div class="u10-chips"><span>Host A</span><span>Switch A</span><span>CE-A</span></div><small>10.10.10.0/24</small></div>
+          <i aria-hidden="true">→</i>
+          <div class="u10-zone u10-zone-core"><b>BACKBONE DEL PROVIDER</b><div class="u10-chips"><span>PE-A</span><span>P1</span><span>P2</span><span>PE-B</span></div><small>IP/MPLS · VRF BLU sui bordi</small></div>
+          <i aria-hidden="true">→</i>
+          <div class="u10-zone u10-zone-site"><b>SITO B · CLIENTE BLU</b><div class="u10-chips"><span>CE-B</span><span>Switch B</span><span>Host B</span></div><small>10.20.20.0/24</small></div>
+        </div>
+        <p class="u10-hero-legend"><b>Legenda:</b> CE = Customer Edge; PE = Provider Edge; P = Provider; VRF = Virtual Routing and Forwarding; IP = Internet Protocol; MPLS = Multiprotocol Label Switching. Indirizzi, interfacce e label sono esempi didattici coerenti con le Unità 6–9.</p>
+      </div>
+      <div class="hero-summary">
+        <p class="hero-lead"><strong>Domanda guida:</strong> che cosa accade realmente, campo per campo e dispositivo per dispositivo, da un sito cliente all’altro?</p>
+        <div class="learning-strip"><span><b>Prerequisiti</b> Unità 0–9</span><span><b>Obiettivo</b> Leggere ogni intestazione in ogni punto</span><span><b>Tempo indicativo</b> 90 minuti</span></div>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell’unità">
+      <a href="#problema">Problema</a><a href="#scenario">Scenario</a><a href="#preparazione">Tabelle pronte</a>
+      <a href="#viaggio">Viaggio</a><a href="#matrice">Matrice</a><a href="#categorie">End-to-end / hop</a>
+      <a href="#piani">Control e data plane</a><a href="#dimensioni">Byte e MTU</a><a href="#ritorno">Ritorno</a>
+      <a href="#operativita">Verifica</a><a href="#limiti">Limiti</a><a href="#glossario">Glossario</a><a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+      <section id="problema" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>01</p></div><div class="section-copy"><h5 class="section-kicker">Il problema originario</h5><h2>Conoscere i pezzi non basta: bisogna vederli lavorare insieme</h2><div class="section-intro"><p>Ogni unità precedente ha isolato una tecnologia: Ethernet, Internet Protocol (IP), il router, Open Shortest Path First (OSPF), Multiprotocol Label Switching (MPLS), Border Gateway Protocol (BGP) e i servizi Virtual Private Network (VPN). Nella rete reale queste tecnologie agiscono contemporaneamente sullo stesso traffico. Quando una sede non raggiunge l’altra, la domanda operativa non è «come funziona MPLS?», ma «in quale punto del percorso, e in quale intestazione, qualcosa non corrisponde alle attese?».</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">END-TO-END</h5><h3>Alcuni elementi attraversano tutto il percorso</h3><p>Indirizzi IP di sorgente e destinazione, porte del Transmission Control Protocol (TCP) e dati applicativi nascono su Host A e arrivano invariati su Host B.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">HOP-BY-HOP</h5><h3>Altri cambiano a ogni collegamento o router</h3><p>La trama Ethernet viene ricostruita su ogni link; il Time To Live (TTL) e il checksum dell’header IP cambiano in ogni router che inoltra il datagramma.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">SOLO BACKBONE</h5><h3>Alcuni esistono soltanto dentro il provider</h3><p>La label di trasporto e la label di servizio compaiono sul Provider Edge (PE) di ingresso e scompaiono prima che il datagramma torni al cliente.</p></article>
+        </div>
+        <div class="insight"><p><strong>L’obiettivo dell’intero percorso.</strong><br>Osservare un singolo datagramma e saper dire chi lo ha creato, quali intestazioni possiede in quel punto, quale dispositivo le legge, quali restano end-to-end, quali cambiano a ogni hop, quali esistono solo nel backbone MPLS e quali protocolli hanno preparato le tabelle senza comparire nel traffico del cliente.</p></div>
+        <div class="callout"><p><strong>Un solo datagramma, una connessione già aperta.</strong> Osserviamo un segmento di dati di una connessione TCP già stabilita fra Host A e un servizio sulla porta 443 di Host B. L’apertura della connessione, la risoluzione dei nomi e la cifratura dell’applicazione sono state trattate o restano fuori ambito: qui interessa il percorso del datagramma.</p></div>
+      </section>
+
+      <section id="scenario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>02</p></div><div class="section-copy"><h5 class="section-kicker">Piano di indirizzamento</h5><h2>Dieci dispositivi, tre domini di responsabilità</h2><div class="section-intro"><p>Lo scenario è quello annunciato fin dall’indice del percorso: <code>Host A — Switch — CE-A — PE-A — P1 — P2 — PE-B — CE-B — Switch — Host B</code>. Le Unità 1–4 usavano indirizzi pubblici di documentazione per un traffico Internet generico; qui il traffico appartiene al Cliente Blu dell’Unità 9, che usa indirizzi privati nelle proprie sedi, mentre il provider numera il backbone con indirizzi propri.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u10-plan-table"><thead><tr><th>Dispositivo</th><th>Ruolo</th><th>Interfacce e indirizzi dell’esempio</th><th>Che cosa conosce</th></tr></thead><tbody>
+          <tr><th>Host A</th><td>Client del Cliente Blu</td><td><code>10.10.10.10/24</code> · gateway <code>10.10.10.1</code> · porta di accesso VLAN 10</td><td>La propria subnet, il gateway e la cache Address Resolution Protocol (ARP).</td></tr>
+          <tr><th>Switch A</th><td>Switch di accesso del sito A</td><td>Porta access VLAN 10 verso Host A · trunk IEEE 802.1Q verso CE-A</td><td>Tabella degli indirizzi Media Access Control (MAC) per VLAN; non legge l’header IP.</td></tr>
+          <tr><th>CE-A</th><td>Customer Edge del sito A</td><td>LAN <code>Gi0/0.10</code> <code>10.10.10.1</code> · WAN <code>Gi0/1</code> <code>172.16.1.1/30</code></td><td>Rotte IP del cliente, incluso <code>10.20.20.0/24</code> verso PE-A; nessuna label.</td></tr>
+          <tr><th>PE-A</th><td>Provider Edge di ingresso</td><td><code>Gi0/0</code> in VRF BLU <code>172.16.1.2/30</code> · core <code>Gi0/1</code> <code>203.0.113.1/30</code> · Loopback0 <code>192.0.2.1</code></td><td>VRF BLU, rotte VPNv4 via MP-BGP, underlay OSPF, label LDP verso PE-B.</td></tr>
+          <tr><th>P1</th><td>Router Provider</td><td><code>203.0.113.2</code> verso PE-A · <code>203.0.113.5</code> verso P2</td><td>Underlay e Label Forwarding Information Base (LFIB); nessuna rotta cliente.</td></tr>
+          <tr><th>P2</th><td>Router Provider, penultimo hop</td><td><code>203.0.113.6</code> verso P1 · <code>203.0.113.9</code> verso PE-B</td><td>Underlay e LFIB; sa che PE-B ha chiesto Penultimate Hop Popping (PHP).</td></tr>
+          <tr><th>PE-B</th><td>Provider Edge di uscita</td><td>core <code>Gi0/0</code> <code>203.0.113.10/30</code> · <code>Gi0/1</code> in VRF BLU <code>172.16.2.2/30</code> · Loopback0 <code>192.0.2.2</code></td><td>VRF BLU con <code>10.20.20.0/24</code> appresa da CE-B; label di servizio <code>24001</code> allocata localmente.</td></tr>
+          <tr><th>CE-B</th><td>Customer Edge del sito B</td><td>WAN <code>Gi0/1</code> <code>172.16.2.1/30</code> · LAN <code>Gi0/0.20</code> <code>10.20.20.1</code></td><td>Rete connessa <code>10.20.20.0/24</code> e rotte verso il provider.</td></tr>
+          <tr><th>Switch B</th><td>Switch di accesso del sito B</td><td>Trunk IEEE 802.1Q verso CE-B · porta access VLAN 20 verso Host B</td><td>Tabella MAC per VLAN.</td></tr>
+          <tr><th>Host B</th><td>Server del Cliente Blu</td><td><code>10.20.20.77/24</code> · gateway <code>10.20.20.1</code> · servizio TCP 443</td><td>Socket in ascolto e connessione con <code>10.10.10.10:49152</code>.</td></tr>
+        </tbody></table></div>
+        <div class="u9-plane-grid">
+          <div><b>DOMINIO DEL CLIENTE · SITO A</b><p>Host A, Switch A e CE-A. Il Customer Edge (CE) può essere gestito dal cliente o fornito dal provider, ma nel modello base resta un normale router IP.</p></div>
+          <div><b>DOMINIO DEL PROVIDER</b><p>PE-A, P1, P2 e PE-B. I Provider Edge ospitano la Virtual Routing and Forwarding (VRF) BLU; i Provider (P) conoscono solo l’underlay e le label di trasporto.</p></div>
+          <div><b>DOMINIO DEL CLIENTE · SITO B</b><p>CE-B, Switch B e Host B. Il sito B usa la VLAN 20: il numero di VLAN ha significato locale e non deve coincidere con quello del sito A.</p></div>
+        </div>
+        <p class="figure-note">Legenda: Gi = GigabitEthernet; LAN = Local Area Network; WAN = Wide Area Network; VLAN = Virtual Local Area Network; IEEE = Institute of Electrical and Electronics Engineers; VPNv4 = Virtual Private Network IPv4; MP-BGP = Multiprotocol Border Gateway Protocol; LDP = Label Distribution Protocol. I blocchi <code>192.0.2.0/24</code> e <code>203.0.113.0/24</code> sono riservati alla documentazione; <code>10.0.0.0/8</code> e <code>172.16.0.0/12</code> sono privati. Gli indirizzi MAC sono indicati con il nome dell’interfaccia per leggibilità.</p>
+      </section>
+
+      <section id="preparazione" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>03</p></div><div class="section-copy"><h5 class="section-kicker">Prima del primo bit</h5><h2>Il control plane ha già preparato ogni decisione</h2><div class="section-intro"><p>Quando Host A trasmette, nessun protocollo di controllo viene interpellato «al volo»: ogni dispositivo consulta tabelle già costruite. Open Shortest Path First (OSPF) ha reso raggiungibili le loopback dei Provider Edge, Label Distribution Protocol (LDP) ha distribuito le label di trasporto, Multiprotocol Border Gateway Protocol (MP-BGP) ha portato la rotta VPNv4 e la label di servizio, Address Resolution Protocol (ARP) ha risolto gli indirizzi MAC sui collegamenti Ethernet.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u10-ready-table"><thead><tr><th>Dove</th><th>Tabella consultata</th><th>Voce usata dal nostro datagramma</th><th>Chi l’ha costruita</th></tr></thead><tbody>
+          <tr><th>Host A</th><td>Tabella di routing dell’host · cache ARP</td><td><code>10.20.20.77</code> fuori dalla subnet → gateway <code>10.10.10.1</code> · MAC di CE-A</td><td>Configurazione o Dynamic Host Configuration Protocol (DHCP) · ARP</td></tr>
+          <tr><th>Switch A</th><td>Tabella MAC della VLAN 10</td><td>MAC di CE-A → porta trunk</td><td>Apprendimento dagli indirizzi sorgente</td></tr>
+          <tr><th>CE-A</th><td>Routing Information Base / Forwarding Information Base (RIB/FIB)</td><td><code>10.20.20.0/24</code> → <code>172.16.1.2</code> via <code>Gi0/1</code></td><td>Protocollo PE–CE o rotta statica · ARP</td></tr>
+          <tr><th>PE-A</th><td>FIB della VRF BLU</td><td><code>10.20.20.0/24</code> → next hop <code>192.0.2.2</code>, label di servizio <code>24001</code>; <code>192.0.2.2/32</code> → P1, label di trasporto <code>18</code></td><td>MP-BGP con import del Route Target · OSPF · LDP</td></tr>
+          <tr><th>P1</th><td>LFIB</td><td>label in <code>18</code> → swap in <code>27</code> verso P2</td><td>LDP, che segue i percorsi di OSPF</td></tr>
+          <tr><th>P2</th><td>LFIB</td><td>label in <code>27</code> → pop verso PE-B</td><td>LDP: PE-B ha annunciato implicit null</td></tr>
+          <tr><th>PE-B</th><td>LFIB · VRF BLU</td><td>label in <code>24001</code> → rimuovi e inoltra verso CE-B <code>172.16.2.1</code></td><td>Allocazione locale di PE-B, annunciata con MP-BGP · rotta appresa da CE-B</td></tr>
+          <tr><th>CE-B</th><td>RIB/FIB · cache ARP</td><td><code>10.20.20.0/24</code> connessa su <code>Gi0/0.20</code> · MAC di Host B</td><td>Configurazione dell’interfaccia · ARP</td></tr>
+          <tr><th>Switch B</th><td>Tabella MAC della VLAN 20</td><td>MAC di Host B → porta access</td><td>Apprendimento dagli indirizzi sorgente</td></tr>
+          <tr><th>Host B</th><td>Tabella dei socket TCP</td><td><code>10.20.20.77:443</code> ↔ <code>10.10.10.10:49152</code></td><td>Applicazione server e apertura della connessione TCP</td></tr>
+        </tbody></table></div>
+        <div class="callout"><p><strong>Ordine di dipendenza:</strong> senza OSPF il next hop BGP <code>192.0.2.2</code> non è raggiungibile; senza LDP manca la label di trasporto verso quella loopback; senza MP-BGP la VRF BLU di PE-A non contiene <code>10.20.20.0/24</code>; senza ARP nessun router può costruire la trama verso il vicino. La sezione 07 permette di esplorare queste dipendenze una alla volta.</p></div>
+      </section>
+
+      <section id="viaggio" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>04</p></div><div class="section-copy"><h5 class="section-kicker">Sequenza a fotogrammi</h5><h2>Il viaggio, dispositivo per dispositivo</h2><div class="section-intro"><p>Ogni fotogramma mostra che cosa fa il dispositivo selezionato e com’è fatta l’unità dati che esce sul collegamento successivo. I campi evidenziati sono cambiati rispetto al fotogramma precedente. A destra trovi la tabella del control plane consultata in quel punto: è la vista simultanea di control plane e data plane.</p></div></div></div>
+        <div class="figure u10-journey">
+          <div class="figure-title"><strong>Da Host A a Host B</strong><span>seleziona un dispositivo oppure usa Precedente / Successivo</span></div>
+          <div class="u10-path-wrap">
+            <ol class="u10-path" id="u10Path" aria-label="Percorso del datagramma">
+              <li data-u10-node="0" class="u10-site"><b>Host A</b><small>10.10.10.10</small></li>
+              <li data-u10-node="1" class="u10-site"><b>Switch A</b><small>VLAN 10</small></li>
+              <li data-u10-node="2" class="u10-site"><b>CE-A</b><small>router cliente</small></li>
+              <li data-u10-node="3" class="u10-core"><b>PE-A</b><small>VRF BLU · push</small></li>
+              <li data-u10-node="4" class="u10-core"><b>P1</b><small>swap</small></li>
+              <li data-u10-node="5" class="u10-core"><b>P2</b><small>PHP</small></li>
+              <li data-u10-node="6" class="u10-core"><b>PE-B</b><small>servizio</small></li>
+              <li data-u10-node="7" class="u10-site"><b>CE-B</b><small>router cliente</small></li>
+              <li data-u10-node="8" class="u10-site"><b>Switch B</b><small>VLAN 20</small></li>
+              <li data-u10-node="9" class="u10-site"><b>Host B</b><small>10.20.20.77</small></li>
+            </ol>
+          </div>
+          <div class="u10-controls">
+            <button type="button" id="u10Prev" aria-label="Fotogramma precedente">← PRECEDENTE</button>
+            <div class="button-row u10-step-buttons" role="group" aria-label="Seleziona il dispositivo">
+              <button type="button" data-u10-step="0" aria-pressed="true">1 · HOST A</button>
+              <button type="button" data-u10-step="1" aria-pressed="false">2 · SW A</button>
+              <button type="button" data-u10-step="2" aria-pressed="false">3 · CE-A</button>
+              <button type="button" data-u10-step="3" aria-pressed="false">4 · PE-A</button>
+              <button type="button" data-u10-step="4" aria-pressed="false">5 · P1</button>
+              <button type="button" data-u10-step="5" aria-pressed="false">6 · P2</button>
+              <button type="button" data-u10-step="6" aria-pressed="false">7 · PE-B</button>
+              <button type="button" data-u10-step="7" aria-pressed="false">8 · CE-B</button>
+              <button type="button" data-u10-step="8" aria-pressed="false">9 · SW B</button>
+              <button type="button" data-u10-step="9" aria-pressed="false">10 · HOST B</button>
+            </div>
+            <button type="button" id="u10Next" aria-label="Fotogramma successivo">SUCCESSIVO →</button>
+          </div>
+          <div class="status-copy" aria-live="polite"><strong id="u10StepTitle">1 · Host A crea il datagramma</strong><span id="u10StepText"></span></div>
+          <div class="u10-frame-head"><b id="u10LinkLabel">Sul collegamento Host A → Switch A</b><span id="u10FrameSize"></span></div>
+          <div class="u10-packet" id="u10Packet" aria-label="Intestazioni dell’unità dati sul collegamento corrente"></div>
+          <div class="u10-step-grid">
+            <div class="u10-step-box"><b>LEGGE</b><ul id="u10Reads"></ul></div>
+            <div class="u10-step-box"><b>CAMBIA</b><ul id="u10Changes"></ul></div>
+            <div class="u10-step-box"><b>NON TOCCA</b><ul id="u10Ignores"></ul></div>
+            <div class="u10-step-box u10-control-box"><b>CONTROL PLANE · TABELLA CONSULTATA</b><p id="u10Table"></p><small id="u10BuiltBy"></small></div>
+          </div>
+          <p class="figure-note">Legenda: MAC = Media Access Control; VLAN = Virtual Local Area Network; FCS = Frame Check Sequence; TTL = Time To Live; TCP = Transmission Control Protocol; S = bit Bottom of Stack; PHP = Penultimate Hop Popping; VRF = Virtual Routing and Forwarding; LFIB = Label Forwarding Information Base. Il TTL segue il modello <em>uniform</em> della RFC 3443, cioè con propagazione del TTL attiva: ogni router, anche nel core, consuma un’unità. Con il modello <em>pipe</em> i router P non risultano nel TTL IP ricevuto da Host B.</p>
+        </div>
+        <div class="u9-vocab"><b>Lettura corretta dei termini</b><p>Host A produce <strong>dati</strong> applicativi; TCP li trasporta in un <strong>segmento</strong>; IP li incapsula in un <strong>datagramma</strong>; nel backbone il datagramma con lo stack di <strong>label</strong> forma un <strong>pacchetto</strong> MPLS; su ogni collegamento l’unità dati viaggia dentro una <strong>trama</strong> Ethernet diversa. Il datagramma cliente è lo stesso dall’inizio alla fine, salvo TTL e checksum.</p></div>
+      </section>
+
+      <section id="matrice" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>05</p></div><div class="section-copy"><h5 class="section-kicker">Matrice riepilogativa</h5><h2>Chi vede, chi legge, chi modifica</h2><div class="section-intro"><p>La matrice incrocia i dieci dispositivi con le intestazioni presenti nel viaggio. «Trasporta» significa che l’intestazione è fisicamente presente ma il dispositivo non la usa per la propria decisione; «—» significa che in quel punto l’intestazione non esiste.</p></div></div></div>
+        <div class="table-scroll"><table class="u10-matrix"><thead><tr><th>Intestazione</th><th>Host A</th><th>Switch A</th><th>CE-A</th><th>PE-A</th><th>P1</th><th>P2</th><th>PE-B</th><th>CE-B</th><th>Switch B</th><th>Host B</th></tr></thead><tbody>
+          <tr><th>Trama Ethernet</th><td class="u10-c-create">crea</td><td class="u10-c-read">legge MAC dst</td><td class="u10-c-change">termina e ricrea</td><td class="u10-c-change">termina e ricrea</td><td class="u10-c-change">termina e ricrea</td><td class="u10-c-change">termina e ricrea</td><td class="u10-c-change">termina e ricrea</td><td class="u10-c-change">termina e ricrea</td><td class="u10-c-read">legge MAC dst</td><td class="u10-c-end">termina</td></tr>
+          <tr><th>Tag IEEE 802.1Q</th><td class="u10-c-none">—</td><td class="u10-c-create">aggiunge VLAN 10</td><td class="u10-c-end">legge e rimuove</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-create">aggiunge VLAN 20</td><td class="u10-c-end">legge e rimuove</td><td class="u10-c-none">—</td></tr>
+          <tr><th>Label di trasporto</th><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-create">push 18</td><td class="u10-c-change">swap 18 → 27</td><td class="u10-c-end">pop 27 · PHP</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td></tr>
+          <tr><th>Label di servizio</th><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-create">push 24001</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta · TTL copiato</td><td class="u10-c-end">legge e rimuove</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td><td class="u10-c-none">—</td></tr>
+          <tr><th>Header IP</th><td class="u10-c-create">crea · TTL 64</td><td class="u10-c-carry">trasporta</td><td class="u10-c-change">lookup · TTL 63</td><td class="u10-c-change">lookup VRF · TTL 62</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-change">TTL 59 · uscita VRF</td><td class="u10-c-change">lookup · TTL 58</td><td class="u10-c-carry">trasporta</td><td class="u10-c-end">legge e consegna</td></tr>
+          <tr><th>Segmento TCP</th><td class="u10-c-create">crea</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-end">legge · porta 443</td></tr>
+          <tr><th>Dati applicativi</th><td class="u10-c-create">produce</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-carry">trasporta</td><td class="u10-c-end">consegna all’applicazione</td></tr>
+        </tbody></table></div>
+        <div class="u10-matrix-key" aria-label="Legenda dei colori della matrice"><span class="u10-c-create">crea / aggiunge</span><span class="u10-c-read">legge senza modificare</span><span class="u10-c-change">modifica o ricostruisce</span><span class="u10-c-end">legge e rimuove / consegna</span><span class="u10-c-carry">trasporta senza leggere</span><span class="u10-c-none">non presente</span></div>
+        <div class="callout"><p><strong>«Trasporta» non significa «invisibile».</strong> Un router P potrebbe esaminare l’header IP per funzioni aggiuntive, per esempio il bilanciamento del carico o la generazione di messaggi Internet Control Message Protocol (ICMP). Nel forwarding ordinario, però, decide soltanto sulla label superiore. Allo stesso modo, filtri, Network Address Translation (NAT) o classificazione della qualità del servizio possono leggere TCP sui CE: sono funzioni estranee a questo scenario.</p></div>
+      </section>
+
+      <section id="categorie" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>06</p></div><div class="section-copy"><h5 class="section-kicker">Quattro categorie</h5><h2>End-to-end, hop-by-hop, solo backbone e mai nel traffico</h2><div class="section-intro"><p>Raggruppare le informazioni per ambito di validità è il modo più rapido per ragionare su un guasto. Un indirizzo IP sbagliato è un problema end-to-end; un indirizzo MAC sbagliato riguarda un solo collegamento; una label errata riguarda il backbone; un Route Target errato non compare nel traffico, ma impedisce che la rotta arrivi nella VRF giusta.</p></div></div></div>
+        <div class="u10-scope">
+          <article class="u10-scope-e2e"><b>END-TO-END</b><h3>Creati da Host A, letti da Host B</h3><ul><li>IP sorgente <code>10.10.10.10</code> e destinazione <code>10.20.20.77</code>;</li><li>campo Protocol = 6 (TCP);</li><li>porte TCP <code>49152 → 443</code>, numeri di sequenza e conferma;</li><li>dati applicativi.</li></ul></article>
+          <article class="u10-scope-hop"><b>HOP-BY-HOP</b><h3>Validi su un collegamento o in un router</h3><ul><li>MAC di sorgente e destinazione, EtherType e Frame Check Sequence (FCS);</li><li>tag IEEE 802.1Q, soltanto sui trunk fra switch e CE;</li><li>TTL e checksum IP, riscritti dai router che inoltrano il datagramma.</li></ul></article>
+          <article class="u10-scope-core"><b>SOLO BACKBONE</b><h3>Imposti da PE-A, rimossi prima di CE-B</h3><ul><li>label di trasporto <code>18 → 27 → pop</code>;</li><li>label di servizio <code>24001</code>, con bit S = 1;</li><li>TTL delle label e EtherType <code>0x8847</code> (MPLS unicast).</li></ul></article>
+          <article class="u10-scope-control"><b>MAI NEL TRAFFICO</b><h3>Hanno preparato le tabelle</h3><ul><li>Link State Advertisement (LSA) di OSPF e loopback dei PE;</li><li>binding LDP e implicit null;</li><li>rotta VPNv4, Route Distinguisher (RD), Route Target (RT) e attributi MP-BGP;</li><li>rotte PE–CE e risposte ARP.</li></ul></article>
+        </div>
+        <div class="insight"><p><strong>Il caso più sottile è l’header IP.</strong><br>È un’intestazione end-to-end perché indirizzi e protocollo non cambiano, ma contiene due campi hop-by-hop: il TTL, che ogni router decrementa, e il checksum, che deve essere ricalcolato quando il TTL cambia. Nel core MPLS l’header IP resta invece intatto: è il TTL della label a contare gli hop.</p></div>
+      </section>
+
+      <section id="piani" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>07</p></div><div class="section-copy"><h5 class="section-kicker">Vista simultanea</h5><h2>Che cosa succede se manca un protocollo?</h2><div class="section-intro"><p>Il data plane del viaggio è una sola riga di dispositivi; sopra di essa lavorano protocolli di control plane con estensioni diverse. Seleziona un protocollo per vedere dove opera, quali passi del viaggio usano il suo lavoro e quale sintomo comparirebbe se mancasse. È un primo ponte verso l’Unità 11, dedicata a guasti e convergenza.</p></div></div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>Control plane sopra, data plane sotto</strong><span>le barre indicano i dispositivi che partecipano</span></div>
+          <div class="button-row" role="group" aria-label="Protocollo di control plane">
+            <button type="button" data-u10-proto="arp" aria-pressed="false">ARP</button>
+            <button type="button" data-u10-proto="pece" aria-pressed="false">ROUTING PE–CE</button>
+            <button type="button" data-u10-proto="ospf" aria-pressed="true">OSPF</button>
+            <button type="button" data-u10-proto="ldp" aria-pressed="false">LDP</button>
+            <button type="button" data-u10-proto="mpbgp" aria-pressed="false">MP-BGP</button>
+          </div>
+          <div class="u10-planes-wrap">
+            <div class="u10-planes" id="u10Planes" data-proto="ospf" role="img" aria-label="OSPF opera fra PE-A, P1, P2 e PE-B.">
+              <div class="u10-plane-label" style="grid-row: 1">ARP</div>
+              <span class="u10-bar u10-bar-arp" style="grid-row: 1; grid-column: 3 / 7">Host A–CE-A</span>
+              <span class="u10-bar u10-bar-arp" style="grid-row: 1; grid-column: 7 / 9">CE-A–PE-A</span>
+              <span class="u10-bar u10-bar-arp" style="grid-row: 1; grid-column: 9 / 11">PE-A–P1</span>
+              <span class="u10-bar u10-bar-arp" style="grid-row: 1; grid-column: 11 / 13">P1–P2</span>
+              <span class="u10-bar u10-bar-arp" style="grid-row: 1; grid-column: 13 / 15">P2–PE-B</span>
+              <span class="u10-bar u10-bar-arp" style="grid-row: 1; grid-column: 15 / 17">PE-B–CE-B</span>
+              <span class="u10-bar u10-bar-arp" style="grid-row: 1; grid-column: 17 / 21">CE-B–Host B</span>
+              <div class="u10-plane-label" style="grid-row: 2">PE–CE</div>
+              <span class="u10-bar u10-bar-pece" style="grid-row: 2; grid-column: 7 / 9">CE-A–PE-A</span>
+              <span class="u10-bar u10-bar-pece" style="grid-row: 2; grid-column: 15 / 17">PE-B–CE-B</span>
+              <div class="u10-plane-label" style="grid-row: 3">OSPF</div>
+              <span class="u10-bar u10-bar-ospf" style="grid-row: 3; grid-column: 8 / 16">underlay · loopback 192.0.2.1 e 192.0.2.2</span>
+              <div class="u10-plane-label" style="grid-row: 4">LDP</div>
+              <span class="u10-bar u10-bar-ldp" style="grid-row: 4; grid-column: 8 / 16">18 · 27 · implicit null verso 192.0.2.2</span>
+              <div class="u10-plane-label" style="grid-row: 5">MP-BGP</div>
+              <span class="u10-bar u10-bar-mpbgp" style="grid-row: 5; grid-column: 8 / 16">sessione PE-A ↔ PE-B · i P non partecipano</span>
+              <div class="u10-plane-label u10-data-label" style="grid-row: 6">DATA</div>
+              <span class="u10-dev" style="grid-row: 6; grid-column: 2 / 4">Host A</span>
+              <span class="u10-dev" style="grid-row: 6; grid-column: 4 / 6">Sw A</span>
+              <span class="u10-dev" style="grid-row: 6; grid-column: 6 / 8">CE-A</span>
+              <span class="u10-dev u10-dev-core" style="grid-row: 6; grid-column: 8 / 10">PE-A</span>
+              <span class="u10-dev u10-dev-core" style="grid-row: 6; grid-column: 10 / 12">P1</span>
+              <span class="u10-dev u10-dev-core" style="grid-row: 6; grid-column: 12 / 14">P2</span>
+              <span class="u10-dev u10-dev-core" style="grid-row: 6; grid-column: 14 / 16">PE-B</span>
+              <span class="u10-dev" style="grid-row: 6; grid-column: 16 / 18">CE-B</span>
+              <span class="u10-dev" style="grid-row: 6; grid-column: 18 / 20">Sw B</span>
+              <span class="u10-dev" style="grid-row: 6; grid-column: 20 / 22">Host B</span>
+            </div>
+          </div>
+          <div class="u10-proto-detail">
+            <div class="status-copy" aria-live="polite"><strong id="u10ProtoTitle"></strong><span id="u10ProtoText"></span></div>
+            <div class="u10-proto-facts">
+              <div><b>PREPARA</b><span id="u10ProtoPrepares"></span></div>
+              <div><b>USATO NEI PASSI</b><span id="u10ProtoSteps"></span></div>
+              <div class="u10-fail"><b>SE MANCA</b><span id="u10ProtoFail"></span></div>
+            </div>
+          </div>
+          <p class="figure-note">Legenda: ARP = Address Resolution Protocol; PE–CE = protocollo di routing o rotte statiche fra Provider Edge e Customer Edge; OSPF = Open Shortest Path First; LDP = Label Distribution Protocol; MP-BGP = Multiprotocol Border Gateway Protocol. ARP opera su ogni collegamento Ethernet fra dispositivi IP, quindi anche nel core. La sessione MP-BGP può passare per un Route Reflector senza cambiare il ragionamento.</p>
+        </div>
+      </section>
+
+      <section id="dimensioni" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>08</p></div><div class="section-copy"><h5 class="section-kicker">Quanto pesa ogni intestazione</h5><h2>Il datagramma resta di 1.500 byte; la trama cambia dimensione</h2><div class="section-intro"><p>Il segmento TCP porta 1.460 byte di dati con un header di 20 byte, e l’header IPv4 ne aggiunge altri 20: il datagramma misura 1.500 byte, cioè la Maximum Transmission Unit (MTU) ordinaria di Ethernet. Sui collegamenti successivi cambiano soltanto le intestazioni che lo circondano.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u10-size-table"><thead><tr><th>Tratto</th><th>Intestazioni attorno al datagramma</th><th>Trama sul filo</th></tr></thead><tbody>
+          <tr><th>Host A → Switch A</th><td>Ethernet 14 + datagramma 1.500 + FCS 4</td><td><b>1.518 byte</b></td></tr>
+          <tr><th>Switch A → CE-A</th><td>Ethernet 14 + tag 802.1Q 4 + datagramma 1.500 + FCS 4</td><td><b>1.522 byte</b></td></tr>
+          <tr><th>CE-A → PE-A</th><td>Ethernet 14 + datagramma 1.500 + FCS 4</td><td><b>1.518 byte</b></td></tr>
+          <tr><th>PE-A → P1 · P1 → P2</th><td>Ethernet 14 + due label 8 + datagramma 1.500 + FCS 4</td><td><b>1.526 byte</b></td></tr>
+          <tr><th>P2 → PE-B</th><td>Ethernet 14 + una label 4 + datagramma 1.500 + FCS 4</td><td><b>1.522 byte</b></td></tr>
+          <tr><th>PE-B → CE-B</th><td>Ethernet 14 + datagramma 1.500 + FCS 4</td><td><b>1.518 byte</b></td></tr>
+          <tr><th>CE-B → Switch B</th><td>Ethernet 14 + tag 802.1Q 4 + datagramma 1.500 + FCS 4</td><td><b>1.522 byte</b></td></tr>
+          <tr><th>Switch B → Host B</th><td>Ethernet 14 + datagramma 1.500 + FCS 4</td><td><b>1.518 byte</b></td></tr>
+        </tbody></table></div>
+        <div class="cards cards-3">
+          <article class="card accent-amber"><h5 class="card-tag">CORE</h5><h3>Servono almeno 1.508 byte di MTU MPLS</h3><p>Datagramma di 1.500 byte più due label da 4 byte. Per questo i backbone usano in genere MTU molto più grandi, che lasciano spazio a più label e ad altri incapsulamenti.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">ACCESSO</h5><h3>Il tag VLAN non riduce il datagramma</h3><p>La trama con tag IEEE 802.1Q può arrivare a 1.522 byte proprio per conservare un payload di 1.500 byte, come visto nell’Unità 2.</p></article>
+          <article class="card accent-coral"><h5 class="card-tag">SINTOMO</h5><h3>Ping piccoli sì, trasferimenti grandi no</h3><p>Se una tratta del core non accetta l’overhead delle label, i pacchetti piccoli passano e quelli pieni vengono scartati. È un errore classico di data plane con control plane perfettamente coerente.</p></article>
+        </div>
+        <p class="figure-note">I conteggi escludono preambolo, Start Frame Delimiter e intervallo fra le trame; header TCP e IP sono considerati senza opzioni. In una connessione reale le opzioni TCP, per esempio i timestamp, riducono i dati per segmento.</p>
+      </section>
+
+      <section id="ritorno" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>09</p></div><div class="section-copy"><h5 class="section-kicker">La risposta di Host B</h5><h2>Il ritorno non è lo stesso percorso al contrario</h2><div class="section-intro"><p>Host B risponde con un segmento TCP da <code>10.20.20.77:443</code> a <code>10.10.10.10:49152</code>. Le porte e gli indirizzi si invertono, ma il viaggio usa tabelle e label differenti, perché un Label Switched Path (LSP) è unidirezionale e ogni label ha significato locale per chi l’ha annunciata.</p></div></div></div>
+        <div class="u9-two-lanes">
+          <div><b>ANDATA · VERSO 10.20.20.77</b><p>PE-A usa la rotta VPNv4 annunciata da PE-B: label di servizio <code>24001</code>, next hop <code>192.0.2.2</code>, label di trasporto <code>18 → 27 → pop</code> verso la loopback di PE-B.</p></div>
+          <div><b>RITORNO · VERSO 10.10.10.10</b><p>PE-B usa la rotta <code>10.10.10.0/24</code> annunciata da PE-A, con una label di servizio allocata da PE-A, per esempio <code>24010</code>, e un LSP verso <code>192.0.2.1</code> costruito con label annunciate in direzione opposta.</p></div>
+        </div>
+        <div class="callout"><p><strong>Percorso simmetrico non garantito.</strong> Anche fisicamente, il ritorno può attraversare router P diversi se le metriche dell’Interior Gateway Protocol (IGP) o le policy lo determinano. Quando l’andata funziona e il ritorno no, va controllata separatamente la catena nella direzione opposta: rotta su CE-B, VPNv4 di PE-A, LSP verso <code>192.0.2.1</code>.</p></div>
+      </section>
+
+      <section id="operativita" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>10</p></div><div class="section-copy"><h5 class="section-kicker">Verifica operativa concettuale</h5><h2>Seguire il datagramma con i comandi</h2><div class="section-intro"><p>La verifica ripercorre il viaggio nello stesso ordine dei fotogrammi: a ogni passo si controlla la tabella che il dispositivo consulta. I comandi sono esempi Cisco IOS XE e possono variare con piattaforma e release; l’output è abbreviato e illustrativo.</p></div></div></div>
+        <div class="check-chain">
+          <div class="check-step"><span>1</span><div><b>Sito A: gateway e risoluzione</b><p>Su Host A verifica indirizzo, gateway e voce ARP del gateway; su CE-A la rotta verso il sito remoto: <code>show ip route 10.20.20.0</code>.</p></div></div>
+          <div class="check-step"><span>2</span><div><b>PE-A: rotta nella VRF giusta</b><p>Il lookup deve avvenire nella VRF BLU, non nella tabella globale: <code>show ip route vrf BLU 10.20.20.77</code>.</p></div></div>
+          <div class="check-step"><span>3</span><div><b>PE-A: stack di label programmato</b><p>Cisco Express Forwarding (CEF) mostra entrambe le label e l’interfaccia d’uscita: <code>show ip cef vrf BLU 10.20.20.77 detail</code>.</p></div></div>
+          <div class="check-step"><span>4</span><div><b>Core: catena di trasporto</b><p>Su PE-A <code>show mpls forwarding-table 192.0.2.2 32</code>; su P1 la label 18 e su P2 la label 27: <code>show mpls forwarding-table labels 18</code>.</p></div></div>
+          <div class="check-step"><span>5</span><div><b>PE-B: azione della label di servizio</b><p>La label 24001 deve condurre all’uscita verso CE-B: <code>show mpls forwarding-table labels 24001</code>, <code>show bgp vpnv4 unicast vrf BLU labels</code>.</p></div></div>
+          <div class="check-step"><span>6</span><div><b>Sito B e prova end-to-end</b><p>Su CE-B verifica la voce ARP di Host B; poi prova dal contesto corretto, per esempio <code>ping vrf BLU 10.20.20.77 source 172.16.1.2</code> su PE-A, o un ping da Host A.</p></div></div>
+        </div>
+        <div class="u9-cli-wrap"><pre class="u9-cli"><code>PE-A# show ip cef vrf BLU 10.20.20.77 detail
+10.20.20.0/24, epoch 0
+  recursive via 192.0.2.2 label 24001
+    nexthop 203.0.113.2 GigabitEthernet0/1 label 18
+
+CE-A# traceroute 10.20.20.77
+  1 172.16.1.2
+  2 203.0.113.2 [MPLS: Labels 18/24001 Exp 0]
+  3 203.0.113.6 [MPLS: Labels 27/24001 Exp 0]
+  4 172.16.2.2  [MPLS: Label 24001 Exp 0]
+  5 172.16.2.1
+  6 10.20.20.77
+
+# Output abbreviato e illustrativo: forma e campi cambiano per release.</code></pre></div>
+        <div class="callout"><p><strong>Perché il traceroute mostra i router P?</strong> Con la propagazione del TTL attiva, la label scade nel core e il router P genera un messaggio ICMP che può includere lo stack ricevuto, secondo la RFC 4950. Il router P non conosce però la rete cliente: il messaggio viene inoltrato lungo l’LSP fino al PE di uscita, che lo instrada nella VRF verso la sorgente. Con il modello pipe gli hop del core non compaiono.</p></div>
+      </section>
+
+      <section id="limiti" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>11</p></div><div class="section-copy"><h5 class="section-kicker">Che cosa resta fuori</h5><h2>Uno scenario ideale, volutamente semplificato</h2><div class="section-intro"><p>Il viaggio descritto è corretto ma ideale: tutti i collegamenti funzionano, esiste un solo percorso e nessuna funzione aggiuntiva modifica il traffico. Conoscere le semplificazioni aiuta a non trasformare l’esempio in una regola universale.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">GUASTI</h5><h3>Nessun collegamento si interrompe</h3><p>Rilevazione del guasto, riconvergenza di OSPF e LDP, protezione e perdita di pacchetti durante la convergenza sono il tema dell’Unità 11.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">PERCORSI MULTIPLI</h5><h3>Esiste un solo percorso nel core</h3><p>Con percorsi a costo uguale, Equal-Cost Multi-Path (ECMP), i router possono distribuire i flussi su più link, spesso esaminando anche campi sotto lo stack di label.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">FUNZIONI AGGIUNTIVE</h5><h3>Nessun NAT, filtro o QoS</h3><p>Network Address Translation, firewall e Quality of Service (QoS) possono leggere o modificare campi qui descritti come end-to-end.</p></article>
+        </div>
+        <div class="u9-two-lanes">
+          <div><b>MODALITÀ DI ALLOCAZIONE</b><p>Con una label di servizio per prefisso PE-B può inoltrare direttamente verso CE-B; con una label per VRF esegue prima un lookup IP nella VRF BLU. Il risultato visibile è lo stesso, il lavoro interno no.</p></div>
+          <div><b>ALTRI SERVIZI E PROTOCOLLI</b><p>IPv6, Layer 2 VPN, Segment Routing e Ethernet VPN cambiano alcune intestazioni o il control plane, ma il metodo di analisi resta identico: chi crea, chi legge, chi modifica, chi ha preparato la tabella.</p></div>
+        </div>
+      </section>
+
+      <section id="glossario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>12</p></div><div class="section-copy"><h5 class="section-kicker">Glossario cumulativo</h5><h2>Le sigle del viaggio completo</h2><div class="section-intro"><p>Il viaggio usa sigle di tutte le unità precedenti: le nuove sono riportate accanto a quelle già studiate.</p></div></div></div>
+        <dl class="glossary">
+          <dt>ARP — Address Resolution Protocol</dt><dd>Protocollo che associa un indirizzo IPv4 del collegamento locale all’indirizzo MAC necessario per costruire la trama.</dd>
+          <dt>MAC — Media Access Control</dt><dd>Indirizzo usato per la consegna della trama su un singolo collegamento Ethernet.</dd>
+          <dt>VLAN — Virtual Local Area Network</dt><dd>Dominio Layer 2 logico; il numero ha significato locale alla rete che lo configura.</dd>
+          <dt>IEEE 802.1Q</dt><dd>Standard del tag VLAN di 4 byte inserito nella trama Ethernet sui trunk.</dd>
+          <dt>EtherType</dt><dd>Campo della trama Ethernet che indica il contenuto: <code>0x0800</code> IPv4, <code>0x8100</code> tag 802.1Q, <code>0x8847</code> MPLS unicast.</dd>
+          <dt>FCS — Frame Check Sequence</dt><dd>Controllo di integrità della trama, ricalcolato ogni volta che la trama viene ricostruita o modificata.</dd>
+          <dt>TTL — Time To Live</dt><dd>Contatore decrementato dai router; esiste nell’header IP e in ogni entry dello stack MPLS.</dd>
+          <dt>S — Bottom of Stack</dt><dd>Bit della label MPLS che vale 1 nell’ultima entry dello stack, qui la label di servizio 24001.</dd>
+          <dt>LAN / WAN — Local / Wide Area Network</dt><dd>Rete del sito / collegamento geografico, qui il link fra CE e PE.</dd>
+          <dt>DHCP — Dynamic Host Configuration Protocol</dt><dd>Protocollo che può fornire all’host indirizzo, maschera e gateway.</dd>
+          <dt>ICMP — Internet Control Message Protocol</dt><dd>Protocollo dei messaggi di errore e diagnostica IP, usato da ping e traceroute.</dd>
+          <dt>NAT — Network Address Translation</dt><dd>Funzione che riscrive indirizzi o porte; assente nello scenario dell’unità.</dd>
+          <dt>QoS — Quality of Service</dt><dd>Insieme di meccanismi per classificare e trattare il traffico in modo differenziato.</dd>
+          <dt>TCP — Transmission Control Protocol</dt><dd>Protocollo di trasporto orientato alla connessione; qui identifica il flusso 49152 → 443.</dd>
+          <dt>IP / IPv4 — Internet Protocol</dt><dd>Protocollo di rete del datagramma cliente, con indirizzi end-to-end.</dd>
+          <dt>CE / PE / P — Customer Edge / Provider Edge / Provider</dt><dd>Router del cliente al confine / router di bordo del provider / router interno del backbone.</dd>
+          <dt>VRF — Virtual Routing and Forwarding</dt><dd>Contesto separato di routing e forwarding del cliente sul PE.</dd>
+          <dt>RD / RT — Route Distinguisher / Route Target</dt><dd>Valore che rende distinguibile la rotta VPNv4 / Extended Community che governa l’importazione nelle VRF.</dd>
+          <dt>VPN / VPNv4 — Virtual Private Network / VPN IPv4</dt><dd>Servizio di separazione logica / famiglia di rotte formata da RD e prefisso IPv4.</dd>
+          <dt>MP-BGP — Multiprotocol Border Gateway Protocol</dt><dd>Estensioni di BGP che distribuiscono fra i PE rotte VPNv4 e label di servizio.</dd>
+          <dt>IGP — Interior Gateway Protocol</dt><dd>Protocollo di routing interno del provider; qui OSPF.</dd>
+          <dt>OSPF — Open Shortest Path First</dt><dd>IGP link-state che rende raggiungibili le loopback dei PE.</dd>
+          <dt>LSA — Link State Advertisement</dt><dd>Unità informativa di OSPF che descrive router, link e prefissi.</dd>
+          <dt>LDP — Label Distribution Protocol</dt><dd>Protocollo che distribuisce le label di trasporto seguendo l’IGP.</dd>
+          <dt>MPLS — Multiprotocol Label Switching</dt><dd>Inoltro basato su label; nel servizio L3VPN usa una label di trasporto e una di servizio.</dd>
+          <dt>LSP — Label Switched Path</dt><dd>Percorso unidirezionale definito dalle operazioni sulle label.</dd>
+          <dt>PHP — Penultimate Hop Popping</dt><dd>Rimozione della label di trasporto sul penultimo router, richiesta dal PE di uscita con implicit null.</dd>
+          <dt>RIB / FIB / LFIB</dt><dd>Routing Information Base / Forwarding Information Base / Label Forwarding Information Base.</dd>
+          <dt>CEF — Cisco Express Forwarding</dt><dd>Implementazione Cisco del forwarding basata su FIB e tabella delle adiacenze.</dd>
+          <dt>MTU — Maximum Transmission Unit</dt><dd>Dimensione massima dell’unità dati su un collegamento; lo stack MPLS aggiunge 4 byte per label.</dd>
+          <dt>ECMP — Equal-Cost Multi-Path</dt><dd>Uso contemporaneo di più percorsi a costo uguale, escluso dallo scenario dell’unità.</dd>
+          <dt>RFC — Request for Comments</dt><dd>Serie di documenti tecnici che comprende le specifiche citate nell’unità.</dd>
+        </dl>
+      </section>
+
+      <section id="autoverifica" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>13</p></div><div class="section-copy"><h5 class="section-kicker">Verifica finale</h5><h2>Domande di orientamento</h2><div class="section-intro"><p>Rispondi prima di aprire la spiegazione. Ogni domanda chiede di collocare un’informazione nel punto giusto del viaggio.</p></div></div></div>
+        <div class="quiz">
+          <details><summary>1. Perché Host A mette nella trama il MAC di CE-A e non quello di Host B?</summary><p>Host B è fuori dalla subnet <code>10.10.10.0/24</code>: Host A consegna il datagramma al gateway <code>10.10.10.1</code>. Il MAC di destinazione vale solo sul collegamento locale.</p></details>
+          <details><summary>2. Switch A aggiunge il tag VLAN 10: modifica il datagramma IP?</summary><p>No. Modifica la trama, inserendo il tag e ricalcolando la FCS. Indirizzi, TTL e checksum IP restano invariati.</p></details>
+          <details><summary>3. Che cosa cambia nell’header IP quando CE-A inoltra il datagramma?</summary><p>Il TTL passa da 64 a 63 e il checksum dell’header viene ricalcolato. Indirizzi, protocollo e segmento TCP restano invariati.</p></details>
+          <details><summary>4. Perché PE-A esegue il lookup nella VRF BLU e non nella tabella globale?</summary><p>L’interfaccia <code>Gi0/0</code> verso CE-A è associata alla VRF BLU: il contesto d’ingresso decide quale tabella consultare.</p></details>
+          <details><summary>5. In quale ordine PE-A impone le due label e perché?</summary><p>Prima la label di servizio <code>24001</code>, con bit S = 1, poi sopra la label di trasporto <code>18</code>. La label superiore deve servire ai router del core; quella inferiore al PE di uscita.</p></details>
+          <details><summary>6. Quale EtherType annuncia il contenuto della trama fra PE-A e P1?</summary><p><code>0x8847</code>, MPLS unicast: il ricevente sa che subito dopo l’header Ethernet c’è uno stack di label, non un header IP.</p></details>
+          <details><summary>7. P1 modifica il TTL dell’header IP?</summary><p>No. Decrementa il TTL della label superiore durante lo swap 18 → 27. L’header IP resta come lo ha scritto PE-A.</p></details>
+          <details><summary>8. Che cosa riceve PE-B da P2, e perché?</summary><p>Una trama con la sola label <code>24001</code>: PE-B ha annunciato implicit null per la propria loopback, quindi P2 esegue Penultimate Hop Popping.</p></details>
+          <details><summary>9. Perché la label 24001 è sufficiente a PE-B per scegliere l’uscita corretta?</summary><p>L’ha allocata PE-B stesso e l’ha associata al contesto o alla rotta della VRF BLU, poi l’ha annunciata con MP-BGP. Per PE-B il valore ha un significato locale preciso.</p></details>
+          <details><summary>10. Quali informazioni non compaiono mai nel traffico del cliente pur essendo indispensabili?</summary><p>Route Distinguisher, Route Target, rotte VPNv4, attributi MP-BGP, LSA OSPF e binding LDP: hanno preparato le tabelle consultate dal data plane.</p></details>
+          <details><summary>11. Che TTL riceve Host B nel modello uniform, e perché?</summary><p>58: lo hanno decrementato sei router, cioè CE-A, PE-A, P1, P2, PE-B e CE-B. Gli switch non decrementano il TTL.</p></details>
+          <details><summary>12. Il traceroute da CE-A mostra P1 e P2: questo significa che i router P conoscono <code>10.10.10.0/24</code>?</summary><p>No. Il messaggio ICMP generato da P1 o P2 viene inoltrato lungo l’LSP fino a PE-B, che lo instrada nella VRF BLU verso la sorgente.</p></details>
+          <details><summary>13. Ping con pacchetti piccoli funzionano, trasferimenti grandi no: dove guardi per primo?</summary><p>MTU del core: il datagramma da 1.500 byte con due label richiede almeno 1.508 byte di MTU MPLS su ogni tratta del backbone.</p></details>
+          <details><summary>14. Perché il ritorno da Host B non usa la label 24001?</summary><p>24001 è la label annunciata da PE-B per raggiungere il sito B. Il ritorno verso <code>10.10.10.0/24</code> usa la label di servizio annunciata da PE-A e un LSP diverso verso <code>192.0.2.1</code>.</p></details>
+          <details><summary>15. Se LDP non funziona ma MP-BGP sì, la VRF BLU di PE-A contiene la rotta remota?</summary><p>Può contenerla, ma il traffico non arriva: manca la label di trasporto verso <code>192.0.2.2</code> e i router P non possono inoltrare un pacchetto con la sola label di servizio, che per loro non ha significato.</p></details>
+          <details><summary>16. Quali quattro domande riassumono il metodo dell’unità?</summary><p>Chi crea l’intestazione, chi la legge, chi la modifica e quale protocollo ha preparato la tabella usata in quel punto.</p></details>
+        </div>
+      </section>
+
+      <div class="closing"><h5 class="section-kicker">Punto di arrivo dell’Unità 10</h5><h2>Lo stesso datagramma attraversa intestazioni diverse a ogni passo.</h2><p>Host A crea dati, segmento e datagramma; ogni collegamento li avvolge in una trama nuova; PE-A aggiunge il contesto della VRF e due label; P1 e P2 lavorano soltanto sulla label superiore; PE-B usa la label di servizio per tornare nel contesto del cliente; CE-B e Switch B consegnano il datagramma a Host B. Tutte le decisioni erano state preparate dal control plane. Nell’Unità 11 vedremo che cosa accade quando un collegamento o un router smette di funzionare.</p></div>
+      <div class="sources"><p><strong>Riferimenti essenziali:</strong><br><a href="https://www.rfc-editor.org/rfc/rfc791.html">RFC 791 — Internet Protocol</a> · <a href="https://www.rfc-editor.org/rfc/rfc9293.html">RFC 9293 — Transmission Control Protocol</a> · <a href="https://www.rfc-editor.org/rfc/rfc826.html">RFC 826 — Address Resolution Protocol</a> · <a href="https://www.rfc-editor.org/rfc/rfc3031.html">RFC 3031 — MPLS Architecture</a> · <a href="https://www.rfc-editor.org/rfc/rfc3032.html">RFC 3032 — MPLS Label Stack Encoding</a> · <a href="https://www.rfc-editor.org/rfc/rfc3443.html">RFC 3443 — TTL Processing in MPLS Networks</a> · <a href="https://www.rfc-editor.org/rfc/rfc4364.html">RFC 4364 — BGP/MPLS IP Virtual Private Networks</a> · <a href="https://www.rfc-editor.org/rfc/rfc4950.html">RFC 4950 — ICMP Extensions for MPLS</a> · <a href="https://www.rfc-editor.org/rfc/rfc5036.html">RFC 5036 — LDP Specification</a> · <a href="https://www.rfc-editor.org/rfc/rfc2328.html">RFC 2328 — OSPF Version 2</a> · IEEE 802.1Q — Bridges and Bridged Networks</p></div>
+    </main>
+    <footer><span>NETWORKING ACADEMY · UNITÀ 10</span><span>Dal dato del cliente al backbone del Service Provider</span></footer>
+    <p class="legal-note">Progetto personale, non affiliato né approvato da Cisco Systems, Inc. Cisco è un marchio di Cisco Systems, Inc.<br>
+      <span lang="en">Personal project, not affiliated with or endorsed by Cisco Systems, Inc. Cisco is a trademark of Cisco Systems, Inc.</span></p>
+  </div>
+  <script src="assets/tema.js?v=2"></script>
+  <script src="assets/unita-10.js?v=1"></script>
+</body>
+</html>
