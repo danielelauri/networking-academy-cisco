@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Unità 11: che cosa accade al traffico del Cliente Blu quando un collegamento o un router si guasta. Rilevazione, convergenza di Open Shortest Path First e Label Distribution Protocol, reazione di Multiprotocol BGP, perdita di pacchetti, protezione rapida e verifica operativa.">
+  <title>Unità 11 — Guasti, convergenza e verifica operativa</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/corso.css?v=3">
+  <link rel="stylesheet" href="assets/unita-11.css?v=1">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">11</span> NETWORKING ACADEMY</div>
+      <div class="topbar-tools">
+        <div class="progress" style="--progress: 92.3%">UNITÀ 11 DI 12<span class="progress-topic"> · GUASTI E CONVERGENZA</span></div>
+        <label class="theme-switch" for="themeToggle">
+          <span class="theme-icon" aria-hidden="true">☼</span><span class="theme-label">Tema</span>
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span></span></span><span class="theme-current" id="themeCurrent">Scuro</span>
+        </label>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="hero-heading">
+        <p class="kicker">Unità 11 · control plane e data plane sotto stress <span class="draft">PERCORSO PRINCIPALE</span></p>
+        <h1>Un collegamento si interrompe, <span>la rete si ricompone.</span></h1>
+      </div>
+      <div class="u11-hero-figure">
+        <p class="u11-eyebrow">Lo scenario dell’Unità 10 con un percorso di riserva nel backbone</p>
+        <div class="u11-topo-wrap">
+          <svg class="u11-topo u11-cut" viewBox="0 0 1000 290" role="img" aria-label="Topologia: CE-A, PE-A, P1, P2, PE-B e CE-B in linea; il collegamento fra P1 e P2 è interrotto. Sotto, il router P3 collega PE-A e PE-B con un percorso alternativo di costo 40 al posto del percorso primario di costo 30.">
+            <line class="u11-link u11-access" x1="122" y1="100" x2="188" y2="100"/>
+            <line class="u11-link u11-active" x1="292" y1="100" x2="368" y2="100"/>
+            <line class="u11-link u11-broken" x1="472" y1="100" x2="548" y2="100"/>
+            <line class="u11-link u11-active u11-dim" x1="652" y1="100" x2="728" y2="100"/>
+            <line class="u11-link u11-alt" x1="250" y1="123" x2="458" y2="235"/>
+            <line class="u11-link u11-alt" x1="562" y1="235" x2="770" y2="123"/>
+            <line class="u11-link u11-access" x1="832" y1="100" x2="888" y2="100"/>
+            <text class="u11-metric" x="330" y="84">10</text><text class="u11-metric" x="510" y="80">10</text><text class="u11-metric" x="690" y="84">10</text>
+            <text class="u11-metric" x="335" y="196">20</text><text class="u11-metric" x="685" y="196">20</text>
+            <text class="u11-break" x="510" y="100">✕</text>
+            <g class="u11-node"><rect x="18" y="77" width="104" height="46" rx="12"/><text x="70" y="100">CE-A</text></g>
+            <g class="u11-node u11-core"><rect x="188" y="77" width="104" height="46" rx="12"/><text x="240" y="100">PE-A</text></g>
+            <g class="u11-node u11-core u11-n-detect"><rect x="368" y="77" width="104" height="46" rx="12"/><text x="420" y="100">P1</text></g>
+            <g class="u11-node u11-core u11-n-detect"><rect x="548" y="77" width="104" height="46" rx="12"/><text x="600" y="100">P2</text></g>
+            <g class="u11-node u11-core"><rect x="728" y="77" width="104" height="46" rx="12"/><text x="780" y="100">PE-B</text></g>
+            <g class="u11-node"><rect x="888" y="77" width="104" height="46" rx="12"/><text x="940" y="100">CE-B</text></g>
+            <g class="u11-node u11-core"><rect x="458" y="212" width="104" height="46" rx="12"/><text x="510" y="235">P3</text></g>
+          </svg>
+        </div>
+        <div class="u11-topo-key" aria-hidden="true"><span class="u11-key-primary"><i></i>percorso primario · costo 30</span><span class="u11-key-broken"><i></i>collegamento guasto</span><span class="u11-key-alt"><i></i>percorso alternativo · costo 40</span></div>
+        <p class="u11-hero-legend"><b>Legenda:</b> CE = Customer Edge; PE = Provider Edge; P = Provider; i numeri sui collegamenti sono i costi di Open Shortest Path First (OSPF). Host, switch e indirizzi del Cliente Blu restano quelli dell’Unità 10; P3 e i suoi collegamenti sono l’unica aggiunta.</p>
+      </div>
+      <div class="hero-summary">
+        <p class="hero-lead"><strong>Domanda guida:</strong> che cosa succede al traffico quando un collegamento o un router smette di funzionare, e come si verifica che cosa è successo?</p>
+        <div class="learning-strip"><span><b>Prerequisiti</b> Unità 0–10</span><span><b>Obiettivo</b> Seguire la rete dal guasto al nuovo stato stabile</span><span><b>Tempo indicativo</b> 90 minuti</span></div>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell’unità">
+      <a href="#problema">Problema</a><a href="#storia">Storia</a><a href="#scenario">Scenario</a><a href="#fasi">Quattro fasi</a>
+      <a href="#sequenza">Sequenza</a><a href="#tabelle">Prima e dopo</a><a href="#guasti">Quale guasto</a><a href="#impatto">Perdita e ritardo</a>
+      <a href="#protezione">Protezione</a><a href="#verifica">Verifica</a><a href="#limiti">Limiti</a><a href="#glossario">Glossario</a><a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+      <section id="problema" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>01</p></div><div class="section-copy"><h5 class="section-kicker">Il problema originario</h5><h2>Le tabelle descrivono una rete che, all’improvviso, non esiste più</h2><div class="section-intro"><p>Nell’Unità 10 ogni decisione del data plane era già pronta: Open Shortest Path First (OSPF) aveva calcolato i percorsi, Label Distribution Protocol (LDP) aveva distribuito le label, Multiprotocol Border Gateway Protocol (MP-BGP) aveva portato la rotta del Cliente Blu. Quando una fibra si interrompe, quelle tabelle continuano per un certo tempo a indicare un collegamento che non porta più nulla. Il traffico viene scartato finché la rete non se ne accorge e non costruisce tabelle nuove.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">PRIMA SI ACCORGE</h5><h3>Qualcuno deve rilevare il guasto</h3><p>Il router adiacente vede spegnersi il segnale oppure smette di ricevere i messaggi del vicino. Finché nessuno rileva il problema, il traffico continua a essere spedito verso il collegamento morto.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">POI INFORMA</h5><h3>Tutti devono saperlo</h3><p>Il router che ha rilevato il guasto lo annuncia agli altri. Ogni router ricalcola i percorsi in modo indipendente, con tempi leggermente diversi.</p></article>
+          <article class="card accent-cyan"><h5 class="card-tag">INFINE APPLICA</h5><h3>Il data plane deve cambiare</h3><p>Il nuovo risultato passa dalla Routing Information Base (RIB) alla Forwarding Information Base (FIB) e alla Label Forwarding Information Base (LFIB), fino all’hardware che inoltra i pacchetti.</p></article>
+        </div>
+        <div class="insight"><p><strong>Convergenza è il tempo fra il guasto e il nuovo stato stabile.</strong><br>Durante quell’intervallo il traffico può essere scartato, girare in un breve anello o arrivare in ordine diverso. L’obiettivo dell’ingegneria di rete non è evitare i guasti, impossibile, ma rendere questo intervallo breve, prevedibile e osservabile.</p></div>
+        <div class="callout"><p><strong>Un solo guasto alla volta.</strong> Seguiamo soprattutto l’interruzione del collegamento P1–P2 mentre il Cliente Blu trasmette da Host A a Host B. La sezione 07 confronta poi altri guasti: un intero router, una sola sessione LDP, un collegamento verso il cliente e un Provider Edge (PE).</p></div>
+      </section>
+
+      <section id="storia" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>02</p></div><div class="section-copy"><h5 class="section-kicker">Contesto storico</h5><h2>Dai minuti ai millisecondi</h2><div class="section-intro"><p>I primi protocolli di routing reagivano ai guasti in decine di secondi o minuti: per il traffico dati di allora era accettabile. Voce, video e servizi critici hanno imposto alle reti IP i tempi delle reti telefoniche, che si proteggevano in circa 50 millisecondi. La risposta è arrivata a strati: protocolli link-state più rapidi, rilevazione dedicata, percorsi di riserva calcolati in anticipo.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th>Periodo</th><th>Tecnologia</th><th>Che cosa ha cambiato</th></tr></thead><tbody>
+          <tr><th>Anni ’80</th><td>Protocolli distance-vector, come Routing Information Protocol (RIP)</td><td>Aggiornamenti periodici e timer lunghi: la rete può impiegare minuti per dimenticare un percorso.</td></tr>
+          <tr><th>1989–1998</th><td>Open Shortest Path First (OSPF), fino alla versione 2 della RFC 2328</td><td>Il guasto viene annunciato subito con una Link State Advertisement (LSA); ogni router ricalcola da solo. Restano i timer Hello e Dead, per default 10 e 40 secondi.</td></tr>
+          <tr><th>Telefonia SONET/SDH</th><td>Protezione automatica degli anelli ottici</td><td>Fissa il riferimento culturale dei 50 millisecondi, che le reti IP/MPLS cercheranno di eguagliare.</td></tr>
+          <tr><th>2005</th><td>Fast Reroute di Resource Reservation Protocol - Traffic Engineering (RSVP-TE), RFC 4090</td><td>Tunnel di riserva costruiti prima del guasto: il router adiacente devia il traffico senza attendere la convergenza.</td></tr>
+          <tr><th>2008–2010</th><td>Loop-Free Alternate (LFA), RFC 5286 · Bidirectional Forwarding Detection (BFD), RFC 5880</td><td>Next hop di riserva precalcolati anche senza Traffic Engineering; rilevazione del guasto in decine di millisecondi, indipendente dal protocollo di routing.</td></tr>
+          <tr><th>2015 → oggi</th><td>Remote LFA, RFC 7490 · Topology Independent LFA (TI-LFA) con Segment Routing</td><td>La protezione precalcolata copre topologie in cui l’LFA classico non trova alternative, come quella di questa unità.</td></tr>
+        </tbody></table></div>
+        <p class="figure-note">Legenda: RFC = Request for Comments; SONET/SDH = Synchronous Optical Network / Synchronous Digital Hierarchy; IP = Internet Protocol; MPLS = Multiprotocol Label Switching. Le date indicano la pubblicazione delle specifiche principali, non la diffusione sulle singole piattaforme.</p>
+      </section>
+
+      <section id="scenario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>03</p></div><div class="section-copy"><h5 class="section-kicker">Piano di indirizzamento</h5><h2>Lo stesso backbone, con un’alternativa</h2><div class="section-intro"><p>Una rete senza ridondanza non converge: semplicemente si interrompe. Aggiungiamo quindi al backbone dell’Unità 10 un router Provider (P) chiamato P3, collegato a entrambi i Provider Edge (PE). I costi di Open Shortest Path First (OSPF) sono scelti in modo che, in condizioni normali, il traffico preferisca ancora P1 e P2.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u11-plan-table"><thead><tr><th>Collegamento</th><th>Indirizzi</th><th>Costo OSPF</th><th>Ruolo</th></tr></thead><tbody>
+          <tr><th>PE-A — P1</th><td>PE-A <code>203.0.113.1</code> · P1 <code>203.0.113.2</code></td><td><code>10</code></td><td>Percorso primario, come nell’Unità 10</td></tr>
+          <tr><th>P1 — P2</th><td>P1 <code>203.0.113.5</code> · P2 <code>203.0.113.6</code></td><td><code>10</code></td><td>Percorso primario: <strong>il collegamento che si guasta</strong></td></tr>
+          <tr><th>P2 — PE-B</th><td>P2 <code>203.0.113.9</code> · PE-B <code>203.0.113.10</code></td><td><code>10</code></td><td>Percorso primario</td></tr>
+          <tr><th>PE-A — P3</th><td>PE-A <code>203.0.113.13</code> (<code>Gi0/2</code>) · P3 <code>203.0.113.14</code></td><td><code>20</code></td><td>Percorso alternativo, nuovo</td></tr>
+          <tr><th>P3 — PE-B</th><td>P3 <code>203.0.113.17</code> · PE-B <code>203.0.113.18</code> (<code>Gi0/2</code>)</td><td><code>20</code></td><td>Percorso alternativo, nuovo</td></tr>
+          <tr><th>Loopback</th><td>PE-A <code>192.0.2.1</code> · PE-B <code>192.0.2.2</code> · P1 <code>192.0.2.11</code> · P2 <code>192.0.2.12</code> · P3 <code>192.0.2.13</code></td><td>—</td><td>Router ID e indirizzi delle sessioni LDP e MP-BGP</td></tr>
+        </tbody></table></div>
+        <div class="u9-two-lanes">
+          <div><b>PERCORSO PRIMARIO · COSTO 30</b><p>PE-A → P1 → P2 → PE-B. Label di trasporto <code>18 → 27 → pop</code>, label di servizio <code>24001</code>: tutto come nell’Unità 10.</p></div>
+          <div><b>PERCORSO ALTERNATIVO · COSTO 40</b><p>PE-A → P3 → PE-B. P3 ha già annunciato a PE-A, con LDP, la label <code>31</code> per <code>192.0.2.2/32</code>; per la stessa destinazione P3 esegue il pop, perché PE-B gli ha chiesto Penultimate Hop Popping (PHP).</p></div>
+        </div>
+        <p class="figure-note">Legenda: LDP = Label Distribution Protocol; MP-BGP = Multiprotocol Border Gateway Protocol; Gi = GigabitEthernet. I costi sono valori didattici; gli indirizzi appartengono ai blocchi riservati alla documentazione <code>192.0.2.0/24</code> e <code>203.0.113.0/24</code>.</p>
+      </section>
+
+      <section id="fasi" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>04</p></div><div class="section-copy"><h5 class="section-kicker">Funzione della convergenza</h5><h2>Quattro fasi, ognuna con il proprio tempo</h2><div class="section-intro"><p>La convergenza di un Interior Gateway Protocol (IGP) come Open Shortest Path First (OSPF) non è un evento unico. È una catena di quattro fasi: il tempo totale è la loro somma, e ogni tecnica di ottimizzazione accorcia una fase precisa.</p></div></div></div>
+        <div class="u11-phases">
+          <div class="u11-ph-detect"><b>1 · RILEVAZIONE</b><h3>Il vicino si accorge del guasto</h3><p>Perdita del segnale sull’interfaccia, oppure assenza di messaggi per un intervallo stabilito: Dead interval di OSPF o Bidirectional Forwarding Detection (BFD).</p><small>da pochi ms a 40 s</small></div>
+          <div class="u11-ph-flood"><b>2 · PROPAGAZIONE</b><h3>Le LSA raggiungono tutti</h3><p>I router adiacenti al guasto generano nuove Link State Advertisement (LSA) e le inondano nell’area; ogni router aggiorna la propria Link State Database (LSDB).</p><small>decine di ms</small></div>
+          <div class="u11-ph-spf"><b>3 · CALCOLO</b><h3>Ogni router esegue SPF</h3><p>L’algoritmo Shortest Path First (SPF) ricalcola l’albero dei percorsi. I timer di throttling ritardano di poco il calcolo, per raccogliere più LSA insieme.</p><small>decine o centinaia di ms</small></div>
+          <div class="u11-ph-fib"><b>4 · AGGIORNAMENTO</b><h3>RIB, FIB, LFIB e hardware</h3><p>La nuova rotta entra nella Routing Information Base (RIB); Cisco Express Forwarding (CEF) aggiorna FIB e LFIB; la piattaforma programma il nuovo next hop nell’hardware.</p><small>cresce con il numero di prefissi</small></div>
+        </div>
+        <h3>Le cinque domande, applicate ai tre meccanismi dell’unità</h3>
+        <div class="table-scroll"><table class="u9-table u11-five-table"><thead><tr><th>Domanda</th><th>Rilevazione rapida · BFD</th><th>Convergenza · OSPF e LDP</th><th>Protezione · Fast Reroute (FRR)</th></tr></thead><tbody>
+          <tr><th>Quale problema esisteva prima?</th><td>Un guasto non visibile come caduta dell’interfaccia veniva scoperto solo allo scadere del Dead interval, fino a 40 secondi.</td><td>Le tabelle restano valide solo finché la topologia non cambia.</td><td>Anche una convergenza rapida lascia un’interruzione di centinaia di millisecondi.</td></tr>
+          <tr><th>Che cosa risolve?</th><td>Scopre in decine di millisecondi che il vicino non inoltra più, e lo comunica a OSPF, BGP o LDP.</td><td>Ricostruisce percorsi e label coerenti con la nuova topologia.</td><td>Devia il traffico su un percorso precalcolato in meno di circa 50 ms.</td></tr>
+          <tr><th>Che cosa non risolve?</th><td>Non calcola alternative: rileva soltanto.</td><td>Non elimina la perdita durante le quattro fasi né i microloop.</td><td>Non sostituisce la convergenza: il percorso di riserva è temporaneo e spesso non ottimale.</td></tr>
+          <tr><th>Dove si colloca?</th><td>Control plane, fra i protocolli di routing e il collegamento.</td><td>Control plane, con effetti immediati sul data plane.</td><td>Calcolata nel control plane, installata in anticipo nel data plane.</td></tr>
+          <tr><th>Agisce sul traffico del cliente?</th><td>No: scambia pacchetti propri fra router vicini.</td><td>No: prepara le tabelle che il traffico userà.</td><td>Sì, indirettamente: al guasto cambia subito l’uscita, e talvolta lo stack di label, dei pacchetti in transito.</td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section id="sequenza" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>05</p></div><div class="section-copy"><h5 class="section-kicker">Sequenza a fotogrammi</h5><h2>Dal guasto al nuovo stato stabile</h2><div class="section-intro"><p>Ogni fotogramma mostra che cosa accade nel backbone e che cosa contengono, in quel momento, le tabelle di PE-A: la Routing Information Base (RIB) globale, la Label Forwarding Information Base (LFIB) programmata da Cisco Express Forwarding (CEF) e la tabella della Virtual Routing and Forwarding (VRF) BLU. I tempi sono indicativi, per collegamenti in fibra diretta e timer ottimizzati.</p></div></div></div>
+        <div class="figure u11-sequence">
+          <div class="figure-title"><strong>Interruzione del collegamento P1–P2</strong><span>usa Precedente / Successivo oppure seleziona una fase</span></div>
+          <div class="u11-topo-wrap">
+            <svg class="u11-topo" id="u11Topo" viewBox="0 0 1000 290" role="img" aria-label="Topologia del backbone durante la convergenza.">
+              <line class="u11-link u11-access" x1="122" y1="100" x2="188" y2="100"/>
+              <line class="u11-link" data-u11-link="pea-p1" x1="292" y1="100" x2="368" y2="100"/>
+              <line class="u11-link" data-u11-link="p1-p2" x1="472" y1="100" x2="548" y2="100"/>
+              <line class="u11-link" data-u11-link="p2-peb" x1="652" y1="100" x2="728" y2="100"/>
+              <line class="u11-link" data-u11-link="pea-p3" x1="250" y1="123" x2="458" y2="235"/>
+              <line class="u11-link" data-u11-link="p3-peb" x1="562" y1="235" x2="770" y2="123"/>
+              <line class="u11-link u11-access" x1="832" y1="100" x2="888" y2="100"/>
+              <text class="u11-metric" x="330" y="84">10</text><text class="u11-metric" x="510" y="80">10</text><text class="u11-metric" x="690" y="84">10</text>
+              <text class="u11-metric" x="335" y="196">20</text><text class="u11-metric" x="685" y="196">20</text>
+              <text class="u11-break" x="510" y="100">✕</text>
+              <g class="u11-node"><rect x="18" y="77" width="104" height="46" rx="12"/><text x="70" y="100">CE-A</text></g>
+              <g class="u11-node u11-core" data-u11-node="pea"><rect x="188" y="77" width="104" height="46" rx="12"/><text x="240" y="100">PE-A</text></g>
+              <g class="u11-node u11-core" data-u11-node="p1"><rect x="368" y="77" width="104" height="46" rx="12"/><text x="420" y="100">P1</text></g>
+              <g class="u11-node u11-core" data-u11-node="p2"><rect x="548" y="77" width="104" height="46" rx="12"/><text x="600" y="100">P2</text></g>
+              <g class="u11-node u11-core" data-u11-node="peb"><rect x="728" y="77" width="104" height="46" rx="12"/><text x="780" y="100">PE-B</text></g>
+              <g class="u11-node"><rect x="888" y="77" width="104" height="46" rx="12"/><text x="940" y="100">CE-B</text></g>
+              <g class="u11-node u11-core" data-u11-node="p3"><rect x="458" y="212" width="104" height="46" rx="12"/><text x="510" y="235">P3</text></g>
+            </svg>
+          </div>
+          <div class="u11-topo-key" aria-hidden="true"><span class="u11-key-primary"><i></i>traffico del Cliente Blu</span><span class="u11-key-broken"><i></i>guasto o anello</span><span class="u11-key-flood"><i></i>inondazione delle LSA</span><span class="u11-key-alt"><i></i>percorso disponibile</span></div>
+          <div class="u11-seq-controls">
+            <button type="button" id="u11Prev" aria-label="Fotogramma precedente">← PRECEDENTE</button>
+            <div class="button-row" role="group" aria-label="Seleziona la fase">
+              <button type="button" data-u11-step="0" aria-pressed="true">1 · PRIMA</button>
+              <button type="button" data-u11-step="1" aria-pressed="false">2 · GUASTO</button>
+              <button type="button" data-u11-step="2" aria-pressed="false">3 · RILEVAZIONE</button>
+              <button type="button" data-u11-step="3" aria-pressed="false">4 · LSA</button>
+              <button type="button" data-u11-step="4" aria-pressed="false">5 · SPF</button>
+              <button type="button" data-u11-step="5" aria-pressed="false">6 · FIB</button>
+              <button type="button" data-u11-step="6" aria-pressed="false">7 · NUOVO PERCORSO</button>
+              <button type="button" data-u11-step="7" aria-pressed="false">8 · RIPRISTINO</button>
+            </div>
+            <button type="button" id="u11Next" aria-label="Fotogramma successivo">SUCCESSIVO →</button>
+          </div>
+          <div class="status-copy" aria-live="polite"><span class="u11-clock" id="u11Clock"></span><strong id="u11StepTitle"></strong><span id="u11StepText"></span></div>
+          <div class="u11-state-grid">
+            <div class="u11-state-box"><b>PE-A · RIB GLOBALE · 192.0.2.2/32</b><p id="u11Rib"></p></div>
+            <div class="u11-state-box"><b>PE-A · LFIB · LABEL DI TRASPORTO</b><p id="u11Lfib"></p></div>
+            <div class="u11-state-box"><b>PE-A · VRF BLU · 10.20.20.0/24</b><p id="u11Vrf"></p></div>
+            <div class="u11-state-box u11-traffic" id="u11Traffic" data-state="ok"><b id="u11TrafficTitle"></b><p id="u11TrafficText"></p></div>
+          </div>
+          <p class="figure-note">Legenda: LSA = Link State Advertisement; SPF = Shortest Path First; FIB = Forwarding Information Base; LDP = Label Distribution Protocol; PHP = Penultimate Hop Popping; MP-BGP = Multiprotocol Border Gateway Protocol. I valori in grassetto colorato sono cambiati rispetto al fotogramma precedente.</p>
+        </div>
+        <div class="insight"><p><strong>La label di servizio non cambia mai.</strong><br>La rotta del Cliente Blu punta al next hop BGP <code>192.0.2.2</code>, la loopback di PE-B, non a un collegamento. Finché quella loopback resta raggiungibile, la VRF BLU non ha nulla da aggiornare: cambia soltanto il modo di arrivarci. È la separazione fra underlay e servizio vista nell’Unità 9, osservata durante un guasto.</p></div>
+      </section>
+
+      <section id="tabelle" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>06</p></div><div class="section-copy"><h5 class="section-kicker">Campi e tabelle</h5><h2>Che cosa è cambiato, che cosa no</h2><div class="section-intro"><p>Confrontiamo le tabelle consultate dal datagramma del Cliente Blu prima del guasto e dopo la convergenza. Le righe evidenziate sono cambiate; le altre sono rimaste identiche. Il numero di righe invariate è la misura di quanto l’architettura isoli i guasti dell’underlay dai servizi.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u11-before-after"><thead><tr><th>Dove · tabella</th><th>Prima del guasto</th><th>Dopo la convergenza</th><th>Chi l’ha aggiornata</th></tr></thead><tbody>
+          <tr><th>PE-A · RIB globale</th><td><code>192.0.2.2/32</code> via <code>203.0.113.2</code> (P1), costo 30</td><td class="u11-new"><code>192.0.2.2/32</code> via <code>203.0.113.14</code> (P3), costo 40</td><td>Open Shortest Path First (OSPF), dopo il calcolo SPF</td></tr>
+          <tr><th>PE-A · LFIB e FIB</th><td>push <code>18</code> verso P1, <code>Gi0/1</code></td><td class="u11-new">push <code>31</code> verso P3, <code>Gi0/2</code></td><td>Cisco Express Forwarding (CEF), con la label già ricevuta da P3 tramite Label Distribution Protocol (LDP)</td></tr>
+          <tr><th>P1 · LFIB</th><td>in <code>18</code> → swap <code>27</code> verso P2</td><td class="u11-new">in <code>18</code> → swap verso PE-A, nuovo percorso P1 → PE-A → P3</td><td>OSPF e LDP su P1; nessun traffico la usa più, perché PE-A non invia più a P1</td></tr>
+          <tr><th>P3 · LFIB</th><td>in <code>31</code> → pop verso PE-B, pronta ma inutilizzata</td><td class="u11-same">in <code>31</code> → pop verso PE-B, ora usata</td><td>Nessuno: era già pronta</td></tr>
+          <tr><th>PE-A · VRF BLU</th><td><code>10.20.20.0/24</code> via <code>192.0.2.2</code>, label <code>24001</code></td><td class="u11-same">identica</td><td>Nessuno: il next hop BGP resta raggiungibile</td></tr>
+          <tr><th>MP-BGP PE-A ↔ PE-B</th><td>sessione Established sul percorso primario</td><td class="u11-same">sessione Established, ora sul percorso alternativo</td><td>Nessuno: il Hold Timer di 180 secondi non scade in meno di un secondo</td></tr>
+          <tr><th>Host B · TTL ricevuto</th><td><code>58</code>: sei router</td><td class="u11-new"><code>59</code>: cinque router, cioè CE-A, PE-A, P3, PE-B, CE-B</td><td>Effetto del percorso: il datagramma non è stato modificato in modo diverso</td></tr>
+        </tbody></table></div>
+        <div class="cards cards-2">
+          <article class="card accent-amber"><h5 class="card-tag">PERCHÉ LA LABEL 31 ERA GIÀ PRONTA</h5><h3>Conservazione liberale delle label</h3><p>Label Distribution Protocol (LDP) annuncia la propria label per ogni prefisso a tutti i vicini, non solo a quelli sul percorso migliore. In modalità <em>liberal label retention</em>, il default Cisco, PE-A conserva anche la label di P3 senza usarla. Al cambio di percorso basta selezionarla: nessuna nuova segnalazione è necessaria.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">PERCHÉ BGP NON SI MUOVE</h5><h3>Next hop ricorsivo</h3><p>La rotta VPNv4 del Cliente Blu dipende dalla raggiungibilità di <code>192.0.2.2</code>, che OSPF ha ripristinato. Il Border Gateway Protocol (BGP) segue la risoluzione ricorsiva e non invia alcun UPDATE: il cambio di percorso è invisibile al servizio.</p></article>
+        </div>
+      </section>
+
+      <section id="guasti" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>07</p></div><div class="section-copy"><h5 class="section-kicker">Cooperazione fra i piani</h5><h2>Guasti diversi, reazioni diverse</h2><div class="section-intro"><p>Il punto in cui avviene il guasto decide quali protocolli devono reagire. Un problema dell’underlay coinvolge Open Shortest Path First (OSPF) e Label Distribution Protocol (LDP); un problema al bordo coinvolge il routing Provider Edge–Customer Edge (PE–CE) e Multiprotocol Border Gateway Protocol (MP-BGP). Seleziona un guasto per vedere chi lo rileva, chi reagisce e che cosa vede il Cliente Blu.</p></div></div></div>
+        <div class="figure">
+          <div class="figure-title"><strong>Quale guasto?</strong><span>rosso = rileva il guasto · azzurro = reagisce</span></div>
+          <div class="button-row u11-fault-buttons" role="group" aria-label="Tipo di guasto">
+            <button type="button" data-u11-fault="link" aria-pressed="true">LINK P1–P2</button>
+            <button type="button" data-u11-fault="node" aria-pressed="false">ROUTER P2</button>
+            <button type="button" data-u11-fault="ldp" aria-pressed="false">SOLO SESSIONE LDP P1–P2</button>
+            <button type="button" data-u11-fault="pece" aria-pressed="false">LINK PE-B–CE-B</button>
+            <button type="button" data-u11-fault="pe" aria-pressed="false">ROUTER PE-B</button>
+          </div>
+          <div class="u11-devices" id="u11Devices" role="img" aria-label="">
+            <span>CE-A</span><span>PE-A</span><span>P1</span><span>P2</span><span>P3</span><span>PE-B</span><span>CE-B</span>
+          </div>
+          <div class="u11-dev-key" aria-hidden="true"><span class="u11-k-detect">rileva</span><span class="u11-k-react">ricalcola o aggiorna</span><span class="u11-k-down">fuori servizio</span></div>
+          <div class="status-copy" aria-live="polite"><strong id="u11FaultTitle"></strong><span id="u11FaultText"></span></div>
+          <div class="u11-fault-facts">
+            <div><b>RILEVATO DA</b><span id="u11FaultDetect"></span></div>
+            <div><b>REAGISCONO</b><span id="u11FaultReact"></span></div>
+            <div class="u11-same"><b>RESTA INVARIATO</b><span id="u11FaultSame"></span></div>
+            <div class="u11-impact"><b>IL CLIENTE BLU VEDE</b><span id="u11FaultImpact"></span></div>
+          </div>
+          <p class="u11-fault-check"><b>DA VERIFICARE PER PRIMO · </b><span id="u11FaultCheck"></span></p>
+          <p class="figure-note">Legenda: LDP = Label Distribution Protocol; OSPF = Open Shortest Path First; MP-BGP = Multiprotocol Border Gateway Protocol; VRF = Virtual Routing and Forwarding; BFD = Bidirectional Forwarding Detection; PIC = Prefix Independent Convergence; RFC = Request for Comments.</p>
+        </div>
+        <div class="callout"><p><strong>Il caso più insidioso è quello senza allarmi.</strong> Se cade soltanto la sessione Label Distribution Protocol (LDP), Open Shortest Path First (OSPF) continua a preferire il collegamento P1–P2: il control plane sembra sano, ma P1 non ha più una label da imporre verso P2. Il traffico del Cliente Blu viene scartato su un percorso che il routing considera perfetto.</p></div>
+      </section>
+
+      <section id="impatto" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>08</p></div><div class="section-copy"><h5 class="section-kicker">Effetti sul traffico</h5><h2>Perdita, anelli, ritardo e riordinamento</h2><div class="section-intro"><p>La convergenza non danneggia il traffico in un solo modo. Durante le quattro fasi i pacchetti vengono scartati; per pochi istanti possono girare in un anello; dopo la convergenza viaggiano su un percorso diverso, con ritardo diverso. Transmission Control Protocol (TCP) e le applicazioni in tempo reale reagiscono in modo molto differente.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">PERDITA</h5><h3>Il buco nero</h3><p>Fra il guasto e l’aggiornamento della Forwarding Information Base (FIB), il router a monte inoltra verso un collegamento morto. La perdita è proporzionale alla durata dell’interruzione e alla velocità del flusso.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">MICROLOOP</h5><h3>L’anello transitorio</h3><p>I router aggiornano la FIB in istanti diversi. Se P1 ha già scelto di passare da PE-A mentre PE-A invia ancora a P1, i pacchetti rimbalzano fra i due finché il Time To Live (TTL) si esaurisce o PE-A si aggiorna.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">RITARDO E ORDINE</h5><h3>Un percorso nuovo, tempi nuovi</h3><p>Il percorso via P3 può avere latenza diversa. Al momento del cambio, alcuni pacchetti sul percorso nuovo possono superare quelli ancora in viaggio sul vecchio: il ricevente li vede fuori ordine.</p></article>
+        </div>
+        <div class="figure">
+          <div class="figure-title"><strong>Quanto dura l’interruzione, quanti pacchetti si perdono</strong><span>valori indicativi, scegli il metodo di rilevazione e il flusso</span></div>
+          <div class="u11-calc-rows">
+            <span class="u11-calc-label">METODO DI RILEVAZIONE E RIPARAZIONE</span>
+            <div class="button-row" role="group" aria-label="Metodo di rilevazione">
+              <button type="button" data-u11-profile="hello" aria-pressed="false">SOLO HELLO OSPF</button>
+              <button type="button" data-u11-profile="phys" aria-pressed="true">CADUTA DELL’INTERFACCIA</button>
+              <button type="button" data-u11-profile="bfd" aria-pressed="false">BFD 3 × 50 MS</button>
+              <button type="button" data-u11-profile="frr" aria-pressed="false">FAST REROUTE</button>
+            </div>
+            <span class="u11-calc-label">FLUSSO DEL CLIENTE BLU</span>
+            <div class="button-row" role="group" aria-label="Flusso del Cliente Blu">
+              <button type="button" data-u11-flow="voice" aria-pressed="false">VOCE · 50 PACCHETTI/S</button>
+              <button type="button" data-u11-flow="video" aria-pressed="true">VIDEO · 5 MBIT/S</button>
+              <button type="button" data-u11-flow="bulk" aria-pressed="false">TRASFERIMENTO · 100 MBIT/S</button>
+            </div>
+          </div>
+          <div class="u11-bar" id="u11Bar" role="img" aria-label=""><span class="u11-seg-detect" id="u11SegA"></span><span class="u11-seg-flood" id="u11SegB"></span><span class="u11-seg-fib" id="u11SegC"></span></div>
+          <p class="figure-note" id="u11BarLegend"></p>
+          <div class="status-copy" aria-live="polite"><strong id="u11CalcTitle"></strong><span id="u11CalcText"></span></div>
+          <div class="u11-calc-out">
+            <div><small>INTERRUZIONE</small><strong id="u11Total"></strong></div>
+            <div class="u11-lost"><small>DATAGRAMMI PERSI</small><strong id="u11Lost"></strong></div>
+            <div><small>EFFETTO PROBABILE</small><span id="u11Effect"></span></div>
+          </div>
+          <p class="figure-note">Legenda: OSPF = Open Shortest Path First; BFD = Bidirectional Forwarding Detection; FIB = Forwarding Information Base; SPF = Shortest Path First. I flussi video e trasferimento sono calcolati con datagrammi da 1.500 byte. Propagazione, calcolo e aggiornamento usano valori tipici di una rete con timer ottimizzati: con i timer predefiniti di molte piattaforme, il solo calcolo SPF può attendere alcuni secondi.</p>
+        </div>
+        <div class="u9-vocab"><b>Lettura corretta dei termini</b><p>Nel core si perdono <strong>pacchetti</strong> MPLS, cioè datagrammi con lo stack di <strong>label</strong>; il Cliente Blu conta invece <strong>datagrammi</strong> IP mancanti. TCP non vede né gli uni né gli altri: si accorge che mancano <strong>segmenti</strong> e li ritrasmette. Il trasferimento rallenta perché TCP riduce la finestra di congestione, non perché la rete sia ancora guasta. Voce e video su User Datagram Protocol (UDP) non ritrasmettono: i <strong>dati</strong> persi sono un buco nell’audio o nell’immagine.</p></div>
+      </section>
+
+      <section id="protezione" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>09</p></div><div class="section-copy"><h5 class="section-kicker">Dalla reazione alla prevenzione</h5><h2>Rilevare prima, riparare localmente</h2><div class="section-intro"><p>La convergenza è una reazione: inizia dopo il guasto. Le tecniche di Fast Reroute (FRR) calcolano invece il percorso di riserva prima del guasto e lo installano nel data plane. Quando il collegamento cade, il router adiacente, chiamato Point of Local Repair (PLR), devia subito il traffico, mentre la convergenza normale prosegue in background.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u11-protect-table"><thead><tr><th>Tecnica</th><th>Che cosa fa</th><th>Nel nostro scenario, su P1</th><th>Tempo indicativo</th></tr></thead><tbody>
+          <tr><th>Bidirectional Forwarding Detection (BFD)</th><td>Scambia pacchetti brevi e frequenti fra due vicini; dopo alcuni pacchetti mancanti dichiara il guasto e avvisa OSPF, LDP o BGP. Rileva, non ripara.</td><td>Utile se fra P1 e P2 c’è un apparato di trasporto che tiene accesa l’interfaccia anche quando il percorso è interrotto.</td><td>3 × 50 ms = 150 ms</td></tr>
+          <tr><th>Loop-Free Alternate (LFA)</th><td>Next hop di riserva verso un vicino che raggiunge la destinazione senza ripassare dal router protetto.</td><td><strong>Non disponibile:</strong> PE-A raggiunge PE-B con costo 30, uguale al costo 10 + 20 del passaggio da P1. PE-A rimanderebbe il traffico a P1.</td><td>&lt; 50 ms, se esiste</td></tr>
+          <tr><th>Remote LFA</th><td>Tunnel MPLS verso un nodo remoto da cui il traffico prosegue senza tornare indietro.</td><td>P1 incapsula verso P3 passando da PE-A; da P3 il percorso verso PE-B non usa il collegamento guasto.</td><td>&lt; 50 ms</td></tr>
+          <tr><th>Topology Independent LFA (TI-LFA)</th><td>Con Segment Routing, codifica nello stack di label il percorso che la rete userà dopo la convergenza.</td><td>P1 impone i segmenti verso P3 e PE-B: il percorso di riserva coincide con quello finale, senza microloop.</td><td>&lt; 50 ms</td></tr>
+          <tr><th>RSVP-TE Fast Reroute</th><td>Tunnel di bypass costruiti in anticipo con Resource Reservation Protocol - Traffic Engineering (RSVP-TE), per un collegamento o un nodo.</td><td>Un tunnel da P1 che aggira il collegamento P1–P2 e si ricongiunge al percorso protetto.</td><td>&lt; 50 ms</td></tr>
+          <tr><th>BGP Prefix Independent Convergence (PIC)</th><td>Installa in anticipo nella FIB un next hop BGP di riserva, valido per tutti i prefissi che lo condividono.</td><td>Non serve per P1–P2; serve se il sito B è collegato a due PE e uno dei due si guasta.</td><td>indipendente dal numero di prefissi</td></tr>
+        </tbody></table></div>
+        <div class="insight"><p><strong>In questa topologia la riparazione locale più semplice non esiste.</strong><br>Il Loop-Free Alternate (LFA) classico richiede che il vicino abbia un percorso strettamente più corto che non ripassi dal router protetto. Qui PE-A ha due percorsi di costo uguale verso PE-B, uno dei quali passa proprio da P1. È il motivo per cui le reti moderne adottano Remote LFA o Topology Independent LFA (TI-LFA), che non dipendono dalla forma della topologia. Segment Routing è il tema che l’Unità 12 riprende.</p></div>
+      </section>
+
+      <section id="verifica" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>10</p></div><div class="section-copy"><h5 class="section-kicker">Verifica operativa</h5><h2>Sintomo, piano, comando</h2><div class="section-intro"><p>Il Cliente Blu non segnala «è caduto il collegamento P1–P2», ma «stamattina il servizio si è interrotto per un istante» oppure «è tutto lento». Il metodo è quello del troubleshooting di secondo livello: misurare il sintomo, capire se il dispositivo è raggiungibile, individuare il piano coinvolto, solo allora scegliere i comandi. Gli esempi sono Cisco IOS XE; l’output è abbreviato e illustrativo.</p></div></div></div>
+        <div class="callout"><p><strong>Regola: il sintomo va misurato, non creduto.</strong> «È lento» non è un dato; latenza, perdita e throughput lo sono. Un ping ripetuto a intervallo noto, per esempio ogni 10 ms, stima la durata dell’interruzione: risposte mancanti × intervallo. Prima di condividere output e catture, i dati del cliente vanno mascherati.</p></div>
+        <div class="u11-tree">
+          <div class="u11-tree-root"><b>IL DISPOSITIVO RISPONDE VIA SECURE SHELL (SSH)?</b></div>
+          <article class="u11-branch-no"><b>NO · DEVICE DOWN</b><p>Il router è bloccato, in crash o in riavvio. Si passa alla console o alla rete di gestione Out-of-Band (OOB) e si raccolgono crashinfo e storico dei riavvii prima di qualsiasi intervento.</p></article>
+          <article class="u11-branch-yes u11-here"><b>SÌ · DEVICE UP, SERVIZIO DEGRADATO</b><p>È il caso di questa unità: P1 risponde, ma il traffico ha subito un’interruzione o ha cambiato percorso. Bisogna capire quale piano operativo è coinvolto.</p></article>
+        </div>
+        <div class="table-scroll"><table class="u9-table u11-planes-map"><thead><tr><th>Piano</th><th>Che cosa comprende</th><th>Sintomo tipico in questo scenario</th><th>Comandi di partenza</th></tr></thead><tbody>
+          <tr><th>Management</th><td>Secure Shell (SSH), Simple Network Management Protocol (SNMP), syslog, Network Time Protocol (NTP)</td><td>Allarmi e log del guasto; orari coerenti fra router solo se NTP è sincronizzato.</td><td><code>show logging</code> · <code>show ntp status</code></td></tr>
+          <tr><th>Control</th><td>OSPF, LDP, MP-BGP, BFD, Address Resolution Protocol (ARP): traffico destinato alla CPU</td><td>Adiacenze cadute o instabili, rotta verso <code>192.0.2.2</code> cambiata, sessione LDP assente.</td><td><code>show ip ospf neighbor</code> · <code>show mpls ldp neighbor</code> · <code>show bfd neighbors</code></td></tr>
+          <tr><th>Data</th><td>Forwarding CEF, FIB e LFIB programmate nell’hardware, interfacce</td><td>Errori o caduta dell’interfaccia, label d’uscita mancante, perdita a fronte di control plane sano.</td><td><code>show interfaces</code> · <code>show mpls forwarding-table</code> · <code>show ip cef</code></td></tr>
+        </tbody></table></div>
+        <div class="check-chain">
+          <div class="check-step"><span>1</span><div><b>Quando e dove: i log</b><p>Su P1 e P2 il log colloca nel tempo caduta dell’interfaccia, adiacenza OSPF e sessione LDP. Su PE-A non c’è nulla del genere: i suoi collegamenti sono rimasti attivi. <code>show logging | include UPDOWN|ADJCHG|NBRCHG</code></p></div></div>
+          <div class="check-step"><span>2</span><div><b>Livello fisico: l’interfaccia</b><p>Stato, errori CRC e contatore delle transizioni distinguono un guasto netto da un collegamento instabile: <code>show interfaces GigabitEthernet0/1</code> su P1.</p></div></div>
+          <div class="check-step"><span>3</span><div><b>Control plane: adiacenze</b><p><code>show ip ospf neighbor</code> e <code>show mpls ldp neighbor</code> su P1: P2 non deve più comparire; su PE-A, P3 deve essere FULL e con sessione LDP operativa.</p></div></div>
+          <div class="check-step"><span>4</span><div><b>Underlay: la rotta verso PE-B</b><p>Su PE-A <code>show ip route 192.0.2.2</code>: next hop P3, metrica nuova, aggiornamento recente.</p></div></div>
+          <div class="check-step"><span>5</span><div><b>Data plane: label e CEF</b><p><code>show mpls forwarding-table 192.0.2.2 32</code> deve indicare la label <code>31</code> verso P3; <code>show ip cef vrf BLU 10.20.20.77 detail</code> deve mostrare lo stack <code>31/24001</code>.</p></div></div>
+          <div class="check-step"><span>6</span><div><b>Servizio: BGP invariato e prova end-to-end</b><p><code>show bgp vpnv4 unicast vrf BLU 10.20.20.0</code> deve mostrare ancora next hop <code>192.0.2.2</code> e label <code>24001</code>; poi <code>traceroute</code> da CE-A conferma il nuovo percorso. Per vedere i singoli pacchetti si può usare una cattura locale, Embedded Packet Capture (EPC), o una porta specchio.</p></div></div>
+        </div>
+        <div class="u9-cli-wrap"><pre class="u9-cli"><code>P1# show logging | include UPDOWN|ADJCHG|NBRCHG
+%LINK-3-UPDOWN: Interface GigabitEthernet0/1, changed state to down
+%OSPF-5-ADJCHG: Process 1, Nbr 192.0.2.12 on GigabitEthernet0/1 from FULL to DOWN, Neighbor Down: Interface down or detached
+%LDP-5-NBRCHG: LDP Neighbor 192.0.2.12:0 (2) is DOWN (Interface not operational)
+
+PE-A# show ip route 192.0.2.2
+Routing entry for 192.0.2.2/32
+  Known via "ospf 1", distance 110, metric 41, type intra area
+  Last update from 203.0.113.14 on GigabitEthernet0/2, 00:00:12 ago
+
+PE-A# show mpls forwarding-table 192.0.2.2 32
+Local  Outgoing  Prefix          Outgoing   Next Hop
+Label  Label     or Tunnel Id    interface
+16     31        192.0.2.2/32    Gi0/2      203.0.113.14
+
+PE-A# show ip cef vrf BLU 10.20.20.77 detail
+10.20.20.0/24, epoch 0
+  recursive via 192.0.2.2 label 24001
+    nexthop 203.0.113.14 GigabitEthernet0/2 label 31
+
+CE-A# traceroute 10.20.20.77
+  1 172.16.1.2
+  2 203.0.113.14 [MPLS: Labels 31/24001 Exp 0]
+  3 172.16.2.2  [MPLS: Label 24001 Exp 0]
+  4 172.16.2.1
+  5 10.20.20.77
+
+# Output abbreviato e illustrativo: la metrica 41 comprende 40 dei collegamenti e 1 della loopback.</code></pre></div>
+        <div class="callout"><p><strong>Prima di chiudere o scalare il caso.</strong> Raccogli orari, output e topologia: la sequenza dei log su P1 e P2, lo stato delle adiacenze, la tabella di PE-A prima e dopo, la durata misurata dell’interruzione. Quando la rete ha già trovato il nuovo percorso, il guasto lascia poche tracce: spesso le uniche evidenze sono i log e i contatori.</p></div>
+      </section>
+
+      <section id="limiti" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>11</p></div><div class="section-copy"><h5 class="section-kicker">Che cosa resta fuori</h5><h2>Un guasto singolo, in una rete piccola</h2><div class="section-intro"><p>L’unità segue un solo guasto in un backbone di cinque router. Le reti reali aggiungono casi che cambiano tempi e comportamenti, pur senza cambiare il metodo: rilevare, propagare, calcolare, aggiornare, verificare.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">GUASTI MULTIPLI</h5><h3>Rischio condiviso</h3><p>Due collegamenti nella stessa canalina si interrompono insieme. Uno Shared Risk Link Group (SRLG) dichiara questo rischio, perché il percorso di riserva non usi la stessa fibra del primario.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">INSTABILITÀ</h5><h3>Il collegamento che va e viene</h3><p>Un’ottica degradata provoca cadute e ripristini continui. Smorzamento delle interfacce e throttling di LSA e SPF evitano che la rete passi il tempo a riconvergere.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">RIAVVIO DEL CONTROL PLANE</h5><h3>Graceful Restart e NSF</h3><p>Se riparte soltanto il processo di controllo, Graceful Restart (GR) e Non-Stop Forwarding (NSF) permettono di continuare a inoltrare con la FIB esistente, chiedendo ai vicini di non dichiarare il guasto.</p></article>
+        </div>
+        <div class="u9-two-lanes">
+          <div><b>SCALA</b><p>Con centinaia di migliaia di prefissi, l’aggiornamento della FIB diventa la fase più lunga. È uno dei motivi per cui il backbone trasporta poche rotte interne e lascia le rotte dei clienti a MP-BGP sui soli PE.</p></div>
+          <div><b>RIPRISTINO</b><p>Anche il ritorno del collegamento è un evento di convergenza. Senza sincronizzazione fra LDP e IGP, RFC 5443, OSPF potrebbe tornare a preferire P1–P2 prima che LDP abbia scambiato le label.</p></div>
+        </div>
+      </section>
+
+      <section id="glossario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>12</p></div><div class="section-copy"><h5 class="section-kicker">Glossario cumulativo</h5><h2>Le sigle di guasti e convergenza</h2><div class="section-intro"><p>Le sigle nuove di questa unità compaiono accanto a quelle già studiate che il guasto coinvolge.</p></div></div></div>
+        <dl class="glossary">
+          <dt>BFD — Bidirectional Forwarding Detection</dt><dd>Protocollo di rilevazione rapida dei guasti fra due vicini, indipendente dal protocollo di routing.</dd>
+          <dt>FRR — Fast Reroute</dt><dd>Famiglia di tecniche che installano in anticipo un percorso di riserva nel data plane.</dd>
+          <dt>PLR — Point of Local Repair</dt><dd>Router adiacente al guasto che devia il traffico sul percorso di riserva.</dd>
+          <dt>LFA — Loop-Free Alternate</dt><dd>Next hop di riserva verso un vicino che non rimanda il traffico al router protetto.</dd>
+          <dt>Remote LFA</dt><dd>Variante dell’LFA che raggiunge con un tunnel un nodo remoto privo di anelli verso la destinazione.</dd>
+          <dt>TI-LFA — Topology Independent Loop-Free Alternate</dt><dd>Protezione basata su Segment Routing che usa il percorso post-convergenza in qualsiasi topologia.</dd>
+          <dt>SRLG — Shared Risk Link Group</dt><dd>Insieme di collegamenti che condividono un rischio fisico e possono guastarsi insieme.</dd>
+          <dt>PIC — Prefix Independent Convergence</dt><dd>Tecnica BGP che commuta su un next hop di riserva preinstallato, con tempo indipendente dal numero di prefissi.</dd>
+          <dt>GR / NSF — Graceful Restart / Non-Stop Forwarding</dt><dd>Meccanismi che mantengono l’inoltro durante il riavvio del solo control plane.</dd>
+          <dt>Microloop</dt><dd>Anello transitorio dovuto all’aggiornamento non simultaneo delle FIB durante la convergenza.</dd>
+          <dt>Convergenza</dt><dd>Intervallo fra un cambio della topologia e il nuovo stato stabile di tutte le tabelle.</dd>
+          <dt>SPF — Shortest Path First</dt><dd>Algoritmo con cui ogni router link-state ricalcola l’albero dei percorsi.</dd>
+          <dt>LSA / LSDB — Link State Advertisement / Database</dt><dd>Annuncio OSPF di router, collegamenti e prefissi / insieme degli annunci posseduto da ogni router dell’area.</dd>
+          <dt>OSPF — Open Shortest Path First</dt><dd>Interior Gateway Protocol link-state dell’underlay; rende raggiungibili le loopback dei PE.</dd>
+          <dt>IGP — Interior Gateway Protocol</dt><dd>Protocollo di routing interno del provider; qui OSPF.</dd>
+          <dt>LDP — Label Distribution Protocol</dt><dd>Protocollo che distribuisce le label di trasporto; con liberal label retention conserva anche quelle dei percorsi non usati.</dd>
+          <dt>RSVP-TE — Resource Reservation Protocol - Traffic Engineering</dt><dd>Protocollo che costruisce tunnel espliciti e i relativi bypass per la protezione rapida.</dd>
+          <dt>SR — Segment Routing</dt><dd>Architettura che codifica il percorso come sequenza di segmenti nello stack di label.</dd>
+          <dt>MP-BGP — Multiprotocol Border Gateway Protocol</dt><dd>Estensioni di BGP che portano rotte VPNv4 e label di servizio fra i PE.</dd>
+          <dt>RIB / FIB / LFIB</dt><dd>Routing Information Base / Forwarding Information Base / Label Forwarding Information Base.</dd>
+          <dt>CEF — Cisco Express Forwarding</dt><dd>Implementazione Cisco del forwarding, che aggiorna FIB e adiacenze dopo la convergenza.</dd>
+          <dt>VRF — Virtual Routing and Forwarding</dt><dd>Contesto di routing del cliente sul PE; non cambia se il next hop BGP resta raggiungibile.</dd>
+          <dt>PHP — Penultimate Hop Popping</dt><dd>Rimozione della label di trasporto sul penultimo router: dopo il guasto la esegue P3.</dd>
+          <dt>TTL — Time To Live</dt><dd>Contatore decrementato dai router; conclude i microloop e rivela il numero di router attraversati.</dd>
+          <dt>TCP / UDP — Transmission Control / User Datagram Protocol</dt><dd>Trasporto con ritrasmissione e controllo di congestione / trasporto senza ritrasmissione.</dd>
+          <dt>SSH / OOB — Secure Shell / Out-of-Band</dt><dd>Accesso remoto cifrato al dispositivo / rete di gestione separata da quella di servizio.</dd>
+          <dt>SNMP / NTP — Simple Network Management Protocol / Network Time Protocol</dt><dd>Monitoraggio e allarmi / sincronizzazione degli orologi, indispensabile per confrontare i log.</dd>
+          <dt>EPC — Embedded Packet Capture</dt><dd>Cattura dei pacchetti eseguita direttamente sul router Cisco.</dd>
+          <dt>CRC — Cyclic Redundancy Check</dt><dd>Controllo di integrità della trama; i suoi errori indicano problemi fisici del collegamento.</dd>
+          <dt>RFC — Request for Comments</dt><dd>Serie di documenti tecnici che comprende le specifiche citate nell’unità.</dd>
+        </dl>
+      </section>
+
+      <section id="autoverifica" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>13</p></div><div class="section-copy"><h5 class="section-kicker">Verifica finale</h5><h2>Domande di orientamento</h2><div class="section-intro"><p>Rispondi prima di aprire la spiegazione. Ogni domanda chiede di collocare un evento nella fase giusta o nel piano giusto.</p></div></div></div>
+        <div class="quiz">
+          <details><summary>1. Il collegamento P1–P2 si interrompe: che cosa accade ai pacchetti che PE-A continua a inviare a P1 nei primi millisecondi?</summary><p>Vengono scartati: P1 li inoltra ancora verso l’interfaccia guasta, o non ha ancora un’uscita valida. È il buco nero della fase di rilevazione.</p></details>
+          <details><summary>2. Perché la rilevazione può durare 10 ms oppure 40 secondi sullo stesso guasto?</summary><p>Se l’interfaccia perde il segnale, il router se ne accorge subito. Se un apparato intermedio mantiene acceso il collegamento, solo l’assenza dei messaggi rivela il guasto: con i timer OSPF predefiniti servono fino a 40 secondi, con BFD circa 150 ms.</p></details>
+          <details><summary>3. PE-A non è adiacente al guasto: come lo scopre?</summary><p>Riceve le nuove Link State Advertisement generate da P1 e P2, aggiorna la Link State Database ed esegue SPF.</p></details>
+          <details><summary>4. Dopo la convergenza, quale label di trasporto impone PE-A, e perché non deve chiederla a nessuno?</summary><p>La label <code>31</code> annunciata da P3. LDP l’aveva già distribuita e PE-A l’aveva conservata grazie alla liberal label retention.</p></details>
+          <details><summary>5. Quale riga della VRF BLU di PE-A cambia dopo il guasto?</summary><p>Nessuna: <code>10.20.20.0/24</code> resta via <code>192.0.2.2</code> con label <code>24001</code>. Cambia soltanto la risoluzione del next hop nell’underlay.</p></details>
+          <details><summary>6. MP-BGP invia un UPDATE per il guasto P1–P2?</summary><p>No. La raggiungibilità di <code>192.0.2.2</code> viene ripristinata da OSPF prima che qualcosa nel servizio cambi; la sessione TCP fra i PE sopravvive perché il Hold Timer è molto più lungo della convergenza.</p></details>
+          <details><summary>7. Che cos’è un microloop e come finisce?</summary><p>Un anello transitorio fra router che hanno aggiornato la FIB in istanti diversi, per esempio P1 verso PE-A e PE-A ancora verso P1. Finisce quando l’ultimo router si aggiorna, oppure quando il TTL dei pacchetti si esaurisce.</p></details>
+          <details><summary>8. Perché Host B riceve TTL 59 invece di 58 dopo la convergenza?</summary><p>Il nuovo percorso attraversa cinque router invece di sei: CE-A, PE-A, P3, PE-B, CE-B.</p></details>
+          <details><summary>9. Cade solo la sessione LDP P1–P2, mentre OSPF resta attivo: che cosa vede il routing e che cosa vede il cliente?</summary><p>Il routing continua a preferire P1–P2, ma P1 non ha una label d’uscita verso P2: il traffico VPN viene scartato. La sincronizzazione LDP–IGP, RFC 5443, fa annunciare a OSPF un costo massimo finché LDP non è operativo.</p></details>
+          <details><summary>10. Perché in questa topologia P1 non dispone di un Loop-Free Alternate classico?</summary><p>Il suo unico altro vicino, PE-A, raggiunge PE-B con costo 30, uguale al costo 10 + 20 del passaggio da P1. Non essendo strettamente inferiore, non garantisce l’assenza di anelli.</p></details>
+          <details><summary>11. Si guasta il collegamento PE-B–CE-B: quali protocolli reagiscono?</summary><p>Il routing PE–CE su PE-B e MP-BGP, che ritira la rotta VPNv4 verso PE-A. OSPF e LDP non vedono nulla: il backbone è integro.</p></details>
+          <details><summary>12. Se si guasta l’intero router PE-B, perché PE-A non deve attendere 180 secondi per accorgersene?</summary><p>OSPF rimuove <code>192.0.2.2/32</code>; il tracciamento del next hop BGP invalida subito le rotte che dipendono da quella loopback, senza attendere la scadenza del Hold Timer.</p></details>
+          <details><summary>13. Un trasferimento TCP rallenta per alcuni secondi anche dopo una convergenza di mezzo secondo: perché?</summary><p>TCP ha perso segmenti, li ritrasmette e riduce la finestra di congestione; la riporta al valore precedente solo gradualmente.</p></details>
+          <details><summary>14. Il cliente dice «è tutto lento»: qual è il primo passo, prima di qualsiasi comando?</summary><p>Misurare il sintomo: latenza, perdita e throughput, con un valore di riferimento buono e uno cattivo. Poi verificare se il dispositivo risponde via SSH e quale piano è coinvolto.</p></details>
+          <details><summary>15. Perché è importante che i router abbiano l’orario sincronizzato con NTP?</summary><p>Per ricostruire la sequenza del guasto confrontando i log di P1, P2 e PE-A: senza orari coerenti, l’ordine degli eventi è inaffidabile.</p></details>
+          <details><summary>16. Quali quattro fasi compongono la convergenza, e quale accorcia BFD?</summary><p>Rilevazione, propagazione, calcolo e aggiornamento. BFD accorcia la rilevazione, quando il guasto non è visibile come caduta dell’interfaccia.</p></details>
+        </div>
+      </section>
+
+      <div class="closing"><h5 class="section-kicker">Punto di arrivo dell’Unità 11</h5><h2>Il servizio resta, il percorso cambia.</h2><p>Un guasto nel backbone attraversa quattro fasi: rilevazione, propagazione, calcolo e aggiornamento delle tabelle. OSPF ricostruisce la raggiungibilità delle loopback, LDP fornisce la label già pronta, CEF programma il nuovo next hop; MP-BGP e la VRF BLU non se ne accorgono, perché il next hop del servizio resta raggiungibile. La protezione rapida sposta il traffico prima che la convergenza termini; la verifica operativa ricostruisce che cosa è accaduto partendo da un sintomo misurato. Nell’Unità 12 vedremo quali tecnologie completano o sostituiscono oggi questa architettura.</p></div>
+      <div class="sources"><p><strong>Riferimenti essenziali:</strong><br><a href="https://www.rfc-editor.org/rfc/rfc2328.html">RFC 2328 — OSPF Version 2</a> · <a href="https://www.rfc-editor.org/rfc/rfc5036.html">RFC 5036 — LDP Specification</a> · <a href="https://www.rfc-editor.org/rfc/rfc5443.html">RFC 5443 — LDP IGP Synchronization</a> · <a href="https://www.rfc-editor.org/rfc/rfc5880.html">RFC 5880 — Bidirectional Forwarding Detection</a> · <a href="https://www.rfc-editor.org/rfc/rfc5881.html">RFC 5881 — BFD for IPv4 and IPv6 (Single Hop)</a> · <a href="https://www.rfc-editor.org/rfc/rfc5714.html">RFC 5714 — IP Fast Reroute Framework</a> · <a href="https://www.rfc-editor.org/rfc/rfc5286.html">RFC 5286 — Basic Specification for IP Fast Reroute: Loop-Free Alternates</a> · <a href="https://www.rfc-editor.org/rfc/rfc7490.html">RFC 7490 — Remote Loop-Free Alternate Fast Reroute</a> · <a href="https://www.rfc-editor.org/rfc/rfc4090.html">RFC 4090 — Fast Reroute Extensions to RSVP-TE for LSP Tunnels</a> · <a href="https://www.rfc-editor.org/rfc/rfc4271.html">RFC 4271 — BGP-4</a> · <a href="https://www.rfc-editor.org/rfc/rfc4364.html">RFC 4364 — BGP/MPLS IP Virtual Private Networks</a></p></div>
+    </main>
+    <footer><span>NETWORKING ACADEMY · UNITÀ 11</span><span>Dal dato del cliente al backbone del Service Provider</span></footer>
+    <p class="legal-note">Progetto personale, non affiliato né approvato da Cisco Systems, Inc. Cisco è un marchio di Cisco Systems, Inc.<br>
+      <span lang="en">Personal project, not affiliated with or endorsed by Cisco Systems, Inc. Cisco is a trademark of Cisco Systems, Inc.</span></p>
+  </div>
+  <script src="assets/tema.js?v=2"></script>
+  <script src="assets/unita-11.js?v=1"></script>
+</body>
+</html>
