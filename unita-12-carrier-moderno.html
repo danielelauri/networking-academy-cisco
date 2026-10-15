@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Unità 12: quali tecnologie convivono con l’architettura studiata e quali ne sostituiscono una parte. Intermediate System to Intermediate System, Segment Routing, Ethernet Virtual Private Network, Segment Routing over IPv6, Software-Defined Networking, Network Functions Virtualization, automazione e telemetria.">
+  <title>Unità 12 — Dall’ossatura classica al carrier moderno</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/corso.css?v=3">
+  <link rel="stylesheet" href="assets/unita-12.css?v=2">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">12</span> NETWORKING ACADEMY</div>
+      <div class="topbar-tools">
+        <div class="progress" style="--progress: 100%">UNITÀ 12 DI 12<span class="progress-topic"> · CARRIER MODERNO</span></div>
+        <label class="theme-switch" for="themeToggle">
+          <span class="theme-icon" aria-hidden="true">☼</span><span class="theme-label">Tema</span>
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span></span></span><span class="theme-current" id="themeCurrent">Scuro</span>
+        </label>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="hero-heading">
+        <p class="kicker">Unità 12 · control plane, data plane e service plane <span class="draft">PERCORSO PRINCIPALE</span></p>
+        <h1>L’ossatura resta, <span>il modo di usarla cambia.</span></h1>
+      </div>
+      <div class="u12-hero-figure">
+        <p class="u12-eyebrow">Lo stesso datagramma del Cliente Blu, due modi di preparare il backbone</p>
+        <div class="u12-pair">
+          <article class="u12-classic">
+            <h3>Ossatura delle Unità 5–11</h3>
+            <div class="u12-stack" aria-hidden="true">
+              <span class="u12-s-transport">label 18</span>
+              <span class="u12-s-service">label 24001</span>
+              <span class="u12-s-payload">IPv4 10.20.20.77</span>
+            </div>
+            <p>Open Shortest Path First (OSPF) trova il percorso verso PE-B. Label Distribution Protocol (LDP) assegna la label 18 su PE-A e la 27 su P1. Multiprotocol Border Gateway Protocol (MP-BGP) scrive nella Virtual Routing and Forwarding (VRF) BLU la rotta di Host B. Il datagramma IPv4 del cliente non partecipa a queste tre operazioni: le trova già pronte nelle tabelle.</p>
+          </article>
+          <article class="u12-modern">
+            <h3>Stesso servizio, trasporto a segmenti</h3>
+            <div class="u12-stack" aria-hidden="true">
+              <span class="u12-s-transport">SID 16002</span>
+              <span class="u12-s-service">label 24001</span>
+              <span class="u12-s-payload">IPv4 10.20.20.77</span>
+            </div>
+            <p>Intermediate System to Intermediate System (IS-IS) annuncia il Segment Identifier (SID) di PE-B, 16002. I router P inoltrano ancora con Multiprotocol Label Switching (MPLS): cambia chi ha scritto la label, non il fatto che il pacchetto ne porti una. La VRF BLU e la label di servizio 24001 restano quelle dell’Unità 9.</p>
+          </article>
+        </div>
+        <p class="u12-hero-legend"><b>Legenda:</b> CE = Customer Edge; PE = Provider Edge; P = Provider; SID = Segment Identifier; VRF = Virtual Routing and Forwarding; IPv4 = Internet Protocol version 4. Host A <code>10.10.10.10</code> parla con Host B <code>10.20.20.77</code>, come nell’Unità 10. Le label di servizio restano <code>24001</code> all’andata e <code>24010</code> al ritorno.</p>
+      </div>
+      <div class="hero-summary">
+        <p class="hero-lead"><strong>Domanda guida:</strong> quali tecnologie convivono con questa architettura e quali ne sostituiscono una parte, mentre il Cliente Blu continua a ricevere lo stesso datagramma?</p>
+        <div class="learning-strip"><span><b>Prerequisiti</b> Unità 0–11</span><span><b>Obiettivo</b> Collocare IS-IS, SR, EVPN, SRv6, SDN e NFV sui tre piani già noti</span><span><b>Tempo indicativo</b> 90 minuti</span></div>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell’unità">
+      <a href="#problema">Problema</a><a href="#storia">Storia</a><a href="#mappa">Completa o sostituisce</a><a href="#isis">IS-IS</a>
+      <a href="#stack">Unità dati</a><a href="#campi">SID e locator</a><a href="#piani">Piani</a><a href="#cooperazione">Cooperazione</a>
+      <a href="#viaggio">Viaggio</a><a href="#limiti">Limiti</a><a href="#visualizzazioni">Visualizzazioni</a><a href="#glossario">Glossario</a><a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+      <section id="problema" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>01</p></div><div class="section-copy"><h5 class="section-kicker">Il problema originario</h5><h2>L’architettura funziona, ma ogni cosa ha un prezzo</h2><div class="section-intro"><p>Nelle Unità 5–11 abbiamo costruito un backbone che funziona. Open Shortest Path First (OSPF) disegna la mappa dei router. Label Distribution Protocol (LDP) assegna le label di trasporto. Resource Reservation Protocol - Traffic Engineering (RSVP-TE) costruisce percorsi espliciti quando servono. Multiprotocol Border Gateway Protocol (MP-BGP) porta le rotte del Cliente Blu da un Provider Edge (PE) all’altro. Host A raggiunge Host B, e anche il guasto dell’Unità 11 viene riparato.</p><p>Allora perché i Service Provider hanno continuato a inventare protocolli? Perché un’architettura comoda con sei router e un cliente può diventare pesante con migliaia di router e decine di migliaia di clienti. Non si tratta di errori di progetto: sono costi che crescono insieme alla rete. Le tre schede li raccontano uno alla volta, con lo scenario che già conosci.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">STATO NEL CORE</h5><h3>Ogni percorso lascia un ricordo nei router del core</h3><p>Con LDP ogni router Provider (P) apre una sessione con ciascun vicino. Poi memorizza un’associazione, detta <em>binding</em>, per ogni destinazione di trasporto, cioè per ogni Forwarding Equivalence Class (FEC): «per raggiungere PE-B, label 18; da P1 in poi, label 27». Con RSVP-TE il conto cresce. Ogni tunnel esplicito è uno stato che P1 e P2 devono ricordare e rinfrescare. Fast Reroute aggiunge poi un tunnel di riserva, il <em>bypass</em>, per ogni collegamento protetto. Con tre PE è poco. Con cinquecento PE e migliaia di tunnel, memoria e processore dei router P lavorano per ricordare percorsi, non per inoltrare pacchetti.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">PROTEZIONE INCOMPLETA</h5><h3>Il riparo rapido non è sempre disponibile</h3><p>Nell’Unità 11, quando cade il collegamento P1–P2, la rete ha bisogno di un po’ di tempo per ricalcolare: rilevare il guasto, annunciarlo, rieseguire Shortest Path First (SPF) e aggiornare le tabelle. In quell’intervallo i pacchetti si perdono. Per coprirlo i router precalcolano un next hop di riserva, il Loop-Free Alternate (LFA). L’LFA però funziona solo se un vicino porta a destinazione senza ripassare dal guasto. Nella topologia del Cliente Blu quel vicino non c’era. Remote LFA e Topology Independent LFA (TI-LFA) risolvono il caso, ma devono poter dire al pacchetto «passa prima da P3, poi vai a PE-B». LDP non sa esprimere un’istruzione del genere.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">SERVIZI E OPERAZIONE</h5><h3>Nuovi servizi, nuovi indirizzi, troppe macchine da gestire a mano</h3><p>Tre richieste mettono in difficoltà l’ossatura classica. Prima richiesta: un cliente con due sedi vuole che i suoi PC sembrino sulla stessa LAN, con la stessa VLAN e gli stessi indirizzi MAC. La Layer 3 Virtual Private Network (L3VPN) del Cliente Blu, però, trasporta datagrammi IP, non trame Ethernet. Seconda: i data center usano sempre più IPv6, mentre il core visto finora lavora con IPv4 e MPLS. Terza: un operatore con migliaia di router non può configurarli uno per uno da riga di comando. Non può nemmeno scoprire i guasti interrogandoli ogni pochi minuti con Simple Network Management Protocol (SNMP).</p></article>
+        </div>
+        <div class="insight"><p><strong>Questa unità non butta via l’ossatura: la rilegge.</strong><br>Ogni tecnologia nuova nasce per rispondere a uno di questi tre problemi. Alcune si aggiungono senza togliere nulla e coprono un buco preciso. Altre prendono il posto di un pezzo, per esempio LDP o le label MPLS nel core, ma lasciano intatti i ruoli Customer Edge (CE), PE e P, la VRF BLU e il viaggio del datagramma. Per questo la frase giusta non è «tutto è stato sostituito». È piuttosto: «in quel punto, che cosa convive e che cosa ha preso il posto di qualcos’altro?». Le sezioni successive applicano questa domanda a ogni sigla.</p></div>
+      </section>
+
+      <section id="storia" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>02</p></div><div class="section-copy"><h5 class="section-kicker">Contesto storico</h5><h2>L’ordine del corso non è l’ordine in cui si spengono i protocolli</h2><div class="section-intro"><p>Ethernet, Internet Protocol (IP), OSPF, BGP, MPLS e la Layer 3 Virtual Private Network (L3VPN) sono nati in decenni diversi, eppure nel backbone del Cliente Blu lavorano nello stesso istante. Ethernet consegna la trama sul singolo collegamento. IP porta il datagramma da Host A a Host B. OSPF tiene la mappa interna dei router. BGP e Multiprotocol Border Gateway Protocol (MP-BGP) portano le rotte del servizio. MPLS avvolge il datagramma mentre attraversa i router Provider (P). Nessuno di questi pezzi ha dovuto sparire per far nascere il successivo: ognuno è stato messo sopra, o accanto, a quello che c’era già.</p><p>Segment Routing (SR), Ethernet Virtual Private Network (EVPN) e Segment Routing over IPv6 (SRv6) arrivano per ultimi proprio perché quell’ossatura esisteva e, nella sezione 01, ne abbiamo visto i costi. La linea storica completa è nella sezione 11. Qui basta un’idea, facile da perdere se si leggono solo le sigle: una tecnologia nuova raramente spegne la precedente il martedì dopo la decisione. Un backbone ha clienti in produzione. Si migra un pezzo, si verifica che il datagramma arrivi ancora, e solo allora si spegne il protocollo vecchio, quando il nuovo copre lo stesso mestiere.</p></div></div></div>
+        <div class="u9-two-lanes">
+          <div><b>DOVE UN PROTOCOLLO ESCE DAVVERO</b><p>In un punto preciso, la sostituzione c’è. Se il dominio sceglie Intermediate System to Intermediate System (IS-IS), OSPF non è più l’Interior Gateway Protocol (IGP) di quei collegamenti: due mappe link-state sulla stessa rete si darebbero fastidio. Se Segment Routing with the MPLS Data Plane (SR-MPLS) è completo, le sessioni Label Distribution Protocol (LDP) si possono chiudere. Se il core diventa SRv6, i router P non tengono più una Label Forwarding Information Base (LFIB). Se un servizio LAN passa a EVPN, su quel servizio si può ritirare Virtual Private LAN Service (VPLS). «Sostituisce» vuol dire questo: in quel ruolo, un protocollo non serve più.</p></div>
+          <div><b>PERCHÉ NEL FRATTEMPO CONVIVONO</b><p>Il giorno dopo la decisione, spesso ci sono ancora entrambi. LDP e SR-MPLS inoltrano gli stessi pacchetti MPLS finché qualche destinazione non ha ancora un Segment Identifier (SID). Lo stesso PE-A può offrire al Cliente Blu la L3VPN dell’Unità 9 e, a un altro cliente, una LAN con EVPN. Un controllore Software-Defined Networking (SDN) può installare su PE-A una SR Policy, per esempio «evita P1», mentre l’IGP continua a calcolare la mappa se il controllore tace. Host A seguita a inviare da <code>10.10.10.10</code> a <code>10.20.20.77</code>. Non deve sapere se nel core la label era 18 oppure 16002.</p></div>
+        </div>
+        <div class="callout"><p><strong>Filo del Cliente Blu, lo stesso delle Unità 10 e 11.</strong> Host A <code>10.10.10.10</code> sta nella VLAN 10. Il pacchetto attraversa CE-A, PE-A, P1, P2, PE-B, CE-B e arriva a Host B <code>10.20.20.77</code>, porta TCP 443. Le loopback sono PE-A <code>192.0.2.1</code> e PE-B <code>192.0.2.2</code>. La label di servizio è <code>24001</code> all’andata e <code>24010</code> al ritorno. P3 resta lo svincolo dell’Unità 11: il percorso via P3 costa 40, quello via P1–P2 costa 30. Su questo disegno si innestano solo valori nuovi, e sono didattici: il Prefix SID <code>16002</code> di PE-B, il Node SID <code>16013</code> di P3, il locator IPv6 <code>2001:db8:b::/48</code> e la funzione End.DT4. EVPN entrerebbe se un cliente chiedesse una LAN. Il flusso del Cliente Blu resta una VPN di livello 3.</p></div>
+      </section>
+
+      <section id="mappa" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>03</p></div><div class="section-copy"><h5 class="section-kicker">Funzione della tecnologia</h5><h2>Sostituisce un pezzo, oppure si affianca</h2><div class="section-intro"><p>Ogni tecnologia di questa unità risponde alle cinque domande del modello editoriale: quale problema c’era prima, che cosa risolve, che cosa lascia irrisolto, dove sta rispetto alle altre, e se tocca il pacchetto del cliente oppure prepara solo le tabelle. Prima di entrare nel dettaglio, la tabella è una mappa. Si legge una riga alla volta, da sinistra a destra.</p><p>La colonna ambra, «sostituisce», indica un pezzo che in quel punto esce: OSPF, LDP, le label nel core. La colonna ciano, «completa», indica qualcosa che si aggiunge e lascia il pezzo precedente al suo posto. L’ultima colonna risponde alla domanda che conta per il Cliente Blu: il datagramma di Host A cambia, oppure cambiano solo le tabelle che lo preparano?</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table u12-matrix"><thead><tr><th>Tecnologia</th><th>Piano</th><th>Rispetto all’ossatura</th><th>Che cosa tocca del Cliente Blu</th></tr></thead><tbody>
+          <tr><th>IS-IS</th><td>Control plane dell’underlay</td><td class="u12-swap">Sostituisce OSPF come protocollo del dominio. Il mestiere resta: una mappa interna e un next hop</td><td>Nulla nel datagramma. Su PE-A cambia solo chi calcola il percorso verso la loopback <code>192.0.2.2</code> di PE-B.</td></tr>
+          <tr><th>SR-MPLS</th><td>Control plane del trasporto</td><td class="u12-swap">Sostituisce LDP e, spesso, i tunnel RSVP-TE. Il data plane resta MPLS</td><td>Cambia la label di trasporto: <code>16002</code> al posto di <code>18</code>. Restano la label di servizio <code>24001</code> e la VRF BLU.</td></tr>
+          <tr><th>EVPN</th><td>Service plane</td><td class="u12-add">Si affianca alla L3VPN. Sui servizi Ethernet prende il posto di VPLS</td><td>Il flusso TCP 443 dell’Unità 10 resta una L3VPN. EVPN entra solo se il cliente chiede che due sedi sembrino la stessa LAN.</td></tr>
+          <tr><th>SRv6</th><td>Data plane del core</td><td class="u12-swap">Sostituisce le label MPLS con un involucro IPv6. VRF e BGP restano sui PE</td><td>Il datagramma IPv4 viaggia incapsulato. PE-B toglie l’involucro e lo consegna nella VRF BLU, verso CE-B.</td></tr>
+          <tr><th>SDN</th><td>Controllo, spesso centralizzato</td><td class="u12-add">Si affianca a IGP e Segment Routing con un intento, per esempio «evita P1»</td><td>Non entra nel pacchetto. Può scegliere, su PE-A, un percorso diverso da quello che l’IGP avrebbe preferito.</td></tr>
+          <tr><th>NFV</th><td>Infrastruttura delle funzioni</td><td class="u12-add">Cambia il modo di erogare PE, firewall e NAT: da telaio dedicato a software su server</td><td>Il ruolo di PE-B resta quello di PE-B, anche se il software gira su un server. Host B non vede la differenza.</td></tr>
+          <tr><th>Automazione e telemetria</th><td>Gestione</td><td class="u12-add">Si affianca alla riga di comando, a SNMP e ai log usati nell’Unità 11</td><td>Configura e osserva i router. Non modifica il TTL del cliente né le label del suo pacchetto.</td></tr>
+        </tbody></table></div>
+        <p class="figure-note">Legenda: IGP = Interior Gateway Protocol; SR-MPLS = Segment Routing with the MPLS Data Plane; EVPN = Ethernet Virtual Private Network; VPLS = Virtual Private LAN Service; SRv6 = Segment Routing over IPv6; SDN = Software-Defined Networking; NFV = Network Functions Virtualization; SNMP = Simple Network Management Protocol; NAT = Network Address Translation; CLI = Command Line Interface.</p>
+        <div class="insight"><p><strong>Un esempio di come si legge una riga.</strong><br>SR-MPLS nasce dal costo di stato visto nella sezione 01. Prende il posto di LDP, quindi la label di trasporto del Cliente Blu diventa 16002. Non prende il posto di MP-BGP: 24001 e la VRF BLU restano. Sta fra l’IGP, che conosce la topologia, e il servizio, che conosce il cliente. La label nuova sta sul pacchetto; l’annuncio del SID, invece, prepara solo le tabelle. Le sezioni 04–07 rifanno questo ragionamento per ogni sigla.</p></div>
+      </section>
+
+      <section id="isis" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>04</p></div><div class="section-copy"><h5 class="section-kicker">Interior Gateway Protocol</h5><h2>OSPF e IS-IS fanno lo stesso mestiere</h2><div class="section-intro"><p>Nell’Unità 5 il backbone aveva bisogno di una mappa interna: chi è vicino di chi, quanto costa un collegamento, e quindi da che parte si raggiunge la loopback di PE-B. Quel mestiere si chiama Interior Gateway Protocol (IGP). Open Shortest Path First (OSPF) lo fa. Intermediate System to Intermediate System (IS-IS) lo fa con gli stessi quattro passi: scopre i vicini, costruisce un database della topologia, calcola l’algoritmo Shortest Path First (SPF) e scrive il risultato nella Routing Information Base (RIB) e poi nella Forwarding Information Base (FIB).</p><p>Nei Service Provider si incontra spesso IS-IS perché le informazioni nuove si aggiungono come Type-Length-Value (TLV): un blocco «tipo, lunghezza, valore» dentro lo stesso protocollo. IPv6, Traffic Engineering e Segment Routing sono entrati così, senza inventare una seconda famiglia di IGP. OSPF resta pienamente valido e ha estensioni equivalenti; per IPv6 usa però un protocollo distinto, OSPFv3. In un dominio se ne sceglie uno. Il Cliente Blu non vede la scelta: vede solo se <code>192.0.2.2</code> è raggiungibile.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">TRASPORTO</h5><h3>IS-IS non viaggia dentro un datagramma IP</h3><p>OSPF è esso stesso traffico IP: usa il protocol number 89. Se su un collegamento il piano IPv4 è rotto, anche i messaggi OSPF fanno fatica a passare. IS-IS scambia le sue Protocol Data Unit direttamente sul collegamento, sopra Ethernet, senza essere incapsulato in IP. Per questo un guasto che riguarda solo IPv4 non spegne da solo la segnalazione dell’IGP: i router continuano a raccontarsi la topologia. Il datagramma del Cliente Blu, invece, resta IP. IS-IS non lo trasporta.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">ESTENSIONI</h5><h3>Negli stessi messaggi ci stanno anche i SID</h3><p>Un Link State PDU (LSP) di IS-IS è il messaggio con cui un router descrive se stesso e i propri collegamenti. Attenzione al nome: qui LSP non significa Label Switched Path. Dentro quell’LSP, un TLV può dire «il Prefix SID di PE-B è l’indice 2» e un altro può annunciare un Adjacency SID, cioè «questo collegamento ha questa istruzione». OSPF sa fare annunci equivalenti. IS-IS è però la base su cui molti carrier hanno acceso Segment Routing, proprio perché aggiungere un TLV non cambiava il protocollo.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">NON RISOLVE</h5><h3>Non conosce il Cliente Blu</h3><p>IS-IS sa come raggiungere la loopback <code>192.0.2.2</code>. Non sa che quella loopback è il next hop della VRF BLU, non conosce il Route Distinguisher <code>65000:102</code> e non assegna la label di servizio <code>24001</code>. Quelli restano affari di MP-BGP, come nell’Unità 9. Se OSPF esce dal core, il suo ruolo non esce con lui: qualcuno deve ancora rendere raggiungibile PE-B, altrimenti la VPN non ha un underlay su cui appoggiare il servizio.</p></article>
+        </div>
+        <div class="u9-two-lanes">
+          <div><b>NELLO SCENARIO, CON OSPF</b><p>PE-A raggiunge <code>192.0.2.2</code> via P1 con costo 30. Via P3 il costo è 40, ed è per questo che nell’Unità 11 il percorso ordinario era P1–P2. OSPF scrive quel next hop nella RIB; Cisco Express Forwarding (CEF) lo copia nella FIB. È il lavoro già visto nell’Unità 5.</p></div>
+          <div><b>NELLO SCENARIO, CON IS-IS</b><p>I costi restano 30 e 40, l’algoritmo resta SPF, la FIB indica ancora P1 come uscita verso PE-B. Cambiano i nomi dei messaggi: Hello per il vicino, LSP per la topologia. Se è acceso Segment Routing, in quegli LSP compare anche il TLV che pubblica <code>16002</code>. Il pacchetto di Host A, su CE-A, è identico nei due casi.</p></div>
+        </div>
+      </section>
+
+      <section id="stack" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>05</p></div><div class="section-copy"><h5 class="section-kicker">Struttura dell’unità dati</h5><h2>Tre involucri per lo stesso datagramma</h2><div class="section-intro"><p>Ripartiamo dal pacchetto dell’Unità 10. Host A invia dati applicativi dentro un segmento Transmission Control Protocol (TCP), porte <code>49152 → 443</code>, dentro un datagramma Internet Protocol version 4 (IPv4) da <code>10.10.10.10</code> a <code>10.20.20.77</code>. Quel nucleo non cambia. Cambia solo ciò che il backbone gli avvolge intorno fra PE-A e PE-B. Le quattro schede mostrano il pacchetto in uscita da PE-A, o il riparo su P1, letto da quattro control plane diversi. Il servizio visto da Host B è uno solo.</p><p>La differenza più visibile fra la prima e la seconda scheda è questa. Con LDP la label di trasporto è locale: PE-A scrive 18 e P1 la scambia con 27. Con Segment Routing il valore è globale: PE-A, P1 e P2 leggono lo stesso 16002, finché il penultimo router non lo toglie. Il numero non cambia a ogni hop perché tutti i router hanno imparato la stessa istruzione, «vai a PE-B», dall’IGP.</p></div></div></div>
+        <div class="u12-sid">
+          <article><b>CLASSICA · LDP</b><h3>18 · 24001 · IPv4</h3><p>Sopra il datagramma IPv4, PE-A impila due label. La più interna, 24001, è il servizio: la capirà solo PE-B. La più esterna, 18, è il trasporto e vale solo sul primo hop, perché LDP assegna label locali. P1 la scambia con 27. P2, penultimo, la toglie con Penultimate Hop Popping (PHP) e consegna a PE-B la sola 24001.</p></article>
+          <article><b>SR-MPLS</b><h3>16002 · 24001 · IPv4</h3><p>La label di servizio è ancora 24001. Al suo posto, sopra, c’è 16002: il Prefix SID di PE-B, ricavato dal Segment Routing Global Block (SRGB) 16000–23999. P1 e P2 non devono scambiarselo con un altro numero. Inoltrano 16002 finché P2 esegue PHP. Manca la sessione LDP: l’IGP ha già detto a tutti qual è il SID di PE-B.</p></article>
+          <article><b>TI-LFA SU P1</b><h3>16013 · 16002 · 24001</h3><p>Se cade il collegamento P1–P2, P1 non aspetta il nuovo SPF. Impone in cima allo stack il Node SID di P3, 16013, e sotto lascia 16002 e 24001. Il pacchetto va prima a P3, poi riprende la strada verso PE-B. È lo stesso svincolo dell’Unità 11, usato subito, perché Segment Routing sa dire «passa da questo nodo» e LDP no.</p></article>
+          <article><b>SRv6</b><h3>IPv6 DA End.DT4</h3><p>Qui non ci sono label. PE-A incapsula il datagramma IPv4 in IPv6 e scrive come destinazione <code>2001:db8:b:0:d4::</code>. I router P leggono solo il locator <code>2001:db8:b::/48</code>, cioè «questo indirizzo è di PE-B», e inoltrano con la FIB IPv6. PE-B riconosce la funzione End.DT4, toglie IPv6 e consulta la VRF BLU. Nessuna LFIB nel core.</p></article>
+        </div>
+        <p class="figure-note">Legenda: LDP = Label Distribution Protocol; SR-MPLS = Segment Routing with the MPLS Data Plane; SRGB = Segment Routing Global Block; TI-LFA = Topology Independent Loop-Free Alternate; SID = Segment Identifier; PHP = Penultimate Hop Popping; SRv6 = Segment Routing over IPv6; DA = Destination Address; End.DT4 = funzione SRv6 «decapsula in una VRF IPv4»; LFIB = Label Forwarding Information Base. I SID 16001–16013 e il locator <code>2001:db8::/32</code> sono valori didattici dello scenario.</p>
+        <div class="callout"><p><strong>La label di servizio resta un contratto fra i due PE.</strong> <code>24001</code> la assegna PE-B, la annuncia a PE-A con MP-BGP e, all’arrivo, la capisce solo PE-B: «questo pacchetto appartiene alla VRF BLU». LDP non la sceglie. Il Prefix SID 16002 non la sostituisce: le viaggia sopra e serve solo ad attraversare il core. Il locator IPv6 fa lo stesso lavoro di attraversamento, con un’altra forma. Se il servizio diventa SRv6 puro, l’equivalente di 24001 è la funzione dentro il SID, End.DT4. Cambia la forma dell’istruzione. Resta il fatto che il PE di uscita deve scegliere la VRF giusta prima di costruire una nuova trama verso CE-B.</p></div>
+      </section>
+
+      <section id="campi" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>06</p></div><div class="section-copy"><h5 class="section-kicker">Campi principali</h5><h2>SID, SRGB, locator, funzione</h2><div class="section-intro"><p>In Segment Routing un Segment Identifier (SID) è un’istruzione, non il nome di un tunnel da ricordare hop per hop. «Vai a PE-B» è un’istruzione. «Esci su questo collegamento» è un’altra. Il modo in cui l’istruzione è scritta dipende dal data plane. Con Multiprotocol Label Switching (MPLS) sta in una label di 20 bit. Con Internet Protocol version 6 (IPv6) sta in un indirizzo, spezzato in due parti: il locator, che dice di chi è l’indirizzo, e la funzione, che dice che cosa fare all’arrivo.</p><p>Nello scenario tutti i router usano lo stesso Segment Routing Global Block (SRGB), da 16000 a 23999. PE-B si prenota l’indice 2. Ogni router somma indice e base: 16000 + 2 = 16002. Per questo la label è la stessa su PE-A, su P1 e su P2. Con LDP non poteva succedere, perché 18 e 27 erano valori locali, scelti da ciascun router per conto proprio. I valori 16001–16013 e gli indirizzi <code>2001:db8::</code> sono didattici: servono a leggere lo scenario, non sono un’allocazione da copiare in rete.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th>Campo o oggetto</th><th>Valore nello scenario</th><th>Che cosa dice al router</th></tr></thead><tbody>
+          <tr><th>SRGB</th><td><code>16000–23999</code></td><td>Intervallo di label riservato ai Prefix SID. L’indice si somma alla base. Indice 2 e base 16000 producono la label <code>16002</code> per PE-B, uguale su tutti i router dello scenario.</td></tr>
+          <tr><th>Node / Prefix SID</th><td>PE-A <code>16001</code> · PE-B <code>16002</code> · P1 <code>16011</code> · P2 <code>16012</code> · P3 <code>16013</code></td><td>«Raggiungi questo nodo seguendo l’IGP». Non elenca P1 né P2. Se l’IGP un giorno preferisce P3, lo stesso 16002 segue il nuovo percorso.</td></tr>
+          <tr><th>Adjacency SID</th><td>locale al router che lo annuncia</td><td>«Esci su questo collegamento preciso». Serve quando il percorso deve essere stretto, come i tunnel espliciti dell’Unità 7, e non basta dire «vai a PE-B come preferisce l’IGP».</td></tr>
+          <tr><th>Label di servizio</th><td><code>24001</code> andata · <code>24010</code> ritorno</td><td>Sta fuori dall’SRGB, quindi non si confonde con un Prefix SID. La assegna MP-BGP. Significa «VRF BLU» solo per il PE che l’ha scelta.</td></tr>
+          <tr><th>Locator SRv6</th><td>PE-B <code>2001:db8:b::/48</code></td><td>Prefisso IPv6 di PE-B. I router P lo inoltrano per longest-prefix match, come una rotta ordinaria, e non consultano una LFIB.</td></tr>
+          <tr><th>Funzione End.DT4</th><td><code>2001:db8:b:0:d4::</code></td><td>La parte di indirizzo che PE-B interpreta: togli l’involucro IPv6 e cerca la destinazione IPv4 nella VRF BLU. I router P non hanno bisogno di leggerla.</td></tr>
+          <tr><th>Segment Routing Header</th><td>presente solo se serve una lista</td><td>Estensione IPv6 che elenca i SID successivi, per esempio «prima P3, poi PE-B». Se basta arrivare a PE-B, un solo indirizzo di destinazione è sufficiente, come un solo Prefix SID in SR-MPLS.</td></tr>
+        </tbody></table></div>
+        <p class="figure-note">Legenda: SRGB = Segment Routing Global Block; IGP = Interior Gateway Protocol; MP-BGP = Multiprotocol Border Gateway Protocol; VRF = Virtual Routing and Forwarding; SRH = Segment Routing Header. RFC 8402 definisce l’architettura; RFC 8660 il data plane MPLS; RFC 8754 l’SRH; RFC 8986 le funzioni SRv6.</p>
+      </section>
+
+      <section id="piani" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>07</p></div><div class="section-copy"><h5 class="section-kicker">Posizione nei piani</h5><h2>Distribuito, centralizzato, virtualizzato</h2><div class="section-intro"><p>I tre piani dell’Unità 0 restano la bussola, anche quando le sigle sono nuove. Il data plane è chi tocca il pacchetto. Il control plane è chi prepara le tabelle prima che Host A trasmetta. Il service plane è chi, sul PE, distingue il Cliente Blu dagli altri clienti. Software-Defined Networking (SDN) e Network Functions Virtualization (NFV) non aggiungono un quarto piano. Spostano due cose che già conosci: il luogo in cui si decide il percorso, e il luogo in cui gira una funzione già nota, per esempio il PE.</p><p>Conviene tenerli separati anche fra loro. SDN parla di chi sceglie. NFV parla di su quale macchina gira il software. Si possono usare insieme, un PE virtuale programmato da un controllore, oppure uno solo dei due. Nessuno dei due riscrive il datagramma del Cliente Blu al posto di PE-A.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">DATA PLANE</h5><h3>Chi tocca il pacchetto</h3><p>SR-MPLS continua a fare le tre operazioni dell’Unità 6: push quando PE-A impone 16002, swap quando un P inoltra, pop quando P2 esegue PHP. SRv6, nel core, fa un lookup IPv6 sul locator; la funzione End.DT4 gira solo quando il pacchetto è arrivato a PE-B. NFV può spostare quel PE su un server. Il pacchetto vede comunque un PE: qualcuno deve ancora imporre la label, o l’involucro IPv6, e qualcuno deve toglierlo.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">CONTROL PLANE</h5><h3>Chi prepara le tabelle</h3><p>IS-IS oppure OSPF costruisce la mappa. L’IGP trasporta i SID. MP-BGP trasporta la rotta <code>10.20.20.0/24</code> e la label 24001. Se c’è un controllore SDN, può spingere su PE-A una SR Policy già calcolata. Il controllore non riceve il segmento TCP 443 e non lo inoltra: parla con i router, non con Host B. Se tace, l’IGP ha ancora una FIB e il traffico continua sul percorso che SPF aveva scelto.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">SERVICE PLANE</h5><h3>Chi separa i clienti</h3><p>La VRF BLU e i Route Target restano il modo di dire «questa rotta appartiene a questo cliente». EVPN usa lo stesso MP-BGP per un’informazione in più: quale indirizzo MAC sta dietro quale PE. La label di servizio, o la funzione End.DT4, continua a vivere solo sui PE. P1 non impara i MAC del cliente e non apre la VRF BLU. È la stessa divisione dei ruoli dell’Unità 9, applicata anche a una LAN.</p></article>
+        </div>
+        <div class="u9-two-lanes">
+          <div><b>CONTROLLO DISTRIBUITO</b><p>Ogni router parla con i vicini, calcola SPF e sceglie il proprio next hop. PE-A non deve chiedere il permesso a un server centrale per inoltrare verso P1. Se un controllore è spento o irraggiungibile, la mappa c’è ancora. È il modello delle Unità 5–11, e resta il sottofondo anche quando sopra ci si mette un controllore.</p></div>
+          <div><b>CONTROLLO CENTRALIZZATO</b><p>Un controllore SDN vede la topologia raccolta dall’IGP e decide un intento che i singoli router, da soli, esprimerebbero male: «il Cliente Blu deve evitare P1». Programma l’ingresso, di solito PE-A, con una lista di SID. Nel carrier questa decisione convive con l’IGP. L’intento sta al bordo. La capacità di sopravvivere a un controllore assente resta nei router.</p></div>
+        </div>
+        <div class="insight"><p><strong>SDN sposta la decisione. NFV sposta la macchina. Il ruolo da leggere sul pacchetto resta.</strong><br>Se il controllore impone «evita P1», PE-A installa una SR Policy e il prossimo pacchetto del Cliente Blu esce con uno stack che passa da un altro nodo, per esempio P3. Se il software di PE-B si sposta su un altro server, Host B continua a vedere il gateway <code>10.20.20.1</code> dietro CE-B: per lui non è cambiato il salto. Cambia la sede, cambia lo strumento. La domanda dell’Unità 10 resta la stessa: su questo hop, chi ha scritto l’intestazione e chi la legge.</p></div>
+      </section>
+
+      <section id="cooperazione" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>08</p></div><div class="section-copy"><h5 class="section-kicker">Cooperazione</h5><h2>Le tecnologie già studiate non escono di scena</h2><div class="section-intro"><p>Un carrier moderno non è un secondo corso che cancella il primo. È lo stesso viaggio, con qualche intestazione scritta in un altro modo. Ethernet continua a sostituire la trama a ogni hop: fra CE-A e PE-A c’è la VLAN 10, fra PE-A e P1 un’altra trama, che ora può portare label MPLS oppure IPv6. Il datagramma IPv4 del cliente resta end-to-end nella L3VPN. Se durante il guasto dell’Unità 11 si perde un segmento, TCP lo ritrasmette: né SID né locator danno questa garanzia.</p><p>Cisco Express Forwarding (CEF) continua a copiare le decisioni nella FIB. MP-BGP continua a portare <code>10.20.20.0/24</code> da PE-B a PE-A. La tabella sotto dice, tecnologia per tecnologia, che lavoro resta da fare anche dopo questa unità. Se una riga sparisse, il datagramma del Cliente Blu non avrebbe più un pezzo del percorso.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th>Tecnologia già studiata</th><th>Unità</th><th>Che cosa fa ancora in un carrier moderno</th></tr></thead><tbody>
+          <tr><th>Ethernet / VLAN</th><td>2</td><td>Consegna il pacchetto sul collegamento locale, per esempio CE-A verso PE-A con VLAN 10. Nel core porta MPLS o IPv6 dentro una trama nuova a ogni hop. Non diventa end-to-end.</td></tr>
+          <tr><th>IPv4 del cliente</th><td>3, 10</td><td>Resta l’intestazione che Host A ha scritto e che Host B deve ricevere. In SRv6 è il payload dell’involucro IPv6. Parte con TTL 64 e viene decrementato dai router che lo ispezionano.</td></tr>
+          <tr><th>RIB, FIB, CEF</th><td>4</td><td>Un SID o un locator, da soli, non inoltrano nulla. Devono diventare un next hop e una riscrittura nella FIB. Finché CEF non ha programmato la scheda, il control plane ha solo descritto la rete.</td></tr>
+          <tr><th>OSPF / IS-IS</th><td>5, 12</td><td>Rendono raggiungibili le loopback <code>192.0.2.1</code> e <code>192.0.2.2</code>, oppure il locator di PE-B. Senza questa mappa, LDP, Segment Routing e la sessione iBGP non hanno un underlay su cui appoggiarsi.</td></tr>
+          <tr><th>MPLS push/swap/pop</th><td>6</td><td>È ancora il data plane di SR-MPLS. Le operazioni sul pacchetto sono quelle di LDP. Cambia chi ha riempito la LFIB: l’IGP e i SID, non una sessione LDP per ogni vicino.</td></tr>
+          <tr><th>LDP / RSVP-TE</th><td>7</td><td>Durante la migrazione restano accesi accanto a Segment Routing. Restano anche dove serve un tunnel con prenotazione di banda. Escono dal trasporto ordinario quando ogni destinazione ha un SID e lo stato nel core non serve più.</td></tr>
+          <tr><th>BGP / MP-BGP / VRF</th><td>8, 9</td><td>Tengono policy, rotte VPNv4 e, se il servizio è Ethernet, EVPN. Il next hop <code>192.0.2.2</code> si risolve sulla nuova underlay senza un UPDATE del servizio, come già succedeva nel guasto dell’Unità 11.</td></tr>
+          <tr><th>Convergenza e verifica</th><td>11</td><td>Rilevazione, propagazione, calcolo e aggiornamento delle tabelle restano le quattro fasi. TI-LFA accorcia solo l’attesa. Telemetria e YANG cambiano lo strumento con cui si osserva, non la domanda: quale piano ha perso il Cliente Blu.</td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section id="viaggio" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>09</p></div><div class="section-copy"><h5 class="section-kicker">Trasformazione sul percorso</h5><h2>Tre control plane, lo stesso Host B</h2><div class="section-intro"><p>I tre pulsanti mostrano lo stesso viaggio, Host A verso Host B, con tre modi di preparare il backbone. La topologia disegnata non cambia: CE-A, PE-A, P1, P2, PE-B, CE-B. Cambiano le scritte sotto i collegamenti del core e i tre riquadri underlay, trasporto e servizio. Conviene leggerli in quest’ordine, perché è l’ordine in cui il pacchetto viene preparato: prima la mappa, poi l’involucro di trasporto, poi la VRF.</p><p>I router P restano ignari della VRF BLU in tutti e tre i casi. P1 non sa che la destinazione finale è <code>10.20.20.77</code>. Sa solo inoltrare una label, oppure un locator IPv6, verso PE-B. La tabella sotto i pulsanti mette a confronto che cosa fa ogni hop. La colonna evidenziata è quella in cui l’involucro del core è diverso dalla colonna classica.</p></div></div></div>
+        <div class="figure-title"><strong>Architettura affiancata</strong><span>stesso backbone, tre modi di programmarlo</span></div>
+        <div class="button-row u12-arch-controls">
+          <button type="button" data-u12-arch="classica" aria-pressed="true">Classica · LDP</button>
+          <button type="button" data-u12-arch="srmpls" aria-pressed="false">SR-MPLS · SID</button>
+          <button type="button" data-u12-arch="srv6" aria-pressed="false">SRv6 · locator</button>
+        </div>
+        <div class="u12-arch-panel" id="u12Arch" data-mode="classica">
+          <h3 id="u12ArchTitle">Ossatura classica: OSPF, LDP, MP-BGP</h3>
+          <div class="u12-topo-wrap">
+            <svg class="u12-topo" viewBox="0 0 1000 210" role="img" aria-label="Topologia CE-A, PE-A, P1, P2, PE-B, CE-B in linea, con le intestazioni di trasporto sotto ogni hop del core.">
+              <line class="u12-link u12-access" x1="118" y1="78" x2="188" y2="78"/>
+              <line class="u12-link u12-active" x1="292" y1="78" x2="368" y2="78"/>
+              <line class="u12-link u12-active" x1="472" y1="78" x2="548" y2="78"/>
+              <line class="u12-link u12-active" x1="652" y1="78" x2="728" y2="78"/>
+              <line class="u12-link u12-access" x1="832" y1="78" x2="892" y2="78"/>
+              <g class="u12-node"><rect x="14" y="55" width="104" height="46" rx="12"/><text x="66" y="78">CE-A</text></g>
+              <g class="u12-node u12-core"><rect x="188" y="55" width="104" height="46" rx="12"/><text x="240" y="78">PE-A</text></g>
+              <g class="u12-node u12-core"><rect x="368" y="55" width="104" height="46" rx="12"/><text x="420" y="78">P1</text></g>
+              <g class="u12-node u12-core"><rect x="548" y="55" width="104" height="46" rx="12"/><text x="600" y="78">P2</text></g>
+              <g class="u12-node u12-core"><rect x="728" y="55" width="104" height="46" rx="12"/><text x="780" y="78">PE-B</text></g>
+              <g class="u12-node"><rect x="892" y="55" width="94" height="46" rx="12"/><text x="939" y="78">CE-B</text></g>
+              <text class="u12-hop u12-hop-on" data-u12-hop="0" x="330" y="148">18 + 24001</text>
+              <text class="u12-hop u12-hop-on" data-u12-hop="1" x="510" y="148">27 + 24001</text>
+              <text class="u12-hop u12-hop-on" data-u12-hop="2" x="690" y="148">PHP · 24001</text>
+              <text class="u12-hop u12-hop-on" data-u12-hop="3" x="860" y="148">VRF BLU</text>
+            </svg>
+          </div>
+          <div class="u12-arch-meta">
+            <div><b>UNDERLAY</b><p id="u12ArchUnderlay">Open Shortest Path First (OSPF) disegna la mappa. PE-A raggiunge 192.0.2.2, loopback di PE-B, via P1 con costo 30. Via P3 costerebbe 40, quindi il percorso ordinario è P1–P2.</p></div>
+            <div><b>TRASPORTO</b><p id="u12ArchTransport">Label Distribution Protocol (LDP) assegna label locali. PE-A impone 18 verso P1; P1 la scambia con 27 verso P2. P2, penultimo, esegue Penultimate Hop Popping (PHP) e lascia solo la label di servizio.</p></div>
+            <div><b>SERVIZIO</b><p id="u12ArchService">Multiprotocol Border Gateway Protocol (MP-BGP) ha già portato a PE-A la rotta 10.20.20.0/24, next hop 192.0.2.2, label di servizio 24001. I router P inoltrano la label esterna e non aprono la VRF BLU.</p></div>
+          </div>
+        </div>
+        <div class="table-scroll"><table class="u9-table u12-walk"><thead><tr><th>Hop</th><th>Classica</th><th>SR-MPLS</th><th>SRv6</th></tr></thead><tbody>
+          <tr><th>CE-A → PE-A</th><td class="u12-same">Trama Ethernet, VLAN 10, datagramma IPv4</td><td class="u12-same">Identico</td><td class="u12-same">Identico</td></tr>
+          <tr><th>PE-A in uscita</th><td>Push 24001 e 18, verso P1</td><td class="u12-chg">Push 24001 e 16002, verso P1</td><td class="u12-chg">Incapsula in IPv6 destinazione End.DT4</td></tr>
+          <tr><th>P1, P2</th><td>Swap 18→27, poi PHP</td><td class="u12-chg">Inoltro sul SID 16002, poi PHP</td><td class="u12-chg">Lookup del locator, nessuna LFIB</td></tr>
+          <tr><th>PE-B</th><td>Pop 24001, VRF BLU, nuova Ethernet verso CE-B</td><td class="u12-same">Identico</td><td class="u12-chg">End.DT4: decapsula, VRF BLU, Ethernet verso CE-B</td></tr>
+          <tr><th>Host B</th><td>Datagramma IPv4, TTL 58, TCP 443</td><td class="u12-same">Identico, se il modello TTL è uniform come nell’Unità 10</td><td class="u12-chg">Stesso datagramma e stessa porta 443. Il TTL IPv4 non ha contato i router P: li ha contati l’hop-limit IPv6, già rimosso</td></tr>
+        </tbody></table></div>
+        <p class="figure-note">Time To Live (TTL) e hop-limit contano i router attraversati, ma non guardano la stessa intestazione. Nell’Unità 10 il modello uniform copia il TTL IPv4 dentro la label: i router P lo decrementano e Host B riceve 58, sei salti sotto il 64 di partenza. SR-MPLS può fare lo stesso, perché sotto c’è ancora MPLS. Con SRv6 i router P vedono solo l’intestazione esterna e decrementano l’hop-limit IPv6. Il TTL IPv4 del cliente si muove sui dispositivi che aprono quel datagramma, in particolare i PE. Host B riceve comunque il segmento TCP verso la porta 443: cambia il numero nel TTL, non il servizio. I SID e il locator di questa pagina sono valori didattici.</p>
+      </section>
+
+      <section id="limiti" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>10</p></div><div class="section-copy"><h5 class="section-kicker">Limiti e ciò che resta</h5><h2>Nessuna sigla nuova cancella i tre piani</h2><div class="section-intro"><p>Ogni tecnologia di questa unità toglie un costo e ne lascia altri. Segment Routing riduce lo stato sui router P: non ripara una fibra tagliata e non accorcia la distanza fra PE-A e PE-B. SRv6 toglie la LFIB dal core: i router P devono comunque sapere come raggiungere il locator, quindi un underlay c’è ancora. EVPN trasporta una LAN: il Cliente Blu, che usa una VPN di livello 3 fra <code>10.10.10.10</code> e <code>10.20.20.77</code>, non ne ha bisogno. Un controllore SDN scrive la stessa decisione su molti PE. Se la decisione è sbagliata, l’errore è coerente su tutti, e il datagramma segue il percorso sbagliato con grande disciplina.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">NON RISOLVE</h5><h3>La fibra, la MTU, l’errore ripetuto</h3><p>Se si taglia P1–P2, il collegamento è giù anche con i SID. TI-LFA sposta il traffico su P3 più in fretta, ma P3 deve esistere e avere capacità. SRv6 aggiunge almeno un’intestazione IPv6 di 40 byte, e un Segment Routing Header se c’è una lista di nodi: la Maximum Transmission Unit (MTU) va ricalcolata, altrimenti il pacchetto del Cliente Blu viene scartato proprio dal trasporto nuovo. Un modello YANG errato, applicato in automatico, configura lo stesso errore su cinquecento PE. Prima l’errore era locale e lento. Ora è rapido e diffuso.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">CONVIVENZA LUNGA</h5><h3>La migrazione non è una sera sola</h3><p>Le reti grandi si spostano a isole. Per mesi LDP e SR-MPLS possono essere accesi insieme: una destinazione ha già 16002, un’altra ha ancora la label locale 18. Un datagramma può entrare nel backbone con un SID e uscire ancora con il PHP classico, se l’ultimo tratto non è stato migrato. Lo stesso può succedere fra MPLS e SRv6. Per questo la lettura hop per hop dell’Unità 10 resta il metodo: a ogni router si guarda l’intestazione che c’è davvero, non quella che l’architettura «dovrebbe» avere.</p></article>
+          <article class="card accent-green"><h5 class="card-tag">INVARIATO</h5><h3>Ruoli, nomi dei pezzi, modo di verificare</h3><p>CE, PE e P restano i tre ruoli. Dato, segmento, datagramma, pacchetto, label e trama restano sei oggetti diversi, e non diventano sinonimi solo perché il core parla SRv6. Davanti a un guasto si parte ancora da un sintomo misurato, si sceglie il piano, si legge il comando giusto. Host B deve ancora ricevere il datagramma destinato a <code>10.20.20.77</code> sulla porta 443. Se non arriva, nessuna sigla nuova sostituisce questa prova.</p></article>
+        </div>
+        <div class="insight"><p><strong>Su un hop basta dire chi ha creato l’intestazione e chi la legge.</strong><br>IS-IS, i SID e i locator spostano il momento in cui le tabelle vengono scritte, e a volte la forma dell’involucro. Il datagramma del cliente, nel punto in cui lo catturi, ha ancora un numero finito di campi. Se sai nominarli, sai leggere anche un carrier che non usa più LDP.</p></div>
+      </section>
+
+      <section id="visualizzazioni" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>11</p></div><div class="section-copy"><h5 class="section-kicker">Visualizzazioni riepilogative</h5><h2>Cinque domande, una linea nel tempo</h2><div class="section-intro"><p>I pulsanti a sinistra riprendono una tecnologia alla volta e le fanno le cinque domande del modello: che problema c’era, che cosa risolve, che cosa non risolve, dove sta, e se tocca il traffico del Cliente Blu o solo le tabelle. Il riquadro a destra cambia insieme al pulsante. È il modo più rapido per controllare se una sigla, da sola, era rimasta astratta.</p><p>Sotto, la linea temporale non è un elenco da memorizzare. È l’ordine in cui quei problemi sono diventati visibili: prima serviva una mappa, poi un modo per trasportare le VPN, poi una protezione rapida, poi meno stato nel core, infine un modo per dichiarare un intento e per misurarlo. Ogni pulsante apre un paragrafo. Le date sono finestre, non un giorno preciso in cui un protocollo ha sostituito l’altro.</p></div></div></div>
+        <div class="u12-five">
+          <div class="u12-five-nav button-row">
+            <button type="button" data-u12-tech="isis" aria-pressed="true">IS-IS</button>
+            <button type="button" data-u12-tech="sr" aria-pressed="false">SR-MPLS</button>
+            <button type="button" data-u12-tech="evpn" aria-pressed="false">EVPN</button>
+            <button type="button" data-u12-tech="srv6" aria-pressed="false">SRv6</button>
+            <button type="button" data-u12-tech="sdn" aria-pressed="false">SDN</button>
+            <button type="button" data-u12-tech="nfv" aria-pressed="false">NFV</button>
+            <button type="button" data-u12-tech="ops" aria-pressed="false">Automazione</button>
+          </div>
+          <div class="u12-five-card" id="u12TechCard">
+            <span class="u12-role u12-role-replace" id="u12TechRole">SOSTITUISCE OSPF NEL CORE, NON IL RUOLO DI IGP</span>
+            <h3 id="u12TechTitle">Intermediate System to Intermediate System</h3>
+            <p class="u12-five-lead" id="u12TechLead">IS-IS resta un Interior Gateway Protocol (IGP) link-state. Cambia il protocollo che descrive la topologia, non il fatto che il backbone abbia bisogno di una mappa interna. Nello scenario, PE-A continua a raggiungere 192.0.2.2 via P1 con costo 30.</p>
+            <div class="u12-q">
+              <div data-u12-q><b>Quale problema esisteva prima?</b><p>OSPF version 2 è nato su IPv4 e ha dovuto essere esteso, area per area, per IPv6, Traffic Engineering e Segment Routing. Nei backbone molto grandi le estensioni a TLV di IS-IS sono risultate più agili.</p></div>
+              <div data-u12-q><b>Che cosa risolve?</b><p>Scopre la topologia fra PE e P, calcola SPF, alimenta RIB e FIB, e può trasportare i Segment Identifier. Corre sul collegamento, non dentro un datagramma IP: un guasto IPv4 non spegne la segnalazione dell’IGP.</p></div>
+              <div data-u12-q><b>Che cosa non risolve?</b><p>Non separa i clienti, non applica policy fra Autonomous System, non assegna da solo un servizio VPN. Non sostituisce BGP, MPLS o la VRF.</p></div>
+              <div data-u12-q><b>Dove si colloca?</b><p>Stesso posto di OSPF: control plane dell’underlay. In un dominio se ne sceglie uno. L’unità 5 lo aveva solo accennato; qui diventa l’alternativa concreta nei Service Provider.</p></div>
+              <div data-u12-q><b>Traffico del cliente o preparazione?</b><p>Prepara soltanto l’inoltro. I pacchetti Hello e LSP di IS-IS non trasportano il datagramma del Cliente Blu.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="figure-title" style="margin-top:32px"><strong>Linea temporale conclusiva</strong><span>dal mestiere dell’IGP all’intento e alla misura</span></div>
+        <div class="u12-time" role="tablist" aria-label="Linea temporale del carrier">
+          <button type="button" data-u12-time="0" aria-pressed="true"><b>Anni ’90</b><span>OSPF e IS-IS, stesso mestiere</span></button>
+          <button type="button" data-u12-time="1" aria-pressed="false"><b>1998–2006</b><span>MPLS, LDP, L3VPN: ossatura del corso</span></button>
+          <button type="button" data-u12-time="2" aria-pressed="false"><b>2001–2010</b><span>RSVP-TE, Fast Reroute, BFD</span></button>
+          <button type="button" data-u12-time="3" aria-pressed="false"><b>2013–2019</b><span>Segment Routing e EVPN</span></button>
+          <button type="button" data-u12-time="4" aria-pressed="false"><b>2018 → oggi</b><span>SRv6, SDN, telemetria</span></button>
+        </div>
+        <div class="u12-time-out" id="u12TimeOut">
+          <p class="u12-eyebrow" id="u12TimeYear">Anni ’90</p>
+          <h3 id="u12TimeTitle">Due IGP link-state per lo stesso mestiere</h3>
+          <p id="u12TimeText">OSPF version 2 e IS-IS convivono come risposte allo stesso problema: una mappa interna dell’Autonomous System. I Service Provider scelgono spesso IS-IS; molte reti enterprise restano su OSPF. Il ruolo non cambia.</p>
+        </div>
+      </section>
+
+      <section id="glossario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>12</p></div><div class="section-copy"><h5 class="section-kicker">Glossario cumulativo</h5><h2>Sigle di questa unità, accanto a quelle già note</h2><div class="section-intro"><p>Le voci nuove descrivono IS-IS, Segment Routing, EVPN, SRv6, SDN e il modo di operare la rete. Ogni voce dice che cosa significa la sigla nello scenario del Cliente Blu, non solo l’espansione inglese. Sotto restano i mattoni delle Unità 0–11: se una frase di questa unità usa RIB, VRF o PHP, la definizione è ancora qui.</p></div></div></div>
+        <dl class="glossary">
+          <dt>IS-IS — Intermediate System to Intermediate System</dt><dd>IGP link-state alternativo a OSPF, frequente nei backbone dei Service Provider. Corre direttamente sul collegamento e, nello scenario, può calcolare lo stesso percorso verso <code>192.0.2.2</code> che prima calcolava OSPF.</dd>
+          <dt>TLV — Type-Length-Value</dt><dd>Blocco «tipo, lunghezza, valore» con cui IS-IS aggiunge un’informazione, per esempio un SID, senza cambiare famiglia di protocollo. È il motivo per cui IPv6 e Segment Routing sono entrati in IS-IS come estensioni.</dd>
+          <dt>LSP — Link State PDU</dt><dd>In IS-IS, messaggio con cui un router descrive se stesso e i propri collegamenti. Non è il Label Switched Path di MPLS: stesso acronimo, altro oggetto.</dd>
+          <dt>SR — Segment Routing</dt><dd>Architettura in cui il percorso è una lista di istruzioni, i segmenti, imposta all’ingresso del dominio. PE-A scrive la lista; i router P eseguono l’istruzione in cima.</dd>
+          <dt>SID — Segment Identifier</dt><dd>Nome di un segmento. Con MPLS è una label, nello scenario <code>16002</code> per PE-B. Con SRv6 è un indirizzo IPv6.</dd>
+          <dt>SRGB — Segment Routing Global Block</dt><dd>Intervallo di label da cui si ricavano i Prefix SID. Nello scenario è 16000–23999: l’indice 2 di PE-B diventa 16002 su tutti i router.</dd>
+          <dt>Prefix SID / Node SID</dt><dd>Istruzione «raggiungi questo prefisso o questo nodo secondo l’IGP», senza elencare P1 e P2. Se l’IGP cambia percorso, il SID segue.</dd>
+          <dt>Adjacency SID</dt><dd>Istruzione «esci su questo collegamento», locale al router che la annuncia. Serve quando «vai a PE-B» non basta e il percorso deve essere stretto.</dd>
+          <dt>SR-MPLS — Segment Routing with the MPLS Data Plane</dt><dd>Segment Routing realizzato con label. Prende il posto di LDP sul trasporto e lascia il data plane MPLS: push, swap e pop.</dd>
+          <dt>SR Policy</dt><dd>Intento di percorso installato sul router di ingresso, spesso PE-A: endpoint, un colore che classifica il traffico, e la lista di SID da imporre. È il modo in cui un controllore dice «evita P1».</dd>
+          <dt>TI-LFA — Topology Independent Loop-Free Alternate</dt><dd>Riparazione locale che, con Segment Routing, usa subito il percorso post-convergenza. Nello scenario, se cade P1–P2, P1 impone prima il SID 16013 di P3.</dd>
+          <dt>EVPN — Ethernet Virtual Private Network</dt><dd>Servizio in cui MP-BGP distribuisce gli indirizzi MAC e, se serve, le rotte IP. Sui servizi LAN prende il posto di VPLS. Non sostituisce la L3VPN del Cliente Blu.</dd>
+          <dt>VPLS — Virtual Private LAN Service</dt><dd>VPN di livello 2 precedente a EVPN. I MAC si imparano inoltrando e allagando il traffico, come in uno switch grande, invece di annunciarli con BGP.</dd>
+          <dt>IRB — Integrated Routing and Bridging</dt><dd>Sul PE, nello stesso servizio EVPN, il bridging delle trame Ethernet e il routing dei datagrammi IP. Il cliente può avere una LAN e, insieme, un gateway.</dd>
+          <dt>SRv6 — Segment Routing over IPv6</dt><dd>Segment Routing il cui data plane è IPv6. Il SID è un indirizzo. I router P inoltrano il locator e non consultano una LFIB.</dd>
+          <dt>SRH — Segment Routing Header</dt><dd>Estensione dell’intestazione IPv6 che elenca i SID ancora da eseguire. Serve quando un solo indirizzo di destinazione non basta a descrivere il percorso.</dd>
+          <dt>Locator</dt><dd>Prefisso IPv6 che identifica un nodo SRv6. Nello scenario PE-B è <code>2001:db8:b::/48</code>: P1 inoltra questo prefisso e ignora la funzione scritta nei bit successivi.</dd>
+          <dt>End.DT4</dt><dd>Funzione SRv6 eseguita dal PE di uscita: toglie l’involucro IPv6 e consulta una VRF IPv4. Nello scenario è la VRF BLU, indirizzo didattico <code>2001:db8:b:0:d4::</code>.</dd>
+          <dt>SDN — Software-Defined Networking</dt><dd>Spostamento, in tutto o in parte, della decisione di controllo verso un controllore che programma i dispositivi. Il controllore non inoltra il datagramma del Cliente Blu.</dd>
+          <dt>NFV — Network Functions Virtualization</dt><dd>Esecuzione di funzioni di rete, come un PE, un firewall o un NAT, su server generici. Il ruolo nel percorso resta quello di prima: un PE virtuale è ancora un PE.</dd>
+          <dt>NETCONF / RESTCONF / YANG</dt><dd>Protocolli e linguaggio con cui la configurazione si dichiara come dato strutturato, invece che come una sequenza di comandi. YANG descrive il modello; NETCONF e RESTCONF lo trasportano.</dd>
+          <dt>Telemetria in streaming</dt><dd>Esportazione continua di stato e contatori. Si affianca all’interrogazione periodica SNMP dell’Unità 11 quando serve una misura fitta, non una fotografia ogni cinque minuti.</dd>
+          <dt>OSPF — Open Shortest Path First</dt><dd>IGP link-state dell’ossatura classica; nello scenario può restare o cedere il dominio a IS-IS.</dd>
+          <dt>LDP — Label Distribution Protocol</dt><dd>Distribuzione hop-by-hop delle label di trasporto; SR-MPLS ne prende il posto.</dd>
+          <dt>RSVP-TE — Resource Reservation Protocol - Traffic Engineering</dt><dd>Tunnel espliciti e Fast Reroute con stato nel core; le SR Policy ne coprono molti usi.</dd>
+          <dt>MPLS — Multiprotocol Label Switching</dt><dd>Data plane a label: push, swap, pop. Resta il trasporto di SR-MPLS.</dd>
+          <dt>PHP — Penultimate Hop Popping</dt><dd>Il penultimo router toglie la label di trasporto; vale con LDP e con un Prefix SID.</dd>
+          <dt>LFIB — Label Forwarding Information Base</dt><dd>Tabella di inoltro MPLS. In SRv6 i P usano la FIB IPv6 al suo posto.</dd>
+          <dt>MP-BGP — Multiprotocol Border Gateway Protocol</dt><dd>Estensioni BGP che portano VPNv4, EVPN e, in architetture avanzate, SR Policy.</dd>
+          <dt>VRF — Virtual Routing and Forwarding</dt><dd>Contesto di routing del cliente sul PE; la BLU resta <code>10.10.10.0/24</code> e <code>10.20.20.0/24</code>.</dd>
+          <dt>RD / RT — Route Distinguisher / Route Target</dt><dd>Disambiguazione del prefisso VPN e policy di import/export fra VRF; nello scenario <code>65000:102</code> e <code>65000:100</code>.</dd>
+          <dt>CE / PE / P — Customer Edge / Provider Edge / Provider</dt><dd>Ruoli del percorso: bordo cliente, bordo provider dove vive il servizio, core ignaro del cliente.</dd>
+          <dt>RIB / FIB / CEF</dt><dd>Routing Information Base / Forwarding Information Base / Cisco Express Forwarding: dove la decisione diventa inoltro.</dd>
+          <dt>BFD / LFA — Bidirectional Forwarding Detection / Loop-Free Alternate</dt><dd>Rilevazione rapida del vicino / next hop di riserva precalcolato, temi dell’Unità 11.</dd>
+          <dt>SNMP — Simple Network Management Protocol</dt><dd>Interrogazione periodica dello stato; la telemetria in streaming la affianca o la sostituisce per molti usi.</dd>
+        </dl>
+      </section>
+
+      <section id="autoverifica" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>13</p></div><div class="section-copy"><h5 class="section-kicker">Verifica finale</h5><h2>Domande di orientamento</h2><div class="section-intro"><p>Rispondi prima di aprire la spiegazione. Ogni domanda chiede di collocare una tecnologia nel piano giusto, oppure di dire se completa o sostituisce un pezzo già studiato. Le risposte usano i valori dello scenario: se un numero non ti torna, torna alla sezione 05 o alla 06 prima di memorizzare la frase.</p></div></div></div>
+        <div class="quiz">
+          <details><summary>1. IS-IS sostituisce OSPF. Sostituisce anche il bisogno di un IGP?</summary><p>No. Sostituisce il protocollo dentro un dominio, non il mestiere. Qualcuno deve ancora descrivere la topologia e rendere raggiungibile <code>192.0.2.2</code>, oppure il locator di PE-B. Senza quella mappa, la label 24001 non ha un next hop su cui appoggiarsi.</p></details>
+          <details><summary>2. Con SR-MPLS, quale riga della VRF BLU di PE-A cambia?</summary><p>Nessuna, come nel guasto dell’Unità 11. Cambia la label di trasporto, <code>16002</code> al posto di <code>18</code>, e quella label non sta nella VRF: sta nella tabella di inoltro del backbone. La rotta <code>10.20.20.0/24</code> resta via <code>192.0.2.2</code> con label di servizio <code>24001</code>.</p></details>
+          <details><summary>3. Perché <code>24001</code> non sta nel Segment Routing Global Block?</summary><p>È la label di servizio assegnata da MP-BGP e ha significato solo su PE-B: «questo pacchetto è della VRF BLU». L’SRGB, 16000–23999, serve ai Prefix SID del trasporto, uguali su tutti i router. Tenerle in intervalli diversi evita di leggere un SID di un nodo come se fosse un cliente.</p></details>
+          <details><summary>4. Un Node SID di PE-B obbliga il traffico a passare per P1?</summary><p>No. Dice «raggiungi PE-B secondo l’IGP». Oggi l’IGP preferisce P1, costo 30 contro 40 via P3, quindi 16002 esce verso P1. Se un domani il costo cambiasse, lo stesso SID seguirebbe P3. Per obbligare un collegamento servono un Adjacency SID o una SR Policy.</p></details>
+          <details><summary>5. In quale senso TI-LFA completa l’Unità 11?</summary><p>Sulla topologia con P3 l’LFA classico non esisteva, e LDP non sapeva dire «passa prima da P3». TI-LFA impone lo stack 16013 e poi 16002, e usa subito il percorso che SPF sceglierebbe dopo il guasto. Le quattro fasi della convergenza avvengono comunque; nel frattempo il Cliente Blu non resta senza strada.</p></details>
+          <details><summary>6. EVPN sostituisce la L3VPN del Cliente Blu?</summary><p>No. Si affianca quando il servizio da trasportare è Ethernet, e in quel caso prende il posto di VPLS. Il flusso TCP 443 fra <code>10.10.10.10</code> e <code>10.20.20.77</code> resta una VPNv4 come da RFC 4364, finché il cliente chiede una rete di livello 3 e non una LAN.</p></details>
+          <details><summary>7. Che cosa inoltra P1 in SRv6, e che cosa non deve conoscere?</summary><p>Inoltra IPv6 verso il locator <code>2001:db8:b::/48</code>, con un lookup nella FIB IPv6. Non conosce la VRF BLU, non conosce <code>10.20.20.0/24</code> e non legge la funzione End.DT4. È la stessa ignoranza utile che, con MPLS, gli impediva di interpretare la label 24001.</p></details>
+          <details><summary>8. Dove gira la funzione End.DT4?</summary><p>Su PE-B, dove il data plane e il service plane si toccano: PE-B toglie l’involucro IPv6 e consulta la VRF IPv4 BLU, poi costruisce la trama verso CE-B. Non gira su P1 né su P2, che si fermano al locator.</p></details>
+          <details><summary>9. Un controllore SDN sostituisce IS-IS?</summary><p>No. Aggiunge un intento, di solito una SR Policy sul router di ingresso. L’IGP resta almeno come sottofondo: se il controllore tace, PE-A ha ancora un next hop verso <code>192.0.2.2</code> calcolato da SPF.</p></details>
+          <details><summary>10. NFV cambia il viaggio del datagramma?</summary><p>Cambia il luogo in cui gira la funzione, non il ruolo. Un PE virtuale continua a imporre SID o label e a tenere la VRF BLU. Host B non deve sapere se PE-B è un telaio oppure un’istanza su un server: vede ancora CE-B e il proprio gateway.</p></details>
+          <details><summary>11. NETCONF e YANG inoltrano il pacchetto TCP 443?</summary><p>No. Stanno nel piano di gestione: dichiarano la configurazione desiderata e permettono di leggerla. Servono a chi ha già capito RIB, FIB e LFIB. Se il modello è sbagliato, l’automazione scrive l’errore nelle tabelle, non lo corregge da sola.</p></details>
+          <details><summary>12. Quale intestazione resta end-to-end nella L3VPN, anche con SRv6 nel core?</summary><p>Il datagramma IPv4 del cliente, sorgente <code>10.10.10.10</code> e destinazione <code>10.20.20.77</code>, insieme al segmento TCP. Label, SID e involucro IPv6 del provider nascono su PE-A e muoiono su PE-B. Host B non li riceve.</p></details>
+          <details><summary>13. LDP e SR-MPLS possono convivere?</summary><p>Sì, ed è il caso ordinario di una migrazione a isole. Il data plane è lo stesso MPLS; i binding arrivano da due control plane. Una FEC può avere ancora la label locale 18, un’altra già il SID 16002. L’obiettivo è spegnere LDP quando ogni destinazione di trasporto ha un SID.</p></details>
+          <details><summary>14. Che cosa resta invariato dopo l’Unità 12?</summary><p>I tre piani, i ruoli CE, PE e P, e la differenza fra dato, segmento, datagramma, pacchetto, label e trama. Resta anche il metodo: su ogni hop, chi ha creato l’intestazione, chi la legge, e quale protocollo aveva preparato la tabella prima che il cliente inviasse il primo ottetto.</p></details>
+        </div>
+      </section>
+
+      <div class="closing"><h5 class="section-kicker">Punto di arrivo dell’Unità 12</h5><h2>Il Cliente Blu riceve ancora lo stesso datagramma.</h2><p>IS-IS può prendere il posto di OSPF e lasciare intatto il mestiere: qualcuno deve conoscere la strada verso <code>192.0.2.2</code>. Segment Routing può prendere il posto di LDP, e spesso dei tunnel RSVP-TE, e lasciare intatto MPLS: sul pacchetto ci sono ancora una label di trasporto e la label di servizio 24001, solo che la prima ora si chiama 16002 ed è la stessa su ogni hop. EVPN si aggiunge quando il cliente vuole una LAN. SRv6 può togliere le label dal core e lasciare VRF e BGP sul PE, con la funzione End.DT4 al posto di 24001.</p><p>SDN, NFV, YANG e la telemetria spostano la decisione, la macchina su cui gira il PE e il modo di osservare. Non aggiungono un quarto piano. L’ossatura delle Unità 0–11 resta il modo di leggere ogni hop: tre piani, un datagramma, tabelle preparate prima che Host A invii un ottetto. Il percorso principale termina qui.</p></div>
+      <div class="sources"><p><strong>Riferimenti essenziali:</strong><br>
+        <a href="https://www.rfc-editor.org/rfc/rfc1195.html">RFC 1195 — Use of OSI IS-IS for Routing in TCP/IP</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc5308.html">RFC 5308 — Routing IPv4 with IS-IS</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc8402.html">RFC 8402 — Segment Routing Architecture</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc8660.html">RFC 8660 — Segment Routing with the MPLS Data Plane</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc8667.html">RFC 8667 — IS-IS Extensions for Segment Routing</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc9256.html">RFC 9256 — Segment Routing Policy Architecture</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc8754.html">RFC 8754 — IPv6 Segment Routing Header (SRH)</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc8986.html">RFC 8986 — Segment Routing over IPv6 (SRv6) Network Programming</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc7432.html">RFC 7432 — BGP MPLS-Based Ethernet VPN</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc8365.html">RFC 8365 — A Network Virtualization Overlay Solution Using EVPN</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc4364.html">RFC 4364 — BGP/MPLS IP Virtual Private Networks</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc7426.html">RFC 7426 — Software-Defined Networking: Layers and Architecture Terminology</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc6241.html">RFC 6241 — Network Configuration Protocol (NETCONF)</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc7950.html">RFC 7950 — The YANG 1.1 Data Modeling Language</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc9232.html">RFC 9232 — Network Telemetry Framework</a></p></div>
+    </main>
+    <footer><span>NETWORKING ACADEMY · UNITÀ 12</span><span>Dal dato del cliente al backbone del Service Provider</span></footer>
+    <p class="legal-note">Progetto personale, non affiliato né approvato da Cisco Systems, Inc. Cisco è un marchio di Cisco Systems, Inc.<br>
+      <span lang="en">Personal project, not affiliated with or endorsed by Cisco Systems, Inc. Cisco is a trademark of Cisco Systems, Inc.</span></p>
+  </div>
+  <script src="assets/tema.js?v=2"></script>
+  <script src="assets/unita-12.js?v=2"></script>
+</body>
+</html>
