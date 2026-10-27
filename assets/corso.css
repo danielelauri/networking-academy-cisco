@@ -62,7 +62,7 @@ button[aria-pressed="true"] { border-color: var(--cyan); color: var(--cyan); }
 .sources { color: var(--muted); font-size: 12px; }
 footer { display: flex; justify-content: space-between; gap: 20px; padding: 34px 0; color: var(--muted); font: 11px var(--mono); }
 h1, h2, h3 { line-height: 1.16; }
-/* Avanzamento nel percorso (unità 0-12): ogni pagina imposta --progress = (N+1)/13. */
+/* Avanzamento nel percorso (unità 0-13): ogni pagina imposta --progress = (N+1)/14. */
 .progress { display: flex; align-items: center; gap: 9px; white-space: nowrap; font: 10px var(--mono); letter-spacing: .04em; }
 .progress::before { content: ""; width: 52px; height: 4px; border-radius: 99px; background: linear-gradient(90deg, var(--progress-color, var(--cyan)) var(--progress, 0%), var(--line) var(--progress, 0%)); }
 section { scroll-margin-top: 78px; padding: 72px 0; border-bottom: 1px solid var(--line); }

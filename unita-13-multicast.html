@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Unità 13: un datagramma UDP verso un gruppo, replicato solo dove qualcuno si è iscritto. IGMP, PIM-SM, RPF e, nel backbone, la multicast VPN con i Profile 12 e 14.">
+  <title>Unità 13 — Multicast: una copia, solo per chi ascolta</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem("network-academy-theme");
+      if (savedTheme === "light" || savedTheme === "dark") document.documentElement.dataset.theme = savedTheme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="assets/corso.css?v=3">
+  <link rel="stylesheet" href="assets/unita-13.css?v=1">
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">13</span> NETWORKING ACADEMY</div>
+      <div class="topbar-tools">
+        <div class="progress" style="--progress: 100%">UNITÀ 13 DI 13<span class="progress-topic"> · MULTICAST</span></div>
+        <label class="theme-switch" for="themeToggle">
+          <span class="theme-icon" aria-hidden="true">☼</span><span class="theme-label">Tema</span>
+          <input id="themeToggle" type="checkbox" role="switch" aria-label="Attiva il tema chiaro" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span></span></span><span class="theme-current" id="themeCurrent">Scuro</span>
+        </label>
+      </div>
+    </header>
+
+    <div class="hero">
+      <div class="hero-heading">
+        <p class="kicker">Unità 13 · data plane, control plane e service plane <span class="draft">PERCORSO PRINCIPALE</span></p>
+        <h1>Una copia, <span>solo per chi ascolta.</span></h1>
+      </div>
+      <div class="u13-hero-figure">
+        <p class="u13-eyebrow">Lo stesso video del Cliente Blu, due modi di nominare i destinatari</p>
+        <div class="u13-pair">
+          <article class="u13-classic">
+            <h3>Due datagrammi unicast</h3>
+            <div class="u13-stack" aria-hidden="true">
+              <span class="u13-s-copy">UDP → 10.20.20.88</span>
+              <span class="u13-s-copy">UDP → 10.30.30.30</span>
+            </div>
+            <p>La sorgente <code>10.10.10.50</code> apre due invii. Sul primo collegamento il video è già duplicato. Ogni datagramma ha un destinatario solo, e il backbone lo tratta come l’Unità 10: una rotta, una label di servizio, un PE di uscita.</p>
+          </article>
+          <article class="u13-tree">
+            <h3>Un datagramma verso il gruppo</h3>
+            <div class="u13-stack" aria-hidden="true">
+              <span class="u13-s-group">UDP → 239.1.1.1</span>
+              <span class="u13-s-payload">replicato al bivio</span>
+            </div>
+            <p>La destinazione non è un host. È il gruppo <code>239.1.1.1</code>. La sorgente emette una volta. La copia nasce dove l’albero si biforca, e solo se qualcuno, con IGMP, ha detto di volerlo.</p>
+          </article>
+        </div>
+        <p class="u13-hero-legend"><b>Legenda:</b> CE = Customer Edge; PE = Provider Edge; P = Provider; IGMP = Internet Group Management Protocol; UDP = User Datagram Protocol. La sorgente <code>10.10.10.50</code> sta in sede A, VLAN 10. Il Ricevitore B è <code>10.20.20.88</code>, distinto da Host B <code>10.20.20.77</code> che nell’Unità 10 serve la porta TCP 443. La sede C, <code>10.30.30.0/24</code>, è appesa a P2: serve un bivio. P3 resta il percorso alternativo dell’Unità 11 e non sta sull’albero finché i costi preferiscono P1–P2.</p>
+      </div>
+      <div class="hero-summary">
+        <p class="hero-lead"><strong>Domanda guida:</strong> come si consegna lo stesso flusso a più sedi del Cliente Blu senza una copia per ciascun host, e senza insegnare ai router P l’indirizzo del gruppo?</p>
+        <div class="learning-strip"><span><b>Prerequisiti</b> Unità 0–12</span><span><b>Obiettivo</b> Leggere IGMP, PIM-SM e RPF, e collocare la multicast VPN sui tre piani già noti</span><span><b>Tempo indicativo</b> 80 minuti</span></div>
+      </div>
+    </div>
+
+    <nav class="quick-nav" aria-label="Indice dell’unità">
+      <a href="#problema">Problema</a><a href="#storia">Storia</a><a href="#funzione">Funzione</a><a href="#stack">Unità dati</a>
+      <a href="#igmp">IGMP</a><a href="#rpf">RPF e PIM</a><a href="#piani">Piani</a><a href="#cooperazione">Cooperazione</a><a href="#catena">Catena</a>
+      <a href="#viaggio">Viaggio</a><a href="#profili">Profili</a><a href="#limiti">Limiti</a><a href="#visualizzazioni">Visualizzazioni</a><a href="#glossario">Glossario</a><a href="#autoverifica">Quiz</a>
+    </nav>
+
+    <main>
+      <section id="problema" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>01</p></div><div class="section-copy"><h5 class="section-kicker">Il problema originario</h5><h2>La destinazione unicast nomina un solo host</h2><div class="section-intro"><p>Nelle Unità 10–12 un datagramma parte da Host A <code>10.10.10.10</code> e arriva a Host B <code>10.20.20.77</code>. La destinazione è un’interfaccia. Se la sorgente video <code>10.10.10.50</code> deve raggiungere due spettatori, l’unicast le chiede due datagrammi User Datagram Protocol (UDP), uguali nel contenuto e diversi nell’indirizzo. Con duecento spettatori sono duecento copie, già sul primo collegamento.</p><p>Il multicast sposta la copia. La sorgente scrive un destinatario che non è un host: il gruppo. I router replicano solo sui rami dove qualcuno si è iscritto. Il backbone del provider ha un vincolo in più, lo stesso dell’Unità 9: i router Provider (P) non devono imparare gli indirizzi del Cliente Blu.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">BANDA</h5><h3>La duplicazione all’origine non scala</h3><p>Due spettatori, due datagrammi UDP. Il tratto CE-A—PE-A—P1 porta entrambi, anche se i bit del video sono gli stessi. La sede C paga il doppio di ciò che basterebbe fino al bivio, e la sorgente deve conoscere ogni destinatario. Un gruppo non elenca gli host: elenca un interesse.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">INOLTRO</h5><h3>Il longest-prefix match non ha un gruppo a cui rispondere</h3><p>La Forwarding Information Base (FIB) dell’Unità 4 sceglie il prefisso più lungo della destinazione. <code>239.1.1.1</code> non è un prefisso di una LAN del cliente e non va installato come rotta unicast. Chi inoltra deve chiedere da che parte sta la sorgente, e su quali interfacce c’è qualcuno in ascolto. Sono due domande diverse dal «dove mando 10.20.20.77».</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">CORE</h5><h3>Il gruppo del cliente non è un affare di P1</h3><p>Se ogni router P partecipasse al Protocol Independent Multicast del cliente, P1 imparerebbe <code>239.1.1.1</code> per ogni VPN. È il contrario del core che non conosce <code>10.20.20.0/24</code>. Il video resta nel Virtual Routing and Forwarding (VRF) BLU. Nel mezzo viaggia un albero del provider, fatto di label, non di indirizzi del cliente.</p></article>
+        </div>
+      </section>
+
+      <section id="storia" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>02</p></div><div class="section-copy"><h5 class="section-kicker">Contesto storico</h5><h2>Il multicast del collegamento c’era già nell’Unità 5</h2><div class="section-intro"><p>Open Shortest Path First (OSPF) parla a <code>224.0.0.5</code> e <code>224.0.0.6</code>. Quegli indirizzi stanno nel blocco <code>224.0.0.0/24</code>: il router non li inoltra oltre il collegamento, e il Time To Live (TTL) tipico è 1. Hellos, query e PIM Hello vivono lì. Non sono un video che deve raggiungere un’altra sede. Averli visti non significa aver costruito un albero.</p><p>L’indirizzamento di classe D, da <code>224.0.0.0</code> a <code>239.255.255.255</code>, è nella RFC 1112, alla fine degli anni Ottanta, insieme al modo in cui un host chiede un gruppo. Il Sparse Mode arriva dopo, quando si smette di allagare la rete per poi potare: l’albero si costruisce solo verso chi ha chiesto. Sul provider il passo ulteriore è la RFC 6513: il gruppo del cliente resta nel VRF, e il core replica un tunnel. I profili Cisco 12 e 14 sono due modi concreti di quel passo, non un altro protocollo.</p></div></div></div>
+        <div class="callout"><p><strong>Due multicast, due raggi.</strong> <code>224.0.0.5</code> tiene viva l’adiacenza OSPF fra PE-A e P1. <code>239.1.1.1</code> è il video del Cliente Blu e deve poter uscire dalla sede, dentro la VPN. Vedere il primo in una cattura non dice nulla del secondo.</p></div>
+      </section>
+
+      <section id="funzione" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>03</p></div><div class="section-copy"><h5 class="section-kicker">Funzione della tecnologia</h5><h2>Un interesse, non un elenco di host</h2><div class="section-intro"><p>Il multicast risolve la copia e sposta il momento in cui nasce. Non garantisce la consegna: sotto c’è UDP, non Transmission Control Protocol (TCP). Non cifra, non prenota banda e non sostituisce la rotta unicast verso la sorgente. Quella rotta serve ancora, perché il controllo anti-loop guarda proprio lei.</p><p>Per avere un bivio vero, allo scenario delle Unità 10–12 si aggiunge una sede. P3 non cambia mestiere: resta l’alternativa di costo 40 fra PE-A e PE-B. La sede C è un Provider Edge nuovo, PE-C, appeso a P2. Senza quel PE il video avrebbe un solo uscita e la replica nel core non si vedrebbe.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th>Oggetto</th><th>Valore nello scenario</th><th>Ruolo</th></tr></thead><tbody>
+          <tr><th>Sorgente</th><td><code>10.10.10.50</code> · VLAN 10 · dietro CE-A</td><td>Emette un datagramma UDP verso il gruppo. Non è Host A.</td></tr>
+          <tr><th>Gruppo</th><td><code>239.1.1.1</code></td><td>Spazio a visibilità amministrativa, <code>239.0.0.0/8</code>. Vive nel VRF, non nel core.</td></tr>
+          <tr><th>RP</th><td><code>10.20.20.1</code> · CE-B</td><td>Rendezvous Point: punto di incontro iniziale dello stato «qualsiasi sorgente».</td></tr>
+          <tr><th>Ricevitore B</th><td><code>10.20.20.88</code> · VLAN 20</td><td>Si iscrive in sede B. Host B <code>10.20.20.77</code> continua a servire il TCP 443 e non entra in questo flusso.</td></tr>
+          <tr><th>Ricevitore C</th><td><code>10.30.30.30</code> · VLAN 30 · gateway <code>10.30.30.1</code></td><td>Seconda sede. CE-C <code>172.16.3.1</code> verso PE-C <code>172.16.3.2</code>.</td></tr>
+          <tr><th>PE-C</th><td>Loopback <code>192.0.2.3</code> · P2 <code>203.0.113.21</code> — PE-C <code>203.0.113.22</code></td><td>Stesso Route Target <code>65000:100</code> della VRF BLU. RD didattico del PE: <code>65000:103</code>.</td></tr>
+        </tbody></table></div>
+        <p class="figure-note">I blocchi <code>192.0.2.0/24</code> e <code>203.0.113.0/24</code> sono di documentazione; <code>10.0.0.0/8</code> e <code>172.16.0.0/12</code> sono privati. Il Route Distinguisher (RD) è locale al PE, come già nell’Unità 9; il Route Target (RT) è ciò che tiene le tre sedi nella stessa VPN.</p>
+      </section>
+
+      <section id="stack" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>04</p></div><div class="section-copy"><h5 class="section-kicker">Struttura dell’unità dati</h5><h2>Il gruppo sta nel datagramma, il MAC nella trama</h2><div class="section-intro"><p>Sulla LAN della sorgente l’involucro è quello già visto. I dati del video stanno in UDP. Il datagramma Internet Protocol version 4 (IPv4) ha sorgente <code>10.10.10.50</code> e destinazione <code>239.1.1.1</code>. Non c’è un segmento TCP: una ritrasmissione non saprebbe a quale degli spettatori parlare, e il gruppo non conferma. La trama Ethernet non usa l’indirizzo del gruppo così com’è. Lo traduce.</p><p>La regola della RFC 1112 copia nel Media Access Control (MAC) i 23 bit bassi dell’indirizzo IPv4, dopo il prefisso fisso <code>01:00:5E</code>. Di <code>239.1.1.1</code> resta <code>01:00:5E:01:01:01</code>. Cinque bit del gruppo non entrano nel MAC: trentadue gruppi IPv4 possono condividere la stessa trama agli occhi dello switch. <code>239.129.1.1</code> produce lo stesso MAC. In cattura si apre l’intestazione IPv4. Il MAC da solo non dice se è il video, un Hello OSPF o un Hello PIM.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th>Indirizzo</th><th>MAC Ethernet</th><th>Che cosa è, in questo percorso</th></tr></thead><tbody>
+          <tr><th><code>239.1.1.1</code></th><td><code>01:00:5E:01:01:01</code></td><td>Video del Cliente Blu. Può uscire dalla sede, dentro il VRF.</td></tr>
+          <tr><th><code>239.129.1.1</code></th><td><code>01:00:5E:01:01:01</code></td><td>Altro gruppo, stesso MAC. Non è il video. Lo switch non li distingue da solo.</td></tr>
+          <tr><th><code>224.0.0.1</code></th><td><code>01:00:5E:00:00:01</code></td><td>Tutti gli host del collegamento. È la General Query IGMP.</td></tr>
+          <tr><th><code>224.0.0.5</code></th><td><code>01:00:5E:00:00:05</code></td><td>OSPF, tutti i router SPF. Controllo dell’Unità 5, TTL 1.</td></tr>
+          <tr><th><code>224.0.0.13</code></th><td><code>01:00:5E:00:00:0D</code></td><td>Tutti i router PIM del collegamento. Non è il video.</td></tr>
+          <tr><th><code>224.0.0.22</code></th><td><code>01:00:5E:00:00:16</code></td><td>Report IGMPv3. Resta sulla LAN.</td></tr>
+        </tbody></table></div>
+        <div class="insight"><p><strong>239 è il dato, 224.0.0 è il controllo del collegamento.</strong><br>Il primo può attraversare i PE, incapsulato nell’albero del provider. Il secondo no: è il vocabolario con cui i protocolli parlano al vicino diretto. Confonderli è il modo più rapido di dichiarare «il multicast non funziona» mentre si sta guardando un Hello.</p></div>
+      </section>
+
+      <section id="igmp" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>05</p></div><div class="section-copy"><h5 class="section-kicker">Campi e domanda dell’host</h5><h2>IGMP iscrive una porta, non una sede lontana</h2><div class="section-intro"><p>Internet Group Management Protocol (IGMP) corre fra l’host e il primo router. Il Ricevitore B manda un Membership Report per <code>239.1.1.1</code> a CE-B. Il querier, il router della LAN che tiene il ruolo, di solito quello con l’indirizzo più basso, manda Query periodiche a <code>224.0.0.1</code> per sapere chi è ancora lì. Un Leave in IGMPv2 avvisa che l’host esce; il router aspetta comunque, perché un altro host della stessa LAN potrebbe essere rimasto.</p><p>Lo switch della VLAN 20, se fa IGMP snooping, non allaga più tutte le porte. Impara il gruppo dal report e inoltra la trama <code>01:00:5E:01:01:01</code> solo verso la porta del Ricevitore B e verso la porta del router. Senza snooping la VLAN si comporta come un broadcast: gli altri host ricevono la trama e la scartano in IPv4, se non sono iscritti. In entrambi i casi il datagramma UDP non è stato modificato. È cambiata la lista delle porte.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">IGMPv2</h5><h3>Chiede il gruppo, non la sorgente</h3><p>Il report dice «voglio <code>239.1.1.1</code>», da qualunque sorgente. È lo stato che più avanti si scrive (*,G): l’asterisco è la sorgente ancora ignota. Basta per il video di questa unità, finché gli spettatori non devono scegliere un encoder preciso.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">IGMPv3</h5><h3>Può nominare 10.10.10.50</h3><p>Il report elenca le sorgenti incluse o escluse, e va a <code>224.0.0.22</code>. Serve al Source-Specific Multicast, i gruppi <code>232.0.0.0/8</code>: l’host chiede proprio quell’encoder e il Rendezvous Point non entra. Il Cliente Blu, con <code>239.1.1.1</code>, non è in quello spazio. IGMPv3 è il gradino successivo, non il flusso di questa pagina.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">CONFINE</h5><h3>Il report muore sulla LAN</h3><p>CE-C non inoltra l’IGMP del Ricevitore C attraverso la VPN. Traduce l’interesse in un join del protocollo fra router, nel VRF. P1 non ha una tabella IGMP del Cliente Blu. Se il report non arriva neanche a CE-C, il backbone non ha nulla da replicare: l’albero non nasce per intuizione.</p></article>
+        </div>
+      </section>
+
+      <section id="rpf" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>06</p></div><div class="section-copy"><h5 class="section-kicker">Controllo e albero</h5><h2>Si accetta il video solo se arriva dal verso della sorgente</h2><div class="section-intro"><p>Reverse Path Forwarding (RPF) è il controllo anti-loop. PE-C riceve un datagramma con sorgente <code>10.10.10.50</code> e destinazione <code>239.1.1.1</code>. Non cerca <code>239.1.1.1</code> nella RIB. Cerca <code>10.10.10.50</code> nella tabella unicast del VRF BLU, la stessa rotta <code>10.10.10.0/24</code> che l’Unità 9 ha importato. Se il datagramma è entrato dall’interfaccia di quella rotta, si replica sulle interfacce in uscita, la Outgoing Interface List (OIL). Se è entrato da un’altra, si scarta. Spesso senza un messaggio: lo stato c’è, i contatori sull’uscita restano fermi.</p><p>Protocol Independent Multicast — Sparse Mode (PIM-SM) costruisce l’albero usando quella tabella, senza calcolarne una propria. «Indipendente» vuol dire questo: non sostituisce OSPF né Border Gateway Protocol (BGP). Lo stato (*,G) punta al Rendezvous Point (RP) <code>10.20.20.1</code>. I primi datagrammi della sorgente vi arrivano incapsulati in un Register unicast, mandato dal Designated Router della LAN di sede A. Poi l’ultimo hop può unirsi a (S,G), l’albero verso <code>10.10.10.50</code>, e il flusso per sede C smette di fare tappa in sede B. Le figure più avanti mostrano l’albero dopo quel passaggio. Il Dense Mode, che allaga e poi pota, non è il modo di questo backbone.</p></div></div></div>
+        <div class="cards cards-2">
+          <article class="card accent-amber"><h5 class="card-tag">PRIMA IL PING</h5><h3>Se la sorgente non risponde, l’RPF non ha una porta</h3><p>Un ping nel VRF verso <code>10.10.10.50</code> prova l’unicast che il multicast userà al contrario. Se fallisce, IGMP e PIM non hanno una rotta su cui appoggiare l’ingresso. Se riesce e il video tace, il passo successivo è confrontare l’interfaccia di ingresso dello stato <code>(10.10.10.50, 239.1.1.1)</code> con l’interfaccia RPF verso la sorgente. Il controllo si fa sul router che scarta, nel VRF, non solo sul RP. La sintassi esatta cambia fra IOS XE e IOS XR: il nome del controllo no.</p></article>
+          <article class="card accent-coral"><h5 class="card-tag">PERCORSO STORTO</h5><h3>L’andata verso lo spettatore non è il controllo</h3><p>Il Ricevitore C può raggiungere Host B in unicast e il video può comunque morire. L’RPF non guarda la rotta verso <code>10.30.30.30</code>. Guarda la rotta verso la sorgente. Un percorso asimmetrico, o una rotta nel VRF letto dalla tabella sbagliata, fa entrare il datagramma dalla porta che il controllo rifiuta. Nell’Unità 11 il guasto cambiava il next hop unicast e la VPN non se ne accorgeva. Qui un next hop unicast sbagliato verso <code>10.10.10.0/24</code> spegne il gruppo.</p></article>
+        </div>
+        <div class="insight"><p><strong>(*,G) è la domanda, (S,G) è il flusso.</strong><br>L’asterisco non è un indirizzo. È «non ho ancora, o non voglio, una sorgente precisa». <code>(10.10.10.50, 239.1.1.1)</code> è il video di questa sorgente. La OIL di quello stato è la lista su cui si replica. Nessuna delle due righe è una rotta della RIB.</p></div>
+      </section>
+
+      <section id="piani" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>07</p></div><div class="section-copy"><h5 class="section-kicker">Posizione nei piani</h5><h2>La replica è data plane, l’iscrizione è controllo</h2><div class="section-intro"><p>I tre piani dell’Unità 0 restano sufficienti. Il data plane è chi tocca il datagramma UDP: lo accetta con l’RPF e lo copia sulla OIL. Nel core, se l’albero è MPLS, i router P eseguono una label e non aprono l’IPv4 del cliente. Il control plane è chi prepara quella lista prima, o appena la sorgente parte: IGMP sulla LAN, PIM nel VRF, e fra i PE l’address family MVPN di BGP. Il service plane è ancora la VRF BLU. Il gruppo non aggiunge un quarto piano e non mescola due clienti che usassero lo stesso <code>239.1.1.1</code>: ciascuno lo vede nel proprio VRF.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-cyan"><h5 class="card-tag">DATA PLANE</h5><h3>Chi replica</h3><p>Sulla LAN, lo switch o il CE copia la trama verso le porte iscritte. Nel VRF, il PE replica se l’ingresso è quello RPF. Nel core, o PE-A emette una copia MPLS per ogni PE interessato, o un router P duplica sul bivio dell’albero. La Multicast Forwarding Information Base (MFIB) è il parente multicast della FIB: ingresso, OIL, contatori. Non è la tabella che inoltra <code>10.20.20.77</code>.</p></article>
+          <article class="card accent-purple"><h5 class="card-tag">CONTROL PLANE</h5><h3>Chi prepara l’albero</h3><p>IGMP non esce dalla sede. PIM-SM legge la RIB unicast e scrive (*,G) e (S,G). I Hello verso <code>224.0.0.13</code> scoprono i vicini PIM sul collegamento. Fra PE, il join del cliente viaggia in BGP. Nessuno di questi messaggi è il video: sono la ragione per cui, quando il video parte, la OIL non è vuota.</p></article>
+          <article class="card accent-green"><h5 class="card-tag">SERVICE PLANE</h5><h3>Chi tiene i clienti separati</h3><p>La VRF BLU, il Route Target <code>65000:100</code> e il fatto che PE-C importi le stesse rotte delle altre sedi. La label di servizio unicast <code>24001</code> resta quella di <code>10.20.20.0/24</code>. Il gruppo non la riusa: il tunnel multicast del provider ha un altro binding. Due clienti con lo stesso gruppo non si vedono, per la stessa ragione per cui non si vedevano le rotte unicast.</p></article>
+        </div>
+      </section>
+
+      <section id="cooperazione" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>08</p></div><div class="section-copy"><h5 class="section-kicker">Cooperazione</h5><h2>L’IGP dice da dove arriva la sorgente, BGP dice chi l’ha chiesta</h2><div class="section-intro"><p>Il passaggio che conta, una volta lasciata la singola sede, è chi fa che cosa nel backbone. Le Unità 5, 8 e 9 hanno già costruito i due protocolli. Non si rifanno. Si dice che lavoro svolgono per il gruppo.</p><p>L’Interior Gateway Protocol (IGP) disegna il core e rende raggiungibili le loopback <code>192.0.2.1</code>, <code>192.0.2.2</code> e <code>192.0.2.3</code>. Non trasporta lo stato <code>(10.10.10.50, 239.1.1.1)</code>. Multiprotocol BGP, fra i PE, già porta <code>10.10.10.0/24</code> nel VRF: senza quella rotta l’RPF verso la sorgente non ha interfaccia. L’address family MVPN, accanto alla VPNv4, porta l’auto-discovery dell’albero e il join del cliente. Il router P non ha né l’una né l’altra sessione.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th></th><th>CE</th><th>PE</th><th>P</th></tr></thead><tbody>
+          <tr><th>IGMP</th><td>Parla con l’host della LAN. CE-B sente <code>10.20.20.88</code>.</td><td>Solo se il primo router della LAN è il PE. Nel modello di questo percorso il primo router è il CE.</td><td>Non ha host del cliente e non tiene report IGMP.</td></tr>
+          <tr><th>PIM-SM</th><td>Nel VRF, verso il RP e poi verso la sorgente.</td><td>Nel VRF, sul collegamento PE–CE. Non attraversa P1 come PIM del cliente.</td><td>Non parla PIM per <code>239.1.1.1</code>.</td></tr>
+          <tr><th>RPF</th><td>Verso <code>10.10.10.50</code>, con le rotte del cliente.</td><td>Nel VRF BLU, sulla rotta VPNv4 <code>10.10.10.0/24</code>.</td><td>Verso la loopback del PE radice dell’albero, non verso l’host.</td></tr>
+          <tr><th>BGP</th><td>Può annunciare prefissi unicast al PE. Non annuncia MVPN.</td><td>VPNv4 per l’unicast del VRF. MVPN per «chi vuole il gruppo» e per scoprire l’albero.</td><td>Nessuna sessione BGP del servizio. IGP e label, come nell’Unità 9.</td></tr>
+          <tr><th><code>239.1.1.1</code></th><td>Sì: è il gruppo della LAN.</td><td>Sì, dentro il VRF. Fuori, solo come carico di un tunnel.</td><td>No. Vede la label dell’albero, o una copia MPLS diretta a un PE.</td></tr>
+        </tbody></table></div>
+        <div class="callout"><p><strong>Il flag che arriva da BGP.</strong> Quando lo stato multicast del VRF dice che il join è stato ricevuto da un PE remoto, la segnalazione non è un PIM attraversato a nuoto il core. È un annuncio MVPN. Il parallelo col Join verso il RP è voluto: cambia il trasporto della domanda, non la domanda.</p></div>
+      </section>
+
+      <section id="catena" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>09</p></div><div class="section-copy"><h5 class="section-kicker">Le chiamate, in ordine</h5><h2>Il video è l’ultima riga</h2><div class="section-intro"><p>Il gruppo non è un protocollo solo. Prima che la sorgente emetta, altre conversazioni hanno riempito le tabelle, e ciascuna usa il suo protocollo. Si leggono dall’alto in basso, per la sede C. Le righe 2 e 3 costruiscono l’albero condiviso, quello che fa tappa dal Rendezvous Point in sede B. La riga 5 lo lascia e punta alla sorgente. La riga 6 è il video. I Hello di Protocol Independent Multicast (PIM) verso <code>224.0.0.13</code> tengono i vicini sul collegamento: senza di loro il Join non ha a chi parlare, ma non sono una riga del video.</p></div></div></div>
+        <div class="table-scroll"><table class="u9-table"><thead><tr><th>Ordine</th><th>Chi parla</th><th>Messaggio</th><th>Protocollo</th><th>Che cosa resta scritto</th></tr></thead><tbody>
+          <tr><th>1</th><td>Ricevitore C → CE-C</td><td>Report: «voglio <code>239.1.1.1</code>»</td><td>Internet Group Management Protocol (IGMP), protocollo Internet Protocol (IP) numero 2</td><td>L’interesse sulla LAN. Il report non esce dalla sede.</td></tr>
+          <tr><th>2</th><td>CE-C, nel VRF, verso <code>10.20.20.1</code></td><td>Join (*,G)</td><td>PIM, protocollo IP numero 103</td><td>L’albero condiviso punta al RP, che sta in sede B. Il Join viaggia sul collegamento verso PE-C. P1 non lo vede.</td></tr>
+          <tr><th>3</th><td>PE-C → PE-B</td><td>Lo stesso Join, come rotta</td><td>Border Gateway Protocol (BGP), address family MVPN, dentro Transmission Control Protocol (TCP) porta 179</td><td>La domanda attraversa il core. Cambia il trasporto, non il senso: «sede C vuole il gruppo». P1 trasporta la sessione fra le loopback dei PE e non impara <code>239.1.1.1</code>.</td></tr>
+          <tr><th>4</th><td>Designated Router di sede A → RP</td><td>Register: i primi datagrammi della sorgente, incapsulati</td><td>PIM, ma unicast verso <code>10.20.20.1</code></td><td>La sorgente si presenta. Il carico interno è già il video; l’involucro esterno è un messaggio di controllo verso CE-B.</td></tr>
+          <tr><th>5</th><td>CE-C e PE-C, verso <code>10.10.10.50</code></td><td>Join (S,G)</td><td>Di nuovo PIM nel VRF, e di nuovo BGP MVPN, questa volta verso PE-A</td><td>Si esce dall’albero condiviso. Il flusso per sede C smette di fare tappa in sede B. È lo stato che disegna la sezione 10.</td></tr>
+          <tr><th>6</th><td>Sorgente → <code>239.1.1.1</code></td><td>Il video</td><td>User Datagram Protocol (UDP), protocollo IP numero 17</td><td>L’unica riga che è il flusso. Le cinque sopra hanno preparato ingresso e lista di uscita. Questa si replica.</td></tr>
+        </tbody></table></div>
+        <div class="callout"><p><strong>Open Shortest Path First (OSPF) non è in tabella.</strong> Ha già scritto, prima di queste chiamate, la rotta unicast verso <code>10.10.10.50</code> e verso le loopback dei PE. Il suo Hello a <code>224.0.0.5</code> è multicast di collegamento, protocollo IP numero 89, e non accende il gruppo. Senza quella rotta, però, il Join della riga 2 non saprebbe da che parte sta il RP, e il controllo Reverse Path Forwarding (RPF) della riga 6 non avrebbe una porta.</p></div>
+      </section>
+
+      <section id="viaggio" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>10</p></div><div class="section-copy"><h5 class="section-kicker">Trasformazione sul percorso</h5><h2>Dove nasce la seconda copia</h2><div class="section-intro"><p>I pulsanti in alto scelgono chi si è iscritto. Quelli sotto scelgono come il provider trasporta il flusso. La topologia è il backbone noto, più PE-C appeso a P2. Le cifre sono copie del datagramma UDP, non label. Una linea ciano è una copia. Una linea ambra sono due copie sullo stesso tratto. Una linea tratteggiata è una copia che il PE riceve e scarta, perché su quella sede non c’è un report.</p><p>L’albero disegnato è quello dopo il passaggio a (S,G), verso <code>10.10.10.50</code>. Prima, con il solo stato (*,G), il flusso per sede C farebbe tappa dal RP in sede B e tornerebbe indietro. È il motivo per cui il RP si mette vicino alle sorgenti, o si esce presto dall’albero condiviso. P3 non è nel disegno: finché il costo OSPF preferisce P1–P2, l’RPF verso la sorgente non lo sceglie.</p></div></div></div>
+        <div class="figure-title"><strong>Chi ascolta, e come si replica</strong><span>sede B <code>10.20.20.88</code> · sede C <code>10.30.30.30</code></span></div>
+        <div class="button-row">
+          <button type="button" data-u13-rx="none" aria-pressed="false">Nessuna sede</button>
+          <button type="button" data-u13-rx="b" aria-pressed="false">Solo sede B</button>
+          <button type="button" data-u13-rx="c" aria-pressed="false">Solo sede C</button>
+          <button type="button" data-u13-rx="both" aria-pressed="true">Entrambe</button>
+        </div>
+        <div class="button-row">
+          <button type="button" data-u13-mode="uni" aria-pressed="false">Unicast · N copie</button>
+          <button type="button" data-u13-mode="ir" aria-pressed="false">Replica all’ingresso</button>
+          <button type="button" data-u13-mode="p12" aria-pressed="false">Profile 12 · MDT di default</button>
+          <button type="button" data-u13-mode="p14" aria-pressed="true">Profile 14 · MDT partizionato</button>
+        </div>
+        <div id="u13Tree">
+          <div class="u13-topo-wrap">
+            <svg class="u13-topo" viewBox="0 0 1000 300" role="img" aria-labelledby="u13Summary">
+              <line class="u13-link u13-access" data-u13-link="src" x1="116" y1="59" x2="160" y2="59"/>
+              <line class="u13-link" data-u13-link="core1" x1="264" y1="59" x2="308" y2="59"/>
+              <line class="u13-link" data-u13-link="core2" x1="412" y1="59" x2="456" y2="59"/>
+              <line class="u13-link" data-u13-link="b" x1="560" y1="59" x2="640" y2="59"/>
+              <line class="u13-link u13-access" data-u13-link="lanb" x1="744" y1="59" x2="788" y2="59"/>
+              <line class="u13-link" data-u13-link="c" x1="506" y1="86" x2="506" y2="200"/>
+              <line class="u13-link u13-access" data-u13-link="lanc" x1="560" y1="223" x2="640" y2="223"/>
+              <g class="u13-node"><rect x="12" y="36" width="104" height="46" rx="12"/><text x="64" y="59">CE-A</text></g>
+              <g class="u13-node u13-core"><rect x="160" y="36" width="104" height="46" rx="12"/><text x="212" y="59">PE-A</text></g>
+              <g class="u13-node u13-core"><rect x="308" y="36" width="104" height="46" rx="12"/><text x="360" y="59">P1</text></g>
+              <g class="u13-node u13-core"><rect x="456" y="36" width="104" height="46" rx="12"/><text x="508" y="59">P2</text></g>
+              <g class="u13-node u13-core" data-u13-node="peb"><rect x="640" y="36" width="104" height="46" rx="12"/><text x="692" y="59">PE-B</text></g>
+              <g class="u13-node"><rect x="788" y="36" width="104" height="46" rx="12"/><text x="840" y="59">CE-B</text></g>
+              <g class="u13-node u13-core" data-u13-node="pec"><rect x="456" y="200" width="104" height="46" rx="12"/><text x="508" y="223">PE-C</text></g>
+              <g class="u13-node"><rect x="640" y="200" width="104" height="46" rx="12"/><text x="692" y="223">CE-C</text></g>
+              <text class="u13-hop" data-u13-hop="src" x="138" y="108">×1</text>
+              <text class="u13-hop" data-u13-hop="core" x="360" y="108">×1</text>
+              <text class="u13-hop" data-u13-hop="b" x="600" y="108">×1</text>
+              <text class="u13-hop" data-u13-hop="c" x="548" y="160">×1</text>
+            </svg>
+          </div>
+          <div class="u13-counts">
+            <div><b>DALLA SORGENTE</b><p id="u13Nsrc">1 copia</p></div>
+            <div><b>TRATTO PE-A—P2</b><p id="u13Ncore">1 copia</p></div>
+            <div><b>VERSO SEDE B</b><p id="u13Nb">1 copia</p></div>
+            <div><b>VERSO SEDE C</b><p id="u13Nc">1 copia</p></div>
+          </div>
+          <p class="u13-summary" id="u13Summary" aria-live="polite"></p>
+        </div>
+
+        <div id="profili">
+          <div class="figure-title" style="margin-top:28px"><strong>I due profili che la figura confronta</strong><span>stessa segnalazione BGP, stesso mLDP, altro invito</span></div>
+          <div class="table-scroll"><table class="u9-table"><thead><tr><th></th><th>Profile 12</th><th>Profile 14</th><th>Replica all’ingresso</th></tr></thead><tbody>
+            <tr><th>Albero</th><td>Un Multicast Distribution Tree (MDT) di default: ci sono tutti i PE della VPN.</td><td>MDT partizionato per PE di ingresso. L’albero di PE-A include solo i PE con un ricevitore per ciò che PE-A immette.</td><td>Nessun albero. PE-A emette una copia MPLS per ogni PE che ha segnalato interesse.</td></tr>
+            <tr><th>Segnalazione</th><td>BGP: auto-discovery e join del cliente.</td><td>La stessa BGP. Cambia chi si aggancia all’albero.</td><td>Il join arriva comunque da BGP MVPN. Manca solo l’albero condiviso.</td></tr>
+            <tr><th>Nel core</th><td>Multipoint Label Distribution Protocol (mLDP), albero punto-multipunto. P2 replica.</td><td>mLDP punto-multipunto, un albero per PE sorgente.</td><td>Le label di trasporto già usate per raggiungere la loopback del PE. I router P non replicano: inoltrano due pacchetti distinti.</td></tr>
+            <tr><th>Solo sede B iscritta</th><td>PE-C riceve e scarta.</td><td>Il ramo verso PE-C non nasce.</td><td>PE-A manda una sola copia, verso <code>192.0.2.2</code>.</td></tr>
+            <tr><th>Che cosa non è</th><td>Non è un albero per ogni gruppo.</td><td>Neppure questo è un albero per ogni gruppo: i gruppi immessi da PE-A condividono il suo albero, finché non se ne chiede uno dati a parte.</td><td>Non insegna a P1 il valore <code>239.1.1.1</code>. Costa banda sul tratto comune, invece di stato d’albero.</td></tr>
+          </tbody></table></div>
+          <p class="figure-note">Profile 12 e 14 sono nomi Cisco della multicast VPN di nuova generazione. La norma che descrive il modello è la RFC 6513, le codifiche BGP sono la RFC 6514. La label unicast <code>24001</code> non identifica il gruppo. Se il core è già Segment Routing, la label esterna di una replica all’ingresso è il Segment Identifier del PE di uscita: il datagramma UDP del cliente non cambia.</p>
+        </div>
+      </section>
+
+      <section id="limiti" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>11</p></div><div class="section-copy"><h5 class="section-kicker">Limiti e ciò che resta</h5><h2>Il gruppo non diventa una consegna affidabile</h2><div class="section-intro"><p>Ogni scelta di questa unità sposta un costo. L’unicast lo mette sulla sorgente. La replica all’ingresso lo mette sul tratto PE-A—P2, una copia per PE. Il Profile 12 lo mette sui PE muti, che scartano. Il Profile 14 lo mette nello stato dell’albero, sui router P, che devono ricordare il punto-multipunto anche senza conoscere <code>239.1.1.1</code>. Nessuna delle quattro fa ritrasmettere un datagramma UDP perso.</p></div></div></div>
+        <div class="cards cards-3">
+          <article class="card accent-coral"><h5 class="card-tag">NON RISOLVE</h5><h3>UDP resta UDP</h3><p>Il video non ha numero di sequenza TCP né riscontro per ogni spettatore. Un perdita sul bivio è un buco nell’immagine, non una ritrasmissione chiesta da <code>10.30.30.30</code>. Il TCP 443 fra Host A e Host B continua a essere un altro flusso, con la label <code>24001</code>, e non passa da questo albero. Il multicast non lo alleggerisce e non lo sostituisce.</p></article>
+          <article class="card accent-amber"><h5 class="card-tag">SILENZIO</h5><h3>L’RPF può scartare senza dirlo</h3><p>Stato (S,G) presente, report IGMP presente, ping verso un altro host della sede riuscito: il video può essere comunque fermo, perché l’ingresso non è l’interfaccia verso <code>10.10.10.50</code>. Il confronto è sul PE che dovrebbe replicare, nella VRF BLU. Un underlay rotto, quello dell’Unità 11, toglie anche la loopback del PE radice: allora tace l’albero intero, non un solo gruppo.</p></article>
+          <article class="card accent-green"><h5 class="card-tag">STATO NEL CORE</h5><h3>L’albero ricorda, oppure la banda paga</h3><p>mLDP mette sui router P uno stato per albero, non per cliente. È meno di «P1 impara ogni gruppo», ed è più di zero. La replica all’ingresso non mette quello stato e duplica i bit. Bit Index Explicit Replication, nella RFC 8279, è il passo successivo: una maschera di bit nell’intestazione, e il router P replica senza un protocollo d’albero per ogni flusso. Non è il data plane di questa unità. È il limite che i Profile 12 e 14 lasciano aperto.</p></article>
+        </div>
+      </section>
+
+      <section id="visualizzazioni" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>12</p></div><div class="section-copy"><h5 class="section-kicker">Visualizzazioni riepilogative</h5><h2>Cinque domande, sul gruppo del Cliente Blu</h2><div class="section-intro"><p>Ogni pulsante riprende un pezzo e gli fa le cinque domande del percorso: che problema c’era, che cosa risolve, che cosa non risolve, dove sta, e se tocca il video oppure solo le tabelle. Le risposte usano <code>239.1.1.1</code>, <code>10.10.10.50</code> e le due sedi. Se un profilo non torna, la figura della sezione 10 è il controllo: stessa topologia, copia diversa.</p></div></div></div>
+        <div class="u13-five">
+          <div class="u13-five-nav button-row">
+            <button type="button" data-u13-tech="igmp" aria-pressed="true">IGMP</button>
+            <button type="button" data-u13-tech="rpf" aria-pressed="false">RPF</button>
+            <button type="button" data-u13-tech="pim" aria-pressed="false">PIM-SM</button>
+            <button type="button" data-u13-tech="mvpn" aria-pressed="false">Multicast VPN</button>
+            <button type="button" data-u13-tech="ngm" aria-pressed="false">Profile 12 e 14</button>
+          </div>
+          <div class="u13-five-card" id="u13TechCard">
+            <span class="u13-role u13-role-data" id="u13TechRole">DOMANDA DELL’HOST</span>
+            <h3 id="u13TechTitle">Internet Group Management Protocol</h3>
+            <p class="u13-five-lead" id="u13TechLead"></p>
+            <div class="u13-q">
+              <div data-u13-q><b></b><p></p></div>
+              <div data-u13-q><b></b><p></p></div>
+              <div data-u13-q><b></b><p></p></div>
+              <div data-u13-q><b></b><p></p></div>
+              <div data-u13-q><b></b><p></p></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="glossario" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>13</p></div><div class="section-copy"><h5 class="section-kicker">Glossario cumulativo</h5><h2>Sigle di questa unità, accanto a quelle già note</h2><div class="section-intro"><p>Le voci nuove descrivono il gruppo, l’albero e il modo in cui il provider lo trasporta. Sotto restano i mattoni delle Unità 0–12: se una frase usa VRF, RIB o label di servizio, la definizione è ancora qui.</p></div></div></div>
+        <dl class="glossary">
+          <dt>IGMP — Internet Group Management Protocol</dt><dd>Domanda dell’host sulla LAN: «voglio questo gruppo». Non attraversa il backbone. IGMPv2 chiede il gruppo; IGMPv3 può nominare la sorgente.</dd>
+          <dt>PIM-SM — Protocol Independent Multicast, Sparse Mode</dt><dd>Costruisce l’albero solo dove c’è domanda, leggendo la RIB unicast. Non è un IGP e non sostituisce BGP.</dd>
+          <dt>RP — Rendezvous Point</dt><dd>Punto di incontro dello stato (*,G). Nello scenario è CE-B, <code>10.20.20.1</code>. A regime il flusso può lasciarlo e andare dritto verso la sorgente.</dd>
+          <dt>(*,G) e (S,G)</dt><dd>«Qualsiasi sorgente verso il gruppo» e «questa sorgente verso il gruppo». Qui G è <code>239.1.1.1</code> e S è <code>10.10.10.50</code>. Non sono rotte unicast.</dd>
+          <dt>RPF — Reverse Path Forwarding</dt><dd>Accetta il datagramma multicast solo se entra dall’interfaccia usata per raggiungere la sorgente in unicast. Nel VRF, la sorgente è <code>10.10.10.50</code>.</dd>
+          <dt>OIL — Outgoing Interface List</dt><dd>Interfacce su cui replicare uno stato. Vuota vuol dire: il PE può anche ricevere il flusso, e lo scarta.</dd>
+          <dt>MFIB — Multicast Forwarding Information Base</dt><dd>Tabella di inoltro del multicast: ingresso, OIL, contatori. Parente della FIB, non la stessa riga che inoltra <code>10.20.20.77</code>.</dd>
+          <dt>SSM — Source-Specific Multicast</dt><dd>L’host chiede una sorgente precisa, in <code>232.0.0.0/8</code>, con IGMPv3. Non usa il RP. Il video di questa unità resta <code>239.1.1.1</code>.</dd>
+          <dt>mVPN — Multicast VPN</dt><dd>Il gruppo del cliente resta nel VRF. Fra i PE, BGP segnala l’albero; nel core si replica un tunnel del provider.</dd>
+          <dt>PMSI — Provider Multicast Service Interface</dt><dd>Il tunnel con cui il provider trasporta il multicast del VRF attraverso i router P.</dd>
+          <dt>MDT — Multicast Distribution Tree</dt><dd>L’albero di quel tunnel. Di default ci sono tutti i PE della VPN. Partizionato, ci sono solo i PE interessati a un dato PE di ingresso.</dd>
+          <dt>mLDP — Multipoint Label Distribution Protocol</dt><dd>Estensione di LDP che costruisce un albero punto-multipunto. I router P tengono lo stato dell’albero, non l’indirizzo <code>239.1.1.1</code>.</dd>
+          <dt>Profile 12 / Profile 14</dt><dd>Profili Cisco: BGP più mLDP. Il 12 usa l’MDT di default. Il 14 lo partiziona per PE di ingresso. Non sono due protocolli nuovi.</dd>
+          <dt>C-multicast</dt><dd>Il multicast del cliente, visto nel VRF. Si oppone all’albero del provider, che i router P sanno inoltrare senza conoscere il gruppo.</dd>
+          <dt>VRF — Virtual Routing and Forwarding</dt><dd>Contesto del Cliente Blu sul PE. Il gruppo e la rotta verso <code>10.10.10.0/24</code> stanno qui, non nella tabella globale.</dd>
+          <dt>MP-BGP — Multiprotocol Border Gateway Protocol</dt><dd>Già usato per VPNv4. Con l’address family MVPN porta anche l’auto-discovery dell’albero e il join del cliente fra PE.</dd>
+          <dt>UDP — User Datagram Protocol</dt><dd>Trasporto del video. Nessun riscontro per spettatore. È la ragione per cui il multicast non diventa affidabile solo perché l’albero è giusto.</dd>
+          <dt>CE / PE / P</dt><dd>Bordo cliente, bordo provider dove vive il VRF, core che inoltra label. Nel multicast i ruoli non si scambiano.</dd>
+        </dl>
+      </section>
+
+      <section id="autoverifica" class="unit-section">
+        <div class="section-head"><div class="section-number"><p>14</p></div><div class="section-copy"><h5 class="section-kicker">Verifica finale</h5><h2>Domande di orientamento</h2><div class="section-intro"><p>Rispondi prima di aprire la spiegazione. Le domande chiedono dove sta un indirizzo, chi replica e chi non deve imparare il gruppo. Se un conteggio non torna, torna ai pulsanti della sezione 10 con la stessa combinazione di sedi e di profilo.</p></div></div></div>
+        <div class="quiz">
+          <details><summary>1. Perché <code>239.1.1.1</code> non è una rotta della RIB unicast?</summary><p>Perché non nomina una LAN da raggiungere con il longest-prefix match. Nomina un interesse. Lo stato sta nella tabella multicast, come (*,G) o come <code>(10.10.10.50, 239.1.1.1)</code>, con una interfaccia di ingresso e una OIL. Installarlo come prefisso unicast non direbbe su quali sedi replicare, né da che parte sta la sorgente.</p></details>
+          <details><summary>2. Su PE-C, che cosa confronta l’RPF?</summary><p>L’interfaccia da cui è entrato il datagramma con l’interfaccia della rotta unicast verso <code>10.10.10.50</code>, nel VRF BLU. Non confronta la rotta verso <code>10.30.30.30</code>. Se le due interfacce differiscono, il datagramma si scarta anche quando l’unicast fra le sedi funziona.</p></details>
+          <details><summary>3. <code>224.0.0.5</code> e <code>239.1.1.1</code> fanno lo stesso mestiere?</summary><p>No. Il primo è OSPF sul collegamento, nel blocco che i router non inoltrano, ed è già nell’Unità 5. Il secondo è il video del Cliente Blu e può attraversare i PE dentro il tunnel del provider. Vedere Hello OSPF non dimostra che il video scorra.</p></details>
+          <details><summary>4. Perché <code>239.129.1.1</code> confonde uno switch che guarda solo il MAC?</summary><p>Perché nel MAC entrano 23 bit del gruppo, non 28. I due indirizzi diventano entrambi <code>01:00:5E:01:01:01</code>. Lo snooping e la cattura devono leggere l’IPv4. Il MAC multicast dice «è IPv4 multicast», non «è questo video».</p></details>
+          <details><summary>5. Che cosa cambia l’IGMP snooping, e che cosa non cambia?</summary><p>Cambia la lista delle porte della VLAN: la trama va al Ricevitore B e al router, non a ogni host della VLAN 20. Non cambia il datagramma UDP, non costruisce l’albero fra PE-A e PE-C, e non informa P1. Senza report, anche il backbone corretto non ha un ramo da accendere.</p></details>
+          <details><summary>6. A che cosa serve il RP <code>10.20.20.1</code>, se poi il flusso va dritto alla sorgente?</summary><p>Serve allo stato (*,G), quando il ricevitore non ha ancora nominato <code>10.10.10.50</code>, e al Register con cui i primi datagrammi si presentano. Dopo il passaggio a (S,G) l’albero di sede C non deve più fare tappa in sede B. Il RP non resta per forza sul percorso dei dati. In SSM, con un gruppo <code>232.0.0.0/8</code> e IGMPv3, questo incontro non si usa: il Cliente Blu, però, è su <code>239.1.1.1</code>.</p></details>
+          <details><summary>7. Il ping verso <code>10.10.10.50</code> riesce e il video no. Da dove si parte?</summary><p>Dal router che dovrebbe replicare, nel VRF: interfaccia RPF verso la sorgente contro interfaccia di ingresso dello stato (S,G), e OIL non vuota. Il ping riuscito dice che una rotta c’è. Non dice che il datagramma multicast stia entrando da quella rotta. Il ping fallito, invece, rende il video improbabile: l’RPF non avrebbe una porta.</p></details>
+          <details><summary>8. P1 impara <code>239.1.1.1</code>?</summary><p>No. Inoltra la label dell’albero mLDP, oppure una copia MPLS diretta alla loopback di un PE. Il gruppo resta nel VRF, sui PE e sui CE. Insegnarlo a P1 sarebbe la fine del core che non conosce le rotte del cliente.</p></details>
+          <details><summary>9. Profile 12, solo la sede B è iscritta. Che cosa arriva a PE-C?</summary><p>Una copia, perché l’MDT di default comprende tutti i PE della VPN. PE-C la scarta: verso CE-C la OIL è vuota. È il costo del profilo semplice. Il Profile 14, nella stessa situazione, non crea il ramo.</p></details>
+          <details><summary>10. Profile 14, entrambe le sedi iscritte. Quante copie sul tratto P1—P2?</summary><p>Una. La sorgente ha emesso un datagramma, PE-A ne ha immesso uno nell’albero, P2 replica verso PE-B e verso PE-C. Due copie su quel tratto sono il comportamento dell’unicast o della replica all’ingresso, non del Profile 14.</p></details>
+          <details><summary>11. La label <code>24001</code> identifica il gruppo?</summary><p>No. È la label di servizio unicast di <code>10.20.20.0/24</code>, quella dell’Unità 9 e del viaggio dell’Unità 10. Il multicast del VRF usa un altro binding: la label dell’albero, o una label del tunnel più la label di trasporto verso la loopback del PE. Host B sulla porta 443 non passa da questo stato.</p></details>
+          <details><summary>12. Quale riga della catena è il video?</summary><p>Solo la sesta: il datagramma UDP da <code>10.10.10.50</code> a <code>239.1.1.1</code>. IGMP, PIM e BGP MVPN preparano le tabelle. Il Register porta già i primi datagrammi, ma incapsulati verso il RP: è controllo, non ancora la replica sull’albero. OSPF non compare nella catena: la rotta unicast c’era prima, e il suo Hello non è questo flusso.</p></details>
+          <details><summary>13. Che cosa resta delle Unità 0–12 dopo questo gruppo?</summary><p>Il datagramma unicast, la VRF, l’IGP per le loopback, BGP per le rotte del cliente, e la differenza fra trama, datagramma e label. Il multicast aggiunge una domanda e un albero. Non aggiunge un piano, e non rende affidabile un flusso UDP.</p></details>
+        </div>
+      </section>
+
+      <div class="closing"><h5 class="section-kicker">Punto di arrivo dell’Unità 13</h5><h2>Il video si replica al bivio. Il gruppo resta nel VRF.</h2><p>La sorgente <code>10.10.10.50</code> emette un datagramma UDP verso <code>239.1.1.1</code>. IGMP, sulla LAN, dice quali porte lo vogliono. PIM-SM, nel VRF, costruisce (*,G) verso il RP e poi (S,G) verso la sorgente, accettando il datagramma solo se entra dall’interfaccia RPF. Fra i PE, BGP MVPN trasporta la domanda. Nel core, il Profile 14 tiene una sola copia fino a P2 e replica verso le sedi iscritte; il Profile 12 consegna anche a un PE muto, che scarta; la replica all’ingresso evita lo stato d’albero e paga in copie sul tratto comune.</p><p>P1 non impara il gruppo. La label <code>24001</code> continua a servire l’unicast verso <code>10.20.20.0/24</code>. Host A e Host B, sulla porta TCP 443, non sono questo flusso. L’IGP risponde ancora «da quale interfaccia si raggiunge la sorgente». BGP risponde «quale PE ha chiesto il gruppo». Sono i due mestieri già studiati, applicati a un destinatario che non è un host.</p></div>
+      <div class="sources"><p><strong>Riferimenti essenziali:</strong><br>
+        <a href="https://www.rfc-editor.org/rfc/rfc1112.html">RFC 1112 — Host Extensions for IP Multicasting</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc2236.html">RFC 2236 — Internet Group Management Protocol, Version 2</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc3376.html">RFC 3376 — Internet Group Management Protocol, Version 3</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc2365.html">RFC 2365 — Administratively Scoped IP Multicast</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc5771.html">RFC 5771 — IANA Guidelines for IPv4 Multicast Address Assignments</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc4607.html">RFC 4607 — Source-Specific Multicast for IP</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc7761.html">RFC 7761 — Protocol Independent Multicast — Sparse Mode</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc6513.html">RFC 6513 — Multicast in MPLS/BGP IP VPNs</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc6514.html">RFC 6514 — BGP Encodings for Multicast in MPLS/BGP IP VPNs</a> ·
+        <a href="https://www.rfc-editor.org/rfc/rfc8279.html">RFC 8279 — Multicast Using Bit Index Explicit Replication</a> ·
+        <a href="https://www.cisco.com/c/en/us/support/docs/ip/multicast/118985-configure-mVPN-00.html">Cisco — Configure mVPN Profiles Within Cisco IOS</a></p></div>
+    </main>
+    <footer><span>NETWORKING ACADEMY · UNITÀ 13</span><span>Dal dato del cliente al backbone del Service Provider</span></footer>
+    <p class="legal-note">Progetto personale, non affiliato né approvato da Cisco Systems, Inc. Cisco è un marchio di Cisco Systems, Inc.<br>
+      <span lang="en">Personal project, not affiliated with or endorsed by Cisco Systems, Inc. Cisco is a trademark of Cisco Systems, Inc.</span></p>
+  </div>
+  <script src="assets/tema.js?v=2"></script>
+  <script src="assets/unita-13.js?v=1"></script>
+</body>
+</html>
