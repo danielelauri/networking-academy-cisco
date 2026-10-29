@@ -214,6 +214,12 @@
           <div class="route-status" id="routeStatus"><strong>Risultato: 10.20.30.0/24.</strong> Anche /16, /8 e /0 corrispondono, ma /24 fissa più bit ed è quindi la scelta più specifica: uscita verso R-C.</div>
         </div>
         <div class="callout"><strong>Due decisioni distinte.</strong> Il longest-prefix match sceglie una rotta. La metrica o la distanza amministrativa possono aver contribuito prima a scegliere quale rotta installare quando più candidati descrivevano lo stesso prefisso; non sostituiscono la regola del prefisso più lungo fra prefissi diversi.</div>
+        <div class="cards-3">
+          <article class="info-card" style="--accent: var(--blue)"><div class="card-icon">A·B·C</div><h3>Le classi storiche</h3><p>Prima del Classless Inter-Domain Routing (CIDR) la lunghezza della rete era implicita nei primi bit. Classe A: primo ottetto 1–126, rete nel <strong>solo primo ottetto</strong> e tre ottetti agli host (/8). Classe B: 128–191, due ottetti di rete (/16). Classe C: 192–223, tre ottetti di rete (/24).</p></article>
+          <article class="info-card" style="--accent: var(--purple)"><div class="card-icon">D·E</div><h3>Multicast e riservati</h3><p>Classe D: 224–239, cioè <code>224.0.0.0/4</code>, riservata al multicast; non ha una parte di rete e una di host. Classe E: 240–255, sperimentale. Il blocco 127 è riservato al loopback.</p></article>
+          <article class="info-card" style="--accent: var(--amber)"><div class="card-icon">CIDR</div><h3>Perché oggi conta il prefisso</h3><p>Il CIDR ha reso esplicita la lunghezza del prefisso: <code>10.20.20.0/24</code> è una /24 anche se il primo ottetto è di classe A. Le classi restano nel linguaggio comune, nelle domande d’esame e nel comportamento di alcuni comandi.</p></article>
+        </div>
+        <div class="callout"><strong>Multicast: uno verso molti, una sola copia per collegamento.</strong> Un datagramma IPv4 multicast ha come destinazione un gruppo, non un host. La sorgente invia un solo flusso e la rete lo replica soltanto dove ci sono ricevitori: per raggiungere molte destinazioni è il metodo più efficiente, perché non moltiplica le copie come l’unicast e non coinvolge tutti come il broadcast. Lo stesso meccanismo permette di distribuire contemporaneamente più flussi a gruppi diversi. Il multicast risparmia banda; un contenuto video può richiederne molta, ma non per colpa del multicast. Anche Open Shortest Path First (OSPF) usa due gruppi multicast locali, <code>224.0.0.5</code> e <code>224.0.0.6</code> (Unità 5).</div>
       </section>
 
       <section id="mtu">
@@ -316,6 +322,8 @@
           <div class="gloss-item"><dt>IP</dt><dd>Internet Protocol — protocollo di indirizzamento e inoltro fra reti.</dd></div>
           <div class="gloss-item"><dt>IPv4 / IPv6</dt><dd>Internet Protocol version 4 / version 6 — versioni con indirizzi rispettivamente da 32 e 128 bit.</dd></div>
           <div class="gloss-item"><dt>CIDR</dt><dd>Classless Inter-Domain Routing — indirizzamento e aggregazione basati su prefissi di lunghezza esplicita.</dd></div>
+          <div class="gloss-item"><dt>Classi A–E</dt><dd>Indirizzamento classful storico: la classe, letta dal primo ottetto, fissava la lunghezza della rete; la classe D è il multicast.</dd></div>
+          <div class="gloss-item"><dt>Multicast</dt><dd>Consegna da una sorgente a un gruppo di ricevitori, con replica solo dove serve; IPv4 usa <code>224.0.0.0/4</code>.</dd></div>
           <div class="gloss-item"><dt>IHL</dt><dd>Internet Header Length — lunghezza dell'header IPv4 in parole da 32 bit.</dd></div>
           <div class="gloss-item"><dt>TTL</dt><dd>Time To Live — campo IPv4 ridotto a ogni router per limitare la permanenza del datagramma.</dd></div>
           <div class="gloss-item"><dt>DSCP</dt><dd>Differentiated Services Code Point — marcatura per trattamento differenziato del traffico.</dd></div>
@@ -364,6 +372,8 @@
           <details><summary>9. Quale differenza di frammentazione separa IPv4 e IPv6?</summary><p>In IPv4 un router può frammentare quando consentito. In IPv6 i router non frammentano; la sorgente può inserire un Fragment extension header e deve adattarsi alla Path MTU.</p></details>
           <details><summary>10. Datagramma e trama sono sinonimi?</summary><p>No. Il datagramma IP è la PDU del livello Internet; la trama è l'involucro del livello di collegamento usato sul link corrente. Un datagramma può attraversare più trame successive.</p></details>
           <details><summary>11. Un frammento IPv4 si perde lungo il percorso: che cosa deve ritrasmettere il mittente TCP?</summary><p>L'intero segmento TCP. La destinazione non riesce a ricomporre il datagramma IP e lo scarta, quindi TCP non riceve il segmento. Il mittente se ne accorge dai riscontri mancanti e ritrasmette il segmento in un nuovo datagramma IP, che verrà frammentato di nuovo se la MTU del percorso resta insufficiente.</p></details>
+          <details><summary>12. Quale classe IPv4 usa solo il primo ottetto per la rete e lascia tre ottetti agli host?</summary><p>La classe A, con primo ottetto da 1 a 126 e maschera implicita /8. La classe D, spesso inserita fra le opzioni, non ha parte di host: è il multicast.</p></details>
+          <details><summary>13. Fra «richiede molta banda», «consegna più flussi contemporaneamente», «pesa sulla sorgente senza toccare i ricevitori» e «è il modo più efficiente per raggiungere più ricevitori», quali due frasi descrivono il multicast IPv4?</summary><p>Consegna più flussi contemporaneamente ed è il modo più efficiente per raggiungere più ricevitori. Il multicast fa risparmiare banda, e non scarica il lavoro sulla sorgente: la sorgente invia una copia e la rete la replica.</p></details>
         </div>
       </section>
 

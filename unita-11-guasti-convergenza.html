@@ -329,6 +329,7 @@ CE-A# traceroute 10.20.20.77
 
 # Output abbreviato e illustrativo: la metrica 41 comprende 40 dei collegamenti e 1 della loopback.</code></pre></div>
         <div class="callout"><p><strong>Prima di chiudere o scalare il caso.</strong> Raccogli orari, output e topologia: la sequenza dei log su P1 e P2, lo stato delle adiacenze, la tabella di PE-A prima e dopo, la durata misurata dell’interruzione. Quando la rete ha già trovato il nuovo percorso, il guasto lascia poche tracce: spesso le uniche evidenze sono i log e i contatori.</p></div>
+        <div class="callout"><p><strong>Quando il sintomo è nel Border Gateway Protocol (BGP).</strong> Se l’underlay è sano ma il servizio manca, si legge la sessione con <code>show ip bgp summary</code> o, per le VPN, <code>show bgp vpnv4 unicast all summary</code>. Una sessione ferma in <em>Idle</em> o <em>Active</em> non è stabilita: Active indica un tentativo Transmission Control Protocol (TCP) non riuscito, per peer irraggiungibile, <code>update-source</code> errato o filtri sulla porta 179. Se la sessione è Established ma la rotta non guida il traffico, si controllano il NEXT_HOP, che deve essere raggiungibile, e le rotte marcate <code>r</code>, cioè RIB-failure: un’altra sorgente con distanza amministrativa più bassa possiede lo stesso prefisso. L’Unità 8 descrive gli stati e la lettura della tabella BGP.</p></div>
       </section>
 
       <section id="limiti" class="unit-section">

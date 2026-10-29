@@ -205,6 +205,7 @@
           <article class="info-card" style="--accent: var(--coral)"><div class="card-icon">S+C</div><h3>Service Tag + Customer Tag</h3><p>Il provider può aggiungere un Service Tag esterno, tipicamente 0x88A8, conservando il Customer Tag interno 0x8100. Clienti differenti possono riusare gli stessi Customer VLAN Identifier (C-VID).</p></article>
         </div>
         <div class="callout"><strong>Trunk CE–PE.</strong> Sul collegamento Customer Edge–Provider Edge possono essere consegnate più VLAN cliente. Il tagging effettivo dipende dal contratto e dalla configurazione: singolo tag, doppio tag, subinterfacce o accesso untagged sono scelte di servizio, non proprietà universali di ogni collegamento.</div>
+        <div class="callout"><strong>VLAN Trunking Protocol (VTP): chi decide l’elenco delle VLAN.</strong> VTP è un protocollo Cisco che propaga sui trunk l’elenco delle VLAN di un dominio. In modalità <em>server</em> lo switch crea e modifica le VLAN e le annuncia; in <em>client</em> le riceve e non può modificarle; in <em>transparent</em> mantiene VLAN solo locali e inoltra gli annunci senza applicarli; in <em>off</em>, disponibile da VTPv3, non partecipa e non inoltra gli annunci. Una modifica che deve restare sullo switch locale richiede quindi transparent. In un backbone di provider VTP è di norma disattivato: l’elenco delle VLAN si configura switch per switch.</div>
       </section>
 
       <section id="hop">
@@ -300,6 +301,7 @@
           <div class="gloss-item"><dt>SFD</dt><dd>Start Frame Delimiter — delimita l'inizio della MAC frame dopo il preambolo.</dd></div>
           <div class="gloss-item"><dt>ARP</dt><dd>Address Resolution Protocol — associa un indirizzo IPv4 al MAC del prossimo hop locale.</dd></div>
           <div class="gloss-item"><dt>VLAN</dt><dd>Virtual Local Area Network — dominio Layer 2 logico separato.</dd></div>
+          <div class="gloss-item"><dt>VTP</dt><dd>VLAN Trunking Protocol — protocollo Cisco che propaga l'elenco delle VLAN; modalità server, client, transparent e off.</dd></div>
           <div class="gloss-item"><dt>TPID</dt><dd>Tag Protocol Identifier — identifica il tipo di tag IEEE 802.1Q.</dd></div>
           <div class="gloss-item"><dt>TCI</dt><dd>Tag Control Information — PCP, DEI e VLAN Identifier.</dd></div>
           <div class="gloss-item"><dt>PCP</dt><dd>Priority Code Point — tre bit di priorità nel tag.</dd></div>
@@ -343,6 +345,7 @@
           <details><summary>7. Perché una trama Ethernet non è end-to-end attraverso più router?</summary><p>Perché gli indirizzi MAC, il tag e la FCS hanno significato sul collegamento o dominio Layer 2 corrente. Ogni router decapsula e crea un involucro adatto al next hop successivo.</p></details>
           <details><summary>8. In una L3VPN il PE trasporta intatta la trama cliente nel core?</summary><p>No. Il PE termina la trama, esamina il datagramma IP nel contesto VRF e costruisce label e trama del core. In una L2VPN, invece, una PDU Ethernet o service instance cliente può essere il contenuto del servizio.</p></details>
           <details><summary>9. EtherType 0x8847 che cosa annuncia?</summary><p>Che il payload inizia con uno stack di label Multiprotocol Label Switching. Dopo le label si trova il contenuto trasportato, per esempio il datagramma cliente.</p></details>
+          <details><summary>10. Una modifica alle VLAN deve restare sullo switch locale. Quale modalità VLAN Trunking Protocol (VTP) usi?</summary><p>Transparent: lo switch gestisce le proprie VLAN e inoltra gli annunci VTP senza applicarli. Server e client sincronizzano le VLAN nel dominio. La modalità off esiste solo da VTPv3 e non inoltra nemmeno gli annunci: è il distrattore tipico per chi conosce le versioni recenti.</p></details>
         </div>
       </section>
 

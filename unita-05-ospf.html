@@ -13,7 +13,7 @@
     } catch (_) {}
   </script>
   <link rel="stylesheet" href="assets/corso.css?v=3">
-  <link rel="stylesheet" href="assets/unita-05.css?v=2">
+  <link rel="stylesheet" href="assets/unita-05.css?v=3">
 </head>
 <body>
   <div class="page">
@@ -167,7 +167,7 @@
 <tbody>
 <tr>
 <td><strong>OSPF process ID Cisco</strong></td>
-<td>Distingue localmente un processo OSPF sul router</td>
+<td>Distingue localmente un processo OSPF sul router; su IOS è obbligatorio nel comando <code>router ospf</code></td>
 <td>Router ID o parametro che deve coincidere fra vicini</td>
 </tr>
 <tr>
@@ -189,6 +189,20 @@
 </table>
 <div class="callout">
 <p><strong>Correzione permanente:</strong> due router Cisco adiacenti possono usare process ID OSPF differenti. Devono invece essere compatibili i parametri che partecipano alla formazione del vicinato, come Area ID, timer, tipo di area, autenticazione e network type.</p>
+</div>
+<div class="figure">
+  <div class="figure-title"><strong>Esempio IOS: attivare OSPF sul collegamento PE-A–P1</strong><span>sintassi illustrativa, piano di indirizzamento del corso</span></div>
+  <pre class="u5-cli"><code>router ospf 1
+ router-id 192.0.2.1
+ network 203.0.113.0 0.0.0.3 area 0
+ network 192.0.2.1 0.0.0.0 area 0</code></pre>
+  <p class="figure-note"><strong>Legenda:</strong> <code>1</code> = process ID, locale e obbligatorio; <code>0.0.0.3</code> = wildcard mask del /30 <code>203.0.113.0/30</code>; <code>area 0</code> = Area ID del backbone; <code>0.0.0.0</code> = wildcard che seleziona un solo indirizzo, qui la loopback di PE-A.</p>
+</div>
+<div class="callout">
+<p><strong>Tre numeri da non confondere.</strong> In <code>router ospf 10</code> il valore è il process ID; in <code>network … area 10</code> è l’Area ID; in <code>router eigrp 10</code> è il numero di sistema autonomo di un altro protocollo. Il comando <code>network</code> non annuncia una rete: individua le interfacce i cui indirizzi ricadono nell’intervallo indicato e le associa all’area. Per inserire nell’area 0 la rete <code>10.2.3.0/24</code> serve <code>network 10.2.3.0 0.0.0.255 area 0</code> dentro <code>router ospf</code>. La wildcard mask è l’inverso della maschera: un bit a 0 deve coincidere, un bit a 1 è indifferente.</p>
+</div>
+<div class="callout">
+<p><strong>Hello verso indirizzi multicast.</strong> Sulle reti multiaccess come Ethernet i pacchetti Open Shortest Path First (OSPF) usano due indirizzi multicast Internet Protocol version 4 (IPv4) con TTL 1: <code>224.0.0.5</code> (AllSPFRouters, tutti i router OSPF) e <code>224.0.0.6</code> (AllDRouters, Designated Router e Backup Designated Router). Un collegamento che non inoltra il multicast impedisce la scoperta dei vicini; sui collegamenti non-broadcast si configurano invece vicini unicast.</p>
 </div>
 </div>
 <div id="pacchetti" class="unit-section">
@@ -703,6 +717,14 @@ Il data plane può continuare temporaneamente a usare le informazioni già progr
 <dd>
 <strong>Intermediate System to Intermediate System</strong> — IGP link-state alternativo.
 </dd>
+<dt>Wildcard mask</dt>
+<dd>
+<strong>Maschera inversa</strong> — usata nel comando <code>network</code> di OSPF e nelle ACL: 0 = bit da confrontare, 1 = bit indifferente.
+</dd>
+<dt>AllSPFRouters / AllDRouters</dt>
+<dd>
+<strong>224.0.0.5 / 224.0.0.6</strong> — indirizzi multicast verso tutti i router OSPF e verso DR e BDR.
+</dd>
 <dt>RIB / FIB</dt>
 <dd>
 <strong>Routing Information Base / Forwarding Information Base</strong> — scelta di routing e struttura di inoltro.
@@ -766,6 +788,10 @@ Il data plane può continuare temporaneamente a usare le informazioni già progr
 <details><summary>8. “Percorso più breve” significa sempre minor numero di router?</summary><p>No. SPF minimizza il costo OSPF totale; il costo non coincide necessariamente con hop count o latenza reale.</p></details>
 <details><summary>9. In quale ordine essenziale OSPF arriva al forwarding?</summary><p>Adiacenze → LSA/LSDB → SPF → rotte candidate → RIB → FIB e adiacenze Layer 2.</p></details>
 <details><summary>10. Le aree OSPF separano automaticamente i clienti come una VRF?</summary><p>No. Le aree suddividono gerarchicamente il dominio link-state; una VRF crea un contesto separato di routing e forwarding.</p></details>
+<details><summary>11. Il process ID OSPF su Cisco IOS è facoltativo?</summary><p>No. È obbligatorio in <code>router ospf &lt;process-id&gt;</code> ed è localmente significativo: identifica un’istanza di OSPF, con la propria LSDB, sul solo router locale. Non deve coincidere con quello dei vicini.</p></details>
+<details><summary>12. Quali due comandi inseriscono la rete 10.2.3.0/24 nell’area 0?</summary><p><code>router ospf &lt;process-id&gt;</code> e, al suo interno, <code>network 10.2.3.0 0.0.0.255 area 0</code>. Attenzione ai numeri: <code>area 10</code> indica un’altra area, <code>router eigrp</code> un altro protocollo.</p></details>
+<details><summary>13. OSPF usa il multicast IP sulle reti multiaccess come Ethernet?</summary><p>Sì. Gli Hello e gli aggiornamenti usano <code>224.0.0.5</code> per tutti i router OSPF e <code>224.0.0.6</code> per DR e BDR, sempre con TTL 1.</p></details>
+<details><summary>14. Due vicini restano in EXSTART o EXCHANGE: tra multicast interrotto, interfaccia passiva, ACL sugli Hello e MTU diversa, quale causa è coerente con lo stato?</summary><p>La MTU diversa. Le altre tre cause impediscono già lo scambio degli Hello: il vicino non arriverebbe nemmeno a 2-WAY. EXSTART ed EXCHANGE indicano che gli Hello funzionano e che si blocca lo scambio dei Database Description.</p></details>
 </div>
 </div>
 <div class="closing">
